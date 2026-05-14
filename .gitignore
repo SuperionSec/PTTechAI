@@ -1,0 +1,102 @@
+# ==============================
+# Environment & Secrets
+# ==============================
+.env
+.env.local
+.env.production
+.env.*.local
+
+# ==============================
+# Python
+# ==============================
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ==============================
+# Node.js / Frontend
+# ==============================
+frontend/node_modules/
+frontend/dist/
+
+# ==============================
+# Database & Scan Data
+# ==============================
+data/neurosploit.db
+data/neurosploit.db.*
+data/*.db
+data/*.db.*
+data/execution_history.json
+data/access_control_learning.json
+data/adaptive_learning.json
+data/providers.json
+data/reasoning_memory.json
+data/vectorstore/
+data/custom-knowledge/uploads/
+data/reports/
+
+# ==============================
+# Reports & Screenshots
+# ==============================
+reports/screenshots/
+reports/*.json
+screenshots/
+
+# ==============================
+# Logs & PIDs
+# ==============================
+logs/
+.pids/
+*.log
+
+# ==============================
+# macOS
+# ==============================
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ==============================
+# IDE & Editor
+# ==============================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ==============================
+# Claude Code local config
+# ==============================
+.claude/
+.trae/
+
+# ==============================
+# Docker (runtime)
+# ==============================
+docker/*.env
+
+# ==============================
+# Temp & Test files
+# ==============================
+data/providers.tmp
+*_test.py
+test_*.py
+
+# ==============================
+# Results (runtime output)
+# ==============================
+results/
+
+# ==============================
+# Large binary files
+# ==============================
+projeto.zip
+*.zip

@@ -1,0 +1,173 @@
+"""
+Initialize default permissions and role-permission mappings
+PTTechAI v0.1.0 - RBAC Permission System
+"""
+import uuid
+import asyncio
+from sqlalchemy import select
+from backend.db.database import async_session_factory
+from backend.models.permission import Permission, RolePermission, PermissionScope, PermissionAction
+
+
+# Default permission definitions
+DEFAULT_PERMISSIONS = [
+    # Scan permissions
+    {"name": "scan:create", "description": "Create new scans", "scope": PermissionScope.SCAN, "action": PermissionAction.CREATE},
+    {"name": "scan:read", "description": "View scan results and details", "scope": PermissionScope.SCAN, "action": PermissionAction.READ},
+    {"name": "scan:update", "description": "Update scan settings", "scope": PermissionScope.SCAN, "action": PermissionAction.UPDATE},
+    {"name": "scan:delete", "description": "Delete scans", "scope": PermissionScope.SCAN, "action": PermissionAction.DELETE},
+    {"name": "scan:execute", "description": "Start/stop scans", "scope": PermissionScope.SCAN, "action": PermissionAction.EXECUTE},
+
+    # Target permissions
+    {"name": "target:create", "description": "Add new targets", "scope": PermissionScope.TARGET, "action": PermissionAction.CREATE},
+    {"name": "target:read", "description": "View targets", "scope": PermissionScope.TARGET, "action": PermissionAction.READ},
+    {"name": "target:update", "description": "Update targets", "scope": PermissionScope.TARGET, "action": PermissionAction.UPDATE},
+    {"name": "target:delete", "description": "Delete targets", "scope": PermissionScope.TARGET, "action": PermissionAction.DELETE},
+
+    # Report permissions
+    {"name": "report:create", "description": "Generate reports", "scope": PermissionScope.REPORT, "action": PermissionAction.CREATE},
+    {"name": "report:read", "description": "View reports", "scope": PermissionScope.REPORT, "action": PermissionAction.READ},
+    {"name": "report:delete", "description": "Delete reports", "scope": PermissionScope.REPORT, "action": PermissionAction.DELETE},
+
+    # Vulnerability permissions
+    {"name": "vulnerability:read", "description": "View vulnerabilities", "scope": PermissionScope.VULNERABILITY, "action": PermissionAction.READ},
+    {"name": "vulnerability:update", "description": "Update vulnerability status", "scope": PermissionScope.VULNERABILITY, "action": PermissionAction.UPDATE},
+    {"name": "vulnerability:delete", "description": "Delete vulnerabilities", "scope": PermissionScope.VULNERABILITY, "action": PermissionAction.DELETE},
+
+    # Dashboard permissions
+    {"name": "dashboard:read", "description": "Access dashboard", "scope": PermissionScope.DASHBOARD, "action": PermissionAction.READ},
+
+    # Settings permissions
+    {"name": "settings:read", "description": "View system settings", "scope": PermissionScope.SETTINGS, "action": PermissionAction.READ},
+    {"name": "settings:update", "description": "Update system settings", "scope": PermissionScope.SETTINGS, "action": PermissionAction.UPDATE},
+    {"name": "settings:manage", "description": "Full system management", "scope": PermissionScope.SETTINGS, "action": PermissionAction.MANAGE},
+
+    # User management permissions (admin only)
+    {"name": "user:create", "description": "Create users", "scope": PermissionScope.USER, "action": PermissionAction.CREATE},
+    {"name": "user:read", "description": "View users", "scope": PermissionScope.USER, "action": PermissionAction.READ},
+    {"name": "user:update", "description": "Update users", "scope": PermissionScope.USER, "action": PermissionAction.UPDATE},
+    {"name": "user:delete", "description": "Delete users", "scope": PermissionScope.USER, "action": PermissionAction.DELETE},
+    {"name": "user:manage", "description": "Full user management", "scope": PermissionScope.USER, "action": PermissionAction.MANAGE},
+
+    # API Key permissions
+    {"name": "api_key:create", "description": "Create API keys", "scope": PermissionScope.API_KEY, "action": PermissionAction.CREATE},
+    {"name": "api_key:read", "description": "View API keys", "scope": PermissionScope.API_KEY, "action": PermissionAction.READ},
+    {"name": "api_key:delete", "description": "Delete API keys", "scope": PermissionScope.API_KEY, "action": PermissionAction.DELETE},
+
+    # Provider permissions
+    {"name": "provider:read", "description": "View LLM providers", "scope": PermissionScope.PROVIDER, "action": PermissionAction.READ},
+    {"name": "provider:update", "description": "Configure providers", "scope": PermissionScope.PROVIDER, "action": PermissionAction.UPDATE},
+    {"name": "provider:manage", "description": "Full provider management", "scope": PermissionScope.PROVIDER, "action": PermissionAction.MANAGE},
+
+    # Agent permissions
+    {"name": "agent:read", "description": "View agent tasks", "scope": PermissionScope.AGENT, "action": PermissionAction.READ},
+    {"name": "agent:execute", "description": "Run agent tasks", "scope": PermissionScope.AGENT, "action": PermissionAction.EXECUTE},
+
+    # Scheduler permissions
+    {"name": "scheduler:read", "description": "View scheduled tasks", "scope": PermissionScope.SCHEDULER, "action": PermissionAction.READ},
+    {"name": "scheduler:manage", "description": "Manage scheduled tasks", "scope": PermissionScope.SCHEDULER, "action": PermissionAction.MANAGE},
+
+    # Knowledge permissions
+    {"name": "knowledge:read", "description": "View knowledge base", "scope": PermissionScope.KNOWLEDGE, "action": PermissionAction.READ},
+    {"name": "knowledge:update", "description": "Update knowledge base", "scope": PermissionScope.KNOWLEDGE, "action": PermissionAction.UPDATE},
+]
+
+# Role-Permission mappings
+ROLE_PERMISSIONS = {
+    "admin": [
+        "scan:create", "scan:read", "scan:update", "scan:delete", "scan:execute",
+        "target:create", "target:read", "target:update", "target:delete",
+        "report:create", "report:read", "report:delete",
+        "vulnerability:read", "vulnerability:update", "vulnerability:delete",
+        "dashboard:read",
+        "settings:read", "settings:update", "settings:manage",
+        "user:create", "user:read", "user:update", "user:delete", "user:manage",
+        "api_key:create", "api_key:read", "api_key:delete",
+        "provider:read", "provider:update", "provider:manage",
+        "agent:read", "agent:execute",
+        "scheduler:read", "scheduler:manage",
+        "knowledge:read", "knowledge:update",
+    ],
+    "user": [
+        "scan:create", "scan:read", "scan:update", "scan:delete", "scan:execute",
+        "target:create", "target:read", "target:update", "target:delete",
+        "report:create", "report:read", "report:delete",
+        "vulnerability:read", "vulnerability:update",
+        "dashboard:read",
+        "settings:read",
+        "api_key:create", "api_key:read", "api_key:delete",
+        "provider:read",
+        "agent:read", "agent:execute",
+        "scheduler:read",
+        "knowledge:read",
+    ],
+    "viewer": [
+        "scan:read",
+        "target:read",
+        "report:read",
+        "vulnerability:read",
+        "dashboard:read",
+        "settings:read",
+        "provider:read",
+        "agent:read",
+        "knowledge:read",
+    ],
+}
+
+
+async def init_permissions():
+    """Initialize default permissions and role mappings"""
+    async with async_session_factory() as db:
+        # Create permissions
+        permission_map = {}
+        for perm_data in DEFAULT_PERMISSIONS:
+            result = await db.execute(
+                select(Permission).where(Permission.name == perm_data["name"])
+            )
+            existing = result.scalar_one_or_none()
+            if not existing:
+                perm = Permission(
+                    id=str(uuid.uuid4()),
+                    name=perm_data["name"],
+                    description=perm_data["description"],
+                    scope=perm_data["scope"],
+                    action=perm_data["action"],
+                )
+                db.add(perm)
+                await db.flush()
+                permission_map[perm_data["name"]] = perm.id
+                print(f"[PERMISSION] Created: {perm_data['name']}")
+            else:
+                permission_map[perm_data["name"]] = existing.id
+
+        await db.commit()
+
+        # Create role-permission mappings
+        for role, perm_names in ROLE_PERMISSIONS.items():
+            for perm_name in perm_names:
+                perm_id = permission_map.get(perm_name)
+                if not perm_id:
+                    continue
+
+                result = await db.execute(
+                    select(RolePermission).where(
+                        RolePermission.role == role,
+                        RolePermission.permission_id == perm_id
+                    )
+                )
+                existing = result.scalar_one_or_none()
+                if not existing:
+                    rp = RolePermission(
+                        id=str(uuid.uuid4()),
+                        role=role,
+                        permission_id=perm_id,
+                    )
+                    db.add(rp)
+                    print(f"[ROLE_PERMISSION] Created: {role} -> {perm_name}")
+
+        await db.commit()
+        print("[PERMISSIONS] Initialization completed")
+
+
+if __name__ == "__main__":
+    asyncio.run(init_permissions())

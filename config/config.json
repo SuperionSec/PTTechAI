@@ -1,0 +1,63 @@
+{
+    "llm": {
+        "default_profile": "gemini_pro_default",
+        "profiles": {
+            "gemini_pro_default": {
+                "provider": "gemini",
+                "model": "gemini-pro",
+                "api_key": "${GEMINI_API_KEY}",
+                "temperature": 0.7,
+                "max_tokens": 4096,
+                "input_token_limit": 30720,
+                "output_token_limit": 2048,
+                "cache_enabled": true,
+                "search_context_level": "medium",
+                "pdf_support_enabled": true,
+                "guardrails_enabled": true,
+                "hallucination_mitigation_strategy": "consistency_check"
+            }
+        }
+    },
+    "agent_roles": {
+        "pentest_generalist": {
+            "enabled": true,
+            "tools_allowed": [
+                "nmap",
+                "metasploit",
+                "burpsuite",
+                "sqlmap",
+                "hydra"
+            ],
+            "description": "Performs comprehensive penetration tests across various domains."
+        },
+        "bug_bounty_hunter": {
+            "enabled": true,
+            "tools_allowed": [
+                "subfinder",
+                "nuclei",
+                "burpsuite",
+                "sqlmap"
+            ],
+            "description": "Focuses on web application vulnerabilities."
+        }
+    },
+    "methodologies": {
+        "owasp_top10": true,
+        "cwe_top25": true,
+        "network_pentest": true,
+        "ad_pentest": true,
+        "web_security": true
+    },
+    "tools": {
+        "nmap": "/usr/bin/nmap",
+        "metasploit": "/usr/bin/msfconsole",
+        "burpsuite": "/usr/bin/burpsuite",
+        "sqlmap": "/usr/bin/sqlmap",
+        "hydra": "/usr/bin/hydra"
+    },
+    "output": {
+        "format": "json",
+        "verbose": true,
+        "save_artifacts": true
+    }
+}

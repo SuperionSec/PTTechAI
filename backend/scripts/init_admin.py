@@ -1,0 +1,42 @@
+"""Initialize default admin user for PTTechAI"""
+import asyncio
+import os
+import sys
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from sqlalchemy import select
+from backend.db.database import async_session_factory
+from backend.models.user import User, Role
+from backend.core.auth import get_password_hash
+
+
+async def init_admin():
+    admin_email = os.getenv("ADMIN_EMAIL", "admin@bctech.ai")
+    admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
+    admin_name = os.getenv("ADMIN_NAME", "Admin")
+
+    async with async_session_factory() as db:
+        result = await db.execute(select(User).where(User.email == admin_email))
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            print(f"[INFO] Admin user '{admin_email}' already exists")
+            return existing
+
+        admin = User(
+            email=admin_email,
+            hashed_password=get_password_hash(admin_password),
+            full_name=admin_name,
+            role=Role.ADMIN,
+            is_active=True,
+        )
+        db.add(admin)
+        await db.commit()
+        await db.refresh(admin)
+        print(f"[OK] Admin user created: {admin_email}")
+        return admin
+
+
+if __name__ == "__main__":
+    asyncio.run(init_admin())
