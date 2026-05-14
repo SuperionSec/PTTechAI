@@ -39,7 +39,7 @@ class KaliSandbox(BaseSandbox):
     """Per-scan Docker container based on Kali Linux.
     
     Lifecycle: create -> install tools on demand -> execute -> destroy.
-    Each instance owns exactly one container named 'neurosploit-{scan_id}'.
+    Each instance owns exactly one container named 'pttechai-{scan_id}'.
     """
 
     DEFAULT_TIMEOUT = 300
@@ -48,14 +48,14 @@ class KaliSandbox(BaseSandbox):
     def __init__(
         self,
         scan_id: str,
-        image: str = "neurosploit-kali:latest",
+        image: str = "pttechai-kali:latest",
         memory_limit: str = "2g",
         cpu_limit: float = 2.0,
         network_mode: str = "bridge",
         enable_vpn: bool = False,
     ):
         self.scan_id = scan_id
-        self.container_name = f"neurosploit-{scan_id}"
+        self.container_name = f"pttechai-{scan_id}"
         self.image = image
         self.memory_limit = memory_limit
         self.cpu_limit = cpu_limit
@@ -101,7 +101,7 @@ class KaliSandbox(BaseSandbox):
         except NotFound:
             return False, (
                 f"Kali sandbox image '{self.image}' not found. "
-                "Build with: docker build -f docker/Dockerfile.kali -t neurosploit-kali:latest docker/"
+                "Build with: docker build -f docker/Dockerfile.kali -t pttechai-kali:latest docker/"
             )
 
         # Create container
@@ -119,8 +119,8 @@ class KaliSandbox(BaseSandbox):
                 cap_add=["NET_RAW", "NET_ADMIN"],
                 security_opt=["no-new-privileges:true"],
                 labels={
-                    "neurosploit.scan_id": self.scan_id,
-                    "neurosploit.type": "kali-sandbox",
+                    "pttechai.scan_id": self.scan_id,
+                    "pttechai.type": "kali-sandbox",
                 },
             )
             if self.enable_vpn:

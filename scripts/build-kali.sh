@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # PTTechAI v3 - Build Kali Linux Sandbox Image
 #
 # Usage:
@@ -10,7 +10,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-IMAGE_NAME="neurosploit-kali:latest"
+IMAGE_NAME="pttechai-kali:latest"
 
 cd "$PROJECT_DIR"
 

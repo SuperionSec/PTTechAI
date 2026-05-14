@@ -6,7 +6,7 @@ Manages Docker-based security tool execution in an isolated container.
 Provides high-level API for running Nuclei, Naabu, and other tools.
 
 Architecture:
-  - Persistent sandbox container (neurosploit-sandbox) stays running
+  - Persistent sandbox container (pttechai-sandbox) stays running
   - Tools executed via `docker exec` for sub-second startup
   - Output collected from container stdout + output files
   - Resource limits enforced (2GB RAM, 2 CPU)
@@ -187,8 +187,8 @@ class SandboxManager(BaseSandbox):
     Used by MCP server and terminal API (no scan_id context).
     """
 
-    SANDBOX_IMAGE = "neurosploit-sandbox:latest"
-    SANDBOX_CONTAINER = "neurosploit-sandbox"
+    SANDBOX_IMAGE = "pttechai-sandbox:latest"
+    SANDBOX_CONTAINER = "pttechai-sandbox"
     DEFAULT_TIMEOUT = 300  # 5 minutes
     MAX_OUTPUT = 2 * 1024 * 1024  # 2MB
 

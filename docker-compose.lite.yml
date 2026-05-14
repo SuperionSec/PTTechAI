@@ -7,15 +7,15 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.backend.lite
-    container_name: neurosploit-backend
+    container_name: pttechai-backend
     env_file:
       - .env
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - DATABASE_URL=sqlite+aiosqlite:///./data/neurosploit.db
+      - DATABASE_URL=sqlite+aiosqlite:///./data/bctechai.db
     volumes:
-      - neurosploit-data:/app/data
+      - bctechai-data:/app/data
     ports:
       - "8000:8000"
     restart: unless-stopped
@@ -29,7 +29,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
-    container_name: neurosploit-frontend
+    container_name: pttechai-frontend
     ports:
       - "3000:80"
     depends_on:
@@ -38,8 +38,8 @@ services:
     restart: unless-stopped
 
 volumes:
-  neurosploit-data:
+  bctechai-data:
 
 networks:
   default:
-    name: neurosploit-network
+    name: bctechai-network

@@ -33,7 +33,7 @@ class ContainerPool:
 
     def __init__(
         self,
-        image: str = "neurosploit-kali:latest",
+        image: str = "pttechai-kali:latest",
         max_concurrent: int = 5,
         memory_limit: str = "2g",
         cpu_limit: float = 2.0,
@@ -59,7 +59,7 @@ class ContainerPool:
             resources = sandbox_cfg.get("resources", {})
 
             return cls(
-                image=kali_cfg.get("image", "neurosploit-kali:latest"),
+                image=kali_cfg.get("image", "pttechai-kali:latest"),
                 max_concurrent=kali_cfg.get("max_concurrent", 5),
                 memory_limit=resources.get("memory_limit", "2g"),
                 cpu_limit=resources.get("cpu_limit", 2.0),
@@ -129,7 +129,7 @@ class ContainerPool:
         logger.info("Pool: all containers destroyed")
 
     async def cleanup_orphans(self):
-        """Find and remove neurosploit-* containers not tracked by this pool."""
+        """Find and remove pttechai-* containers not tracked by this pool."""
         if not HAS_DOCKER:
             return
 
@@ -137,14 +137,14 @@ class ContainerPool:
             client = docker.from_env()
             containers = client.containers.list(
                 all=True,
-                filters={"label": "neurosploit.type=kali-sandbox"},
+                filters={"label": "pttechai.type=kali-sandbox"},
             )
             async with self._lock:
                 tracked = set(self._sandboxes.keys())
 
             removed = 0
             for c in containers:
-                scan_id = c.labels.get("neurosploit.scan_id", "")
+                scan_id = c.labels.get("pttechai.scan_id", "")
                 if scan_id not in tracked:
                     try:
                         c.stop(timeout=5)

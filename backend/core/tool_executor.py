@@ -156,7 +156,7 @@ class SecurityTool:
 class DockerToolExecutor:
     """Execute security tools in Docker containers"""
 
-    DOCKER_IMAGE = "neurosploit-tools:latest"
+    DOCKER_IMAGE = "pttechai-tools:latest"
     DEFAULT_TIMEOUT = 300  # 5 minutes
     MAX_OUTPUT_SIZE = 1024 * 1024  # 1MB max output
 

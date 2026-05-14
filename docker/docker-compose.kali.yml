@@ -17,7 +17,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.kali
-    image: neurosploit-kali:latest
+    image: pttechai-kali:latest
     deploy:
       resources:
         limits:
@@ -34,5 +34,5 @@ services:
       - NET_RAW
       - NET_ADMIN
     labels:
-      neurosploit.type: "kali-sandbox"
-      neurosploit.version: "3.0"
+      pttechai.type: "kali-sandbox"
+      pttechai.version: "3.0"

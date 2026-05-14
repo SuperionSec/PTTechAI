@@ -43,7 +43,7 @@ async def list_sandboxes(current_user: User = Depends(get_current_user)):
             "pool": {
                 "active": 0,
                 "max_concurrent": 0,
-                "image": "neurosploit-kali:latest",
+                "image": "pttechai-kali:latest",
                 "container_ttl_minutes": 60,
                 "docker_available": _docker_available(),
             },

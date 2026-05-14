@@ -19,7 +19,7 @@ FRONTEND_DIR="$PROJECT_DIR/frontend"
 DATA_DIR="$PROJECT_DIR/data"
 LOGS_DIR="$PROJECT_DIR/logs"
 PID_DIR="$PROJECT_DIR/.pids"
-DB_PATH="$DATA_DIR/neurosploit.db"
+DB_PATH="$DATA_DIR/bctechai.db"
 
 # Colors
 RED='\033[0;31m'

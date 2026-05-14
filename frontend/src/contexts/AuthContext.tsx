@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import axios from 'axios'
+import { useNavigate } from 'react-router-dom'
 
 interface User {
   id: string
@@ -54,6 +55,19 @@ axios.interceptors.request.use((config) => {
   return config
 })
 
+// Note: Navigation is handled by AuthProvider using event emitter pattern
+// to avoid full page reloads
+const authEvents = {
+  listeners: new Set<() => void>(),
+  emit() {
+    this.listeners.forEach(fn => fn())
+  },
+  subscribe(fn: () => void): () => void {
+    this.listeners.add(fn)
+    return () => { this.listeners.delete(fn) }
+  }
+}
+
 axios.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -71,12 +85,12 @@ axios.interceptors.response.use(
         } catch {
           error.config._retry = true
           removeStoredToken()
-          window.location.href = '/login'
+          authEvents.emit()
           return Promise.reject(error)
         }
       }
       removeStoredToken()
-      window.location.href = '/login'
+      authEvents.emit()
     }
     return Promise.reject(error)
   }
@@ -88,6 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isFetchingRef = useRef(false)
+  const navigate = useNavigate()
 
   const fetchUser = useCallback(async () => {
     if (isFetchingRef.current) return
@@ -176,6 +191,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
   }, [token, setupTokenRefresh])
+
+  // Listen for auth events (401 errors) and navigate without full page reload
+  useEffect(() => {
+    const unsubscribe = authEvents.subscribe(() => {
+      setUser(null)
+      setToken(null)
+      navigate('/login')
+    })
+    return () => unsubscribe()
+  }, [navigate])
 
   const login = async (email: string, password: string) => {
     const res = await axios.post(`${AUTH_URL}/login`, { email, password })

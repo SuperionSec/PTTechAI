@@ -216,7 +216,7 @@ async def get_report(report_id: str, db: AsyncSession = Depends(get_db), current
     return ReportResponse(**report.to_dict())
 
 
-@router.get("/{report_id}/view", dependencies=[Depends(require_non_service_role_report)])
+@router.get("/{report_id}/view")
 async def view_report(
     report_id: str,
     db: AsyncSession = Depends(get_db),
@@ -254,7 +254,7 @@ async def view_report(
         )
 
 
-@router.get("/{report_id}/download/{format}", dependencies=[Depends(require_non_service_role_report)])
+@router.get("/{report_id}/download/{format}")
 async def download_report(
     report_id: str,
     format: str,
@@ -316,7 +316,7 @@ async def download_report(
     )
 
 
-@router.get("/{report_id}/download-zip", dependencies=[Depends(require_non_service_role_report)])
+@router.get("/{report_id}/download-zip")
 async def download_report_zip(
     report_id: str,
     db: AsyncSession = Depends(get_db),

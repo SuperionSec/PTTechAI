@@ -2,10 +2,10 @@
 # Per-scan container with essential tools pre-installed + on-demand install support.
 #
 # Build:
-#   docker build -f docker/Dockerfile.kali -t neurosploit-kali:latest docker/
+#   docker build -f docker/Dockerfile.kali -t pttechai-kali:latest docker/
 #
 # Rebuild (no cache):
-#   docker build --no-cache -f docker/Dockerfile.kali -t neurosploit-kali:latest docker/
+#   docker build --no-cache -f docker/Dockerfile.kali -t pttechai-kali:latest docker/
 #
 # Or via compose:
 #   docker compose -f docker/docker-compose.kali.yml build
@@ -18,7 +18,7 @@
 #   - Full Kali apt repos available for on-demand apt-get install of any security tool
 
 # ---- Stage 1: Pre-compile Go security tools ----
-FROM golang:1.24-bookworm AS go-builder
+FROM golang:1.25-bookworm AS go-builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git build-essential libpcap-dev \
@@ -45,8 +45,8 @@ FROM kalilinux/kali-rolling
 
 LABEL maintainer="PTTechAI Team"
 LABEL description="PTTechAI Kali Sandbox - Per-scan isolated tool execution"
-LABEL neurosploit.version="3.0"
-LABEL neurosploit.type="kali-sandbox"
+LABEL pttechai.version="3.0"
+LABEL pttechai.type="kali-sandbox"
 
 ENV DEBIAN_FRONTEND=noninteractive
 

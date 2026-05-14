@@ -17,10 +17,10 @@ def get_db_path():
     """Get the database file path"""
     # Try common locations
     possible_paths = [
-        Path("./data/neurosploit.db"),
-        Path("../data/neurosploit.db"),
-        Path("/opt/PTTechAI/data/neurosploit.db"),
-        Path("/opt/PTTechAI/backend/data/neurosploit.db"),
+        Path("./data/bctechai.db"),
+        Path("../data/bctechai.db"),
+        Path("/opt/PTTechAI/data/bctechai.db"),
+        Path("/opt/PTTechAI/backend/data/bctechai.db"),
     ]
 
     for path in possible_paths:
@@ -28,7 +28,7 @@ def get_db_path():
             return str(path.resolve())
 
     # Default path
-    return "./data/neurosploit.db"
+    return "./data/bctechai.db"
 
 
 def column_exists(cursor, table_name, column_name):
