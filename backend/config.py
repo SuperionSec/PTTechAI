@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     PORT: int = 8000
 
     # Database
-    DATABASE_URL: str = "sqlite+aiosqlite:///./data/neurosploit.db"
+    DATABASE_URL: str = "sqlite+aiosqlite:///./data/bctechai.db"
 
     # Paths
     BASE_DIR: Path = Path(__file__).parent.parent
