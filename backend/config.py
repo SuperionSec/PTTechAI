@@ -20,7 +20,10 @@ class Settings(BaseSettings):
     PORT: int = 8000
 
     # Database
-    DATABASE_URL: str = "sqlite+aiosqlite:///./data/bctechai.db"
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL",
+        "postgresql+asyncpg://pttechai:pttechai@localhost:5432/pttechai"
+    )
 
     # Paths
     BASE_DIR: Path = Path(__file__).parent.parent

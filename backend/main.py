@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
         if config_path.exists():
             with open(config_path) as f:
                 config = json.load(f)
-            from core.scheduler import ScanScheduler
+            from backend.core.scheduler import ScanScheduler
             scan_scheduler = ScanScheduler(config)
             scan_scheduler.start()
             app.state.scheduler = scan_scheduler
@@ -57,7 +57,7 @@ async def lifespan(app: FastAPI):
 
     # Cleanup orphan sandbox containers from previous crashes
     try:
-        from core.container_pool import get_pool
+        from backend.core.container_pool import get_pool
         pool = get_pool()
         await pool.cleanup_orphans()
         print("Sandbox pool initialized (orphan cleanup done)")
@@ -82,7 +82,7 @@ async def lifespan(app: FastAPI):
         pass
     # Destroy all per-scan sandbox containers
     try:
-        from core.container_pool import get_pool
+        from backend.core.container_pool import get_pool
         await get_pool().cleanup_all()
         print("Sandbox containers cleaned up")
     except Exception:

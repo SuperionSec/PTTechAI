@@ -57,6 +57,23 @@ async def create_user(
     )
 
 
+@router.get("/me", response_model=UserResponse)
+async def get_current_user_me(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get current user info"""
+    return UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        full_name=current_user.full_name,
+        role=current_user.role.value if hasattr(current_user.role, 'value') else current_user.role,
+        is_active=current_user.is_active,
+        created_at=current_user.created_at.isoformat() if current_user.created_at else None,
+        last_login=current_user.last_login.isoformat() if current_user.last_login else None,
+    )
+
+
 @router.get("", response_model=List[UserResponse])
 async def get_users(
     skip: int = 0,

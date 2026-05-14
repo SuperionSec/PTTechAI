@@ -469,16 +469,6 @@ async def clear_database(
         # Preserve Prompt (preset prompts), User, APIKey, Permission, RolePermission tables
         await db.commit()
 
-        # Reset SQLite sequence counters for cleaned tables
-        if "sqlite" in str(db.bind.url):
-            for table in ["agent_tasks", "vuln_lab_challenges", "vulnerability_tests",
-                         "vulnerabilities", "endpoints", "reports", "targets", "scans"]:
-                try:
-                    await db.execute(text(f"DELETE FROM sqlite_sequence WHERE name='{table}'"))
-                except Exception:
-                    pass  # sqlite_sequence may not exist for some tables
-            await db.commit()
-
         return {
             "message": "Database cleared successfully",
             "status": "success",

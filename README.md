@@ -49,36 +49,97 @@ PTTechAI渗透测试系统 is an advanced security assessment platform that comb
 
 ## Quick Start
 
-### Option 1: Docker (Recommended)
+### Prerequisites
+
+- Python 3.10+
+- Node.js 18+
+- PostgreSQL 14+ (or Docker)
+- Docker (optional, for Kali sandbox)
+
+---
+
+### Option 1: Docker (Recommended for Production)
 
 ```bash
 # Clone repository
 git clone https://github.com/SuperionSec/NeruoSploit.git
 cd NeruoSploit
 
-# Copy environment file and add your API keys
+# Copy environment file and configure
 cp .env.example .env
-nano .env  # Add ANTHROPIC_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY
-           # Set ADMIN_EMAIL, ADMIN_PASSWORD for initial admin user
+# Edit .env:
+#   - Add at least one LLM API key (ANTHROPIC_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY)
+#   - Set ADMIN_EMAIL and ADMIN_PASSWORD for the initial admin user
+#   - DATABASE_URL is pre-configured for Docker PostgreSQL
 
 # Build the Kali sandbox image (first time only, ~5 min)
 ./scripts/build-kali.sh
 
-# Start backend
-uvicorn backend.main:app --host 0.0.0.0 --port 8000
+# Start all services (PostgreSQL + Backend + Frontend)
+docker compose up -d
+
+# Database is auto-initialized on first backend startup
+# Access: http://localhost:3000
 ```
 
-### Option 2: Manual Setup
+### Option 2: Local Development
 
 ```bash
-# Backend
-pip install -r requirements.txt
-uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+# Clone repository
+git clone https://github.com/SuperionSec/NeruoSploit.git
+cd NeruoSploit
 
-# Frontend (new terminal)
+# 1. Configure environment
+cp .env.example .env
+# Edit .env:
+#   - DATABASE_URL=postgresql+asyncpg://pttechai:pttechai@localhost:5432/pttechai
+#   - Add LLM API keys
+#   - Set ADMIN_PASSWORD
+
+# 2. Start PostgreSQL (via Docker)
+docker compose up -d postgres
+
+# 3. Install backend dependencies
+cd backend
+pip install -r requirements.txt
+
+# 4. Initialize database (one-time)
+python -m backend.scripts.setup
+# This creates tables, admin user, and RBAC permissions
+
+# 5. Start backend
+cd ..
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
+
+# 6. Start frontend (new terminal)
 cd frontend
 npm install
 npm run dev
+
+# Access: http://localhost:5173
+```
+
+### Database Initialization
+
+The system automatically initializes on first startup:
+
+| Data | Count | Source |
+|------|-------|--------|
+| Admin user | 1 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` env vars |
+| Permissions | ~30 | Built-in RBAC definitions |
+| Role mappings | 3 roles | admin / user / viewer |
+
+**No test data is created.** Use the setup script for manual initialization:
+
+```bash
+# Full setup (tables + admin + permissions)
+python -m backend.scripts.setup
+
+# Skip admin creation
+python -m backend.scripts.setup --skip-admin
+
+# Skip permissions
+python -m backend.scripts.setup --skip-permissions
 ```
 
 ### Build Kali Sandbox Image

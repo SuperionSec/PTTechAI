@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from sqlalchemy import select
 from backend.db.database import async_session_factory
 from backend.models.user import User, Role
-from backend.core.auth import get_password_hash
+from backend.core.auth import get_password_hash, verify_password
 
 
 async def init_admin():
@@ -21,7 +21,14 @@ async def init_admin():
         existing = result.scalar_one_or_none()
 
         if existing:
-            print(f"[INFO] Admin user '{admin_email}' already exists")
+            # Check if password matches .env config; update if changed
+            if not verify_password(admin_password, existing.hashed_password):
+                print(f"[INFO] Admin user '{admin_email}' password mismatch, updating...")
+                existing.hashed_password = get_password_hash(admin_password)
+                await db.commit()
+                print(f"[OK] Admin user password updated: {admin_email}")
+            else:
+                print(f"[INFO] Admin user '{admin_email}' already exists")
             return existing
 
         admin = User(

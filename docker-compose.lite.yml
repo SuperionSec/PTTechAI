@@ -3,6 +3,24 @@
 # Usage: docker compose -f docker-compose.lite.yml up --build
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pttechai-postgres
+    environment:
+      POSTGRES_USER: pttechai
+      POSTGRES_PASSWORD: pttechai
+      POSTGRES_DB: pttechai
+    volumes:
+      - pttechai-postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pttechai -d pttechai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: .
@@ -13,11 +31,14 @@ services:
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - DATABASE_URL=sqlite+aiosqlite:///./data/bctechai.db
+      - DATABASE_URL=postgresql+asyncpg://pttechai:pttechai@postgres:5432/pttechai
     volumes:
-      - bctechai-data:/app/data
+      - pttechai-data:/app/data
     ports:
       - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
@@ -38,7 +59,8 @@ services:
     restart: unless-stopped
 
 volumes:
-  bctechai-data:
+  pttechai-postgres-data:
+  pttechai-data:
 
 networks:
   default:

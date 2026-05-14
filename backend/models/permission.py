@@ -6,9 +6,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional, List
 
-from sqlalchemy import Column, String, DateTime, ForeignKey, Table, Enum as SQLEnum, Boolean
+from sqlalchemy import Column, String, DateTime, ForeignKey, Table, Enum as SQLEnum, Boolean, JSON
 from sqlalchemy.orm import relationship, Mapped, mapped_column
-from sqlalchemy.dialects.sqlite import JSON
 
 from backend.db.database import Base
 
