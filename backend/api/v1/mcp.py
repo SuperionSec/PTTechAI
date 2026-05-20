@@ -13,19 +13,10 @@ from pydantic import BaseModel, Field
 
 from backend.core.auth import get_current_user
 from backend.models.user import User, Role
+from backend.core.resource_guard import require_api_permission
 from fastapi import HTTPException
 
 router = APIRouter()
-
-async def require_non_service_role_mcp(current_user: User = Depends(get_current_user)) -> User:
-    """Block SERVICE role from accessing MCP endpoints"""
-    user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
-    if user_role == Role.SERVICE.value:
-        raise HTTPException(
-            status_code=403,
-            detail="Service role is not authorized for this endpoint"
-        )
-    return current_user
 
 CONFIG_PATH = Path(__file__).parent.parent.parent.parent / "config" / "config.json"
 
@@ -107,7 +98,7 @@ def _server_to_response(name: str, server: dict) -> MCPServerResponse:
 
 # --- Endpoints ---
 
-@router.get("/servers", response_model=List[MCPServerResponse], dependencies=[Depends(require_non_service_role_mcp)])
+@router.get("/servers", response_model=List[MCPServerResponse], dependencies=[Depends(require_api_permission)])
 async def list_servers(current_user: User = Depends(get_current_user)):
     """List all configured MCP servers."""
     config = _read_config()
@@ -115,7 +106,7 @@ async def list_servers(current_user: User = Depends(get_current_user)):
     return [_server_to_response(name, srv) for name, srv in servers.items()]
 
 
-@router.get("/servers/{name}", response_model=MCPServerResponse, dependencies=[Depends(require_non_service_role_mcp)])
+@router.get("/servers/{name}", response_model=MCPServerResponse, dependencies=[Depends(require_api_permission)])
 async def get_server(name: str, current_user: User = Depends(get_current_user)):
     """Get a specific MCP server configuration."""
     config = _read_config()
@@ -125,7 +116,7 @@ async def get_server(name: str, current_user: User = Depends(get_current_user)):
     return _server_to_response(name, servers[name])
 
 
-@router.post("/servers", response_model=MCPServerResponse, dependencies=[Depends(require_non_service_role_mcp)])
+@router.post("/servers", response_model=MCPServerResponse, dependencies=[Depends(require_api_permission)])
 async def create_server(body: MCPServerCreate, current_user: User = Depends(get_current_user)):
     """Add a new MCP server configuration."""
     config = _read_config()
@@ -162,7 +153,7 @@ async def create_server(body: MCPServerCreate, current_user: User = Depends(get_
     return _server_to_response(body.name, server_config)
 
 
-@router.put("/servers/{name}", response_model=MCPServerResponse, dependencies=[Depends(require_non_service_role_mcp)])
+@router.put("/servers/{name}", response_model=MCPServerResponse, dependencies=[Depends(require_api_permission)])
 async def update_server(name: str, body: MCPServerUpdate, current_user: User = Depends(get_current_user)):
     """Update an MCP server configuration."""
     config = _read_config()
@@ -191,7 +182,7 @@ async def update_server(name: str, body: MCPServerUpdate, current_user: User = D
     return _server_to_response(name, srv)
 
 
-@router.delete("/servers/{name}", dependencies=[Depends(require_non_service_role_mcp)])
+@router.delete("/servers/{name}", dependencies=[Depends(require_api_permission)])
 async def delete_server(name: str, current_user: User = Depends(get_current_user)):
     """Delete an MCP server configuration."""
     if name == BUILTIN_SERVER:
@@ -208,7 +199,7 @@ async def delete_server(name: str, current_user: User = Depends(get_current_user
     return {"message": f"Server '{name}' deleted"}
 
 
-@router.post("/servers/{name}/toggle", response_model=MCPServerResponse, dependencies=[Depends(require_non_service_role_mcp)])
+@router.post("/servers/{name}/toggle", response_model=MCPServerResponse, dependencies=[Depends(require_api_permission)])
 async def toggle_server(name: str, current_user: User = Depends(get_current_user)):
     """Toggle a server's enabled state."""
     config = _read_config()
@@ -223,7 +214,7 @@ async def toggle_server(name: str, current_user: User = Depends(get_current_user
     return _server_to_response(name, srv)
 
 
-@router.post("/servers/{name}/test", dependencies=[Depends(require_non_service_role_mcp)])
+@router.post("/servers/{name}/test", dependencies=[Depends(require_api_permission)])
 async def test_server_connection(name: str, current_user: User = Depends(get_current_user)):
     """Test connection to an MCP server."""
     config = _read_config()
@@ -266,7 +257,7 @@ async def test_server_connection(name: str, current_user: User = Depends(get_cur
         return {"success": False, "error": str(e), "tools_count": 0}
 
 
-@router.get("/servers/{name}/tools", response_model=List[MCPToolResponse], dependencies=[Depends(require_non_service_role_mcp)])
+@router.get("/servers/{name}/tools", response_model=List[MCPToolResponse], dependencies=[Depends(require_api_permission)])
 async def list_server_tools(name: str, current_user: User = Depends(get_current_user)):
     """List available tools from an MCP server.
     

@@ -8,51 +8,75 @@ import {
 import { useAuth } from '../../contexts/AuthContext'
 import { useUIStore } from '../../store'
 
-const baseNavGroups = [
+interface NavItem {
+  path: string
+  icon: React.ElementType
+  labelKey: string
+  requiredPermission?: string
+}
+
+interface NavGroup {
+  labelKey: string
+  items: NavItem[]
+}
+
+const allNavGroups: NavGroup[] = [
   {
     labelKey: 'sidebar.operations',
     items: [
-      { path: '/', icon: Home, labelKey: 'sidebar.dashboard' },
-      { path: '/auto', icon: Rocket, labelKey: 'sidebar.autoPentest' },
-      { path: '/scan/new', icon: Bot, labelKey: 'sidebar.aiAgent' },
-      { path: '/realtime', icon: Zap, labelKey: 'sidebar.realtimeTask' },
-      { path: '/full-ia', icon: Crosshair, labelKey: 'sidebar.fullIaTesting' },
+      { path: '/', icon: Home, labelKey: 'sidebar.dashboard', requiredPermission: 'dashboard:read' },
+      { path: '/auto', icon: Rocket, labelKey: 'sidebar.autoPentest', requiredPermission: 'agent:execute' },
+      { path: '/scan/new', icon: Bot, labelKey: 'sidebar.aiAgent', requiredPermission: 'scan:create' },
+      { path: '/realtime', icon: Zap, labelKey: 'sidebar.realtimeTask', requiredPermission: 'agent:execute' },
+      { path: '/full-ia', icon: Crosshair, labelKey: 'sidebar.fullIaTesting', requiredPermission: 'full_ia:read' },
     ],
   },
   {
     labelKey: 'sidebar.tools',
     items: [
-      { path: '/vuln-lab', icon: FlaskConical, labelKey: 'sidebar.vulnLab' },
-      { path: '/terminal', icon: Terminal, labelKey: 'sidebar.terminalAgent' },
-      { path: '/sandboxes', icon: Container, labelKey: 'sidebar.sandboxes' },
-      { path: '/tasks', icon: BookOpen, labelKey: 'sidebar.taskLibrary' },
-      { path: '/knowledge', icon: Brain, labelKey: 'sidebar.knowledge' },
-      { path: '/mcp', icon: Cable, labelKey: 'sidebar.mcpServers' },
-      { path: '/providers', icon: Plug, labelKey: 'sidebar.providers' },
+      { path: '/vuln-lab', icon: FlaskConical, labelKey: 'sidebar.vulnLab', requiredPermission: 'vulnerability:read' },
+      { path: '/terminal', icon: Terminal, labelKey: 'sidebar.terminalAgent', requiredPermission: 'terminal:execute' },
+      { path: '/sandboxes', icon: Container, labelKey: 'sidebar.sandboxes', requiredPermission: 'sandbox:read' },
+      { path: '/tasks', icon: BookOpen, labelKey: 'sidebar.taskLibrary', requiredPermission: 'agent:read' },
+      { path: '/knowledge', icon: Brain, labelKey: 'sidebar.knowledge', requiredPermission: 'knowledge:read' },
+      { path: '/mcp', icon: Cable, labelKey: 'sidebar.mcpServers', requiredPermission: 'mcp:read' },
+      { path: '/providers', icon: Plug, labelKey: 'sidebar.providers', requiredPermission: 'provider:read' },
+    ],
+  },
+  {
+    labelKey: 'sidebar.configuration',
+    items: [
+      { path: '/scheduler', icon: Clock, labelKey: 'sidebar.scheduler', requiredPermission: 'scheduler:read' },
+      { path: '/reports', icon: FileText, labelKey: 'sidebar.reports', requiredPermission: 'report:read' },
+      { path: '/languages', icon: Languages, labelKey: 'languageManagement.title', requiredPermission: 'settings:read' },
+      { path: '/users', icon: Users, labelKey: 'usersManagement.title', requiredPermission: 'user:manage' },
+      { path: '/roles', icon: UserCog, labelKey: 'roleManagement.title', requiredPermission: 'user:manage' },
+      { path: '/settings', icon: Settings, labelKey: 'sidebar.settings', requiredPermission: 'settings:read' },
     ],
   },
 ]
 
 export default function Sidebar() {
   const location = useLocation()
-  const { user } = useAuth()
+  const { user, canAccessPage } = useAuth()
   const { sidebarCollapsed, toggleSidebar } = useUIStore()
   const { t } = useTranslation()
 
-  const navGroups = [
-    ...(user?.role === 'service' ? [] : baseNavGroups),
-    ...(user?.role === 'service' ? [] : [{
-      labelKey: 'sidebar.configuration',
-      items: [
-        { path: '/scheduler', icon: Clock, labelKey: 'sidebar.scheduler' },
-        { path: '/reports', icon: FileText, labelKey: 'sidebar.reports' },
-        { path: '/languages', icon: Languages, labelKey: 'languageManagement.title' },
-        ...(user?.role === 'admin' ? [{ path: '/users', icon: Users, labelKey: 'usersManagement.title' }] : []),
-        ...(user?.role === 'admin' ? [{ path: '/roles', icon: UserCog, labelKey: 'roleManagement.title' }] : []),
-        { path: '/settings', icon: Settings, labelKey: 'sidebar.settings' },
-      ],
-    }]),
-  ]
+  // Filter nav groups based on user permissions
+  const filteredNavGroups = allNavGroups.map(group => ({
+    ...group,
+    items: group.items.filter(item => {
+      // If no permission required, show it
+      if (!item.requiredPermission) return true
+      // Check if user can access the page
+      return canAccessPage(item.path)
+    })
+  })).filter(group => group.items.length > 0)
+
+  // Service accounts cannot access frontend pages
+  if (user?.role === 'service') {
+    return null
+  }
 
   return (
     <aside
@@ -83,7 +107,7 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 p-2 overflow-y-auto overflow-x-hidden">
-        {navGroups.map((group) => (
+        {filteredNavGroups.map((group) => (
           <div key={group.labelKey} className="mb-3">
             {!sidebarCollapsed && (
               <p className="px-3 mb-1 text-[10px] font-semibold uppercase text-dark-500 tracking-wider">

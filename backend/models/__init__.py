@@ -7,7 +7,7 @@ from backend.models.report import Report
 from backend.models.agent_task import AgentTask
 from backend.models.vuln_lab import VulnLabChallenge
 from backend.models.user import User, APIKey, Role
-from backend.models.permission import Permission, RolePermission, PermissionScope, PermissionAction
+from backend.models.permission import Permission, RolePermission, ResourceMapping, PermissionScope, PermissionAction
 
 __all__ = [
     "Scan",
@@ -24,6 +24,7 @@ __all__ = [
     "Role",
     "Permission",
     "RolePermission",
+    "ResourceMapping",
     "PermissionScope",
     "PermissionAction",
 ]

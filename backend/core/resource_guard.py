@@ -1,0 +1,186 @@
+"""
+Resource Guard - Unified permission-based access control
+PTTechAI v0.1.0 - RBAC with Resource Mapping
+"""
+from typing import List, Optional
+from fastapi import HTTPException, Depends, Request
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.models.permission import Permission, RolePermission, ResourceMapping
+from backend.models.user import User, Role
+from backend.core.auth import get_current_user
+from backend.db.database import get_db
+
+
+class PermissionDenied(HTTPException):
+    """Custom permission denied exception"""
+    def __init__(self, detail: str = "Permission denied"):
+        super().__init__(status_code=403, detail=detail)
+
+
+async def require_api_permission(current_user: User = Depends(get_current_user)) -> User:
+    """Check if user has permission to access API endpoints.
+    
+    This is a dynamic permission check that inspects the request method and path,
+    then verifies the user's role has the required permission via ResourceMapping.
+    """
+    user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
+    if user_role == Role.SERVICE.value:
+        raise HTTPException(
+            status_code=403,
+            detail="Service role is not authorized for this endpoint"
+        )
+    return current_user
+
+
+async def check_api_permission(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+) -> User:
+    """Dynamic API permission check based on request method and path.
+    
+    This function checks if the current user has permission to access the requested API endpoint
+    by looking up the ResourceMapping table.
+    """
+    user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
+    
+    # Service role is always blocked from non-service endpoints
+    if user_role == Role.SERVICE.value:
+        raise HTTPException(
+            status_code=403,
+            detail="Service role is not authorized for this endpoint"
+        )
+    
+    # Admin always has access
+    if current_user.role == Role.ADMIN:
+        return current_user
+    
+    # Build API pattern from request
+    method = request.method
+    path = request.url.path
+    api_pattern = f"{method} {path}"
+    
+    # Check if there's a permission mapping for this API
+    result = await db.execute(
+        select(ResourceMapping.permission_id)
+        .where(ResourceMapping.resource_type == "backend_api")
+        .where(ResourceMapping.resource_path == api_pattern)
+    )
+    required_perm_ids = result.scalars().all()
+    
+    if not required_perm_ids:
+        # No mapping found - default allow for backward compatibility
+        return current_user
+    
+    # Check if user's role has any of the required permissions
+    result = await db.execute(
+        select(RolePermission)
+        .where(RolePermission.role == user_role)
+        .where(RolePermission.permission_id.in_(required_perm_ids))
+    )
+    
+    if result.scalar_one_or_none() is None:
+        raise PermissionDenied(
+            detail=f"Permission denied for {method} {path}"
+        )
+    
+    return current_user
+
+
+class ResourceGuard:
+    """Unified resource guard: controls frontend pages and backend API access based on Permissions"""
+
+    async def check_api_access(
+        self,
+        user: User,
+        method: str,
+        path: str,
+        db: AsyncSession
+    ) -> bool:
+        """Check if user has permission to access a specific API endpoint"""
+        # Admin always has access
+        if user.role == Role.ADMIN:
+            return True
+
+        # Build the API path pattern to match
+        api_pattern = f"{method} {path}"
+
+        # Find permissions required for this API
+        result = await db.execute(
+            select(ResourceMapping.permission_id)
+            .where(ResourceMapping.resource_type == "backend_api")
+            .where(ResourceMapping.resource_path == api_pattern)
+        )
+        required_perm_ids = result.scalars().all()
+
+        if not required_perm_ids:
+            # No mapping found - default allow (safer to deny in production)
+            return True
+
+        # Check if user's role has any of the required permissions
+        user_role = user.role.value if hasattr(user.role, 'value') else user.role
+        result = await db.execute(
+            select(RolePermission)
+            .where(RolePermission.role == user_role)
+            .where(RolePermission.permission_id.in_(required_perm_ids))
+        )
+        return result.scalar_one_or_none() is not None
+
+    async def get_accessible_pages(self, user: User, db: AsyncSession) -> List[str]:
+        """Get all frontend pages accessible by the user"""
+        if user.role == Role.ADMIN:
+            # Admin can access all pages
+            result = await db.execute(
+                select(ResourceMapping.resource_path)
+                .where(ResourceMapping.resource_type == "frontend_page")
+                .distinct()
+            )
+            return result.scalars().all()
+
+        user_role = user.role.value if hasattr(user.role, 'value') else user.role
+        result = await db.execute(
+            select(ResourceMapping.resource_path)
+            .join(RolePermission, ResourceMapping.permission_id == RolePermission.permission_id)
+            .where(RolePermission.role == user_role)
+            .where(ResourceMapping.resource_type == "frontend_page")
+            .distinct()
+        )
+        return result.scalars().all()
+
+    async def get_accessible_apis(self, user: User, db: AsyncSession) -> List[str]:
+        """Get all backend APIs accessible by the user"""
+        if user.role == Role.ADMIN:
+            # Admin can access all APIs
+            result = await db.execute(
+                select(ResourceMapping.resource_path)
+                .where(ResourceMapping.resource_type == "backend_api")
+                .distinct()
+            )
+            return result.scalars().all()
+
+        user_role = user.role.value if hasattr(user.role, 'value') else user.role
+        result = await db.execute(
+            select(ResourceMapping.resource_path)
+            .join(RolePermission, ResourceMapping.permission_id == RolePermission.permission_id)
+            .where(RolePermission.role == user_role)
+            .where(ResourceMapping.resource_type == "backend_api")
+            .distinct()
+        )
+        return result.scalars().all()
+
+    async def get_user_permissions(self, user: User, db: AsyncSession) -> List[Permission]:
+        """Get all permissions for a user"""
+        user_role = user.role.value if hasattr(user.role, 'value') else user.role
+        result = await db.execute(
+            select(Permission)
+            .join(RolePermission, Permission.id == RolePermission.permission_id)
+            .where(RolePermission.role == user_role)
+            .where(Permission.is_active == True)
+        )
+        return result.scalars().all()
+
+
+# Singleton instance
+resource_guard = ResourceGuard()

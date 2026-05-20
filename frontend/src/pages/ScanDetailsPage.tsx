@@ -15,6 +15,7 @@ import { scansApi, reportsApi, agentTasksApi, agentApi, vulnerabilitiesApi, prov
 import { wsService } from '../services/websocket'
 import { isLogContainerNearBottom } from '../utils/logScroll'
 import { useScanStore } from '../store'
+import { usePermission } from '../hooks/usePermission'
 import type { Endpoint, Vulnerability, WSMessage, ScanAgentTask, Report, AgentStatus, AgentFinding, AgentLog, ToolExecution, ContainerStatus } from '../types'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -370,6 +371,7 @@ export default function ScanDetailsPage() {
   const { scanId } = useParams<{ scanId: string }>()
   const navigate = useNavigate()
   const { t } = useTranslation()
+  const { hasPermission } = usePermission()
   const {
     currentScan, endpoints, vulnerabilities, logs, agentTasks,
     setCurrentScan, setEndpoints, setVulnerabilities,
@@ -877,7 +879,7 @@ export default function ScanDetailsPage() {
               {t('scanDetails.agentView')}
             </Button>
           )}
-          {currentScan.status === 'running' && (
+          {currentScan.status === 'running' && hasPermission('scan:execute') && (
             <>
               <Button variant="secondary" onClick={handlePauseScan}>
                 <Pause className="w-4 h-4 mr-2" />{t('scanDetails.pause')}
@@ -887,7 +889,7 @@ export default function ScanDetailsPage() {
               </Button>
             </>
           )}
-          {currentScan.status === 'paused' && (
+          {currentScan.status === 'paused' && hasPermission('scan:execute') && (
             <>
               <Button variant="primary" onClick={handleResumeScan}>
                 <Play className="w-4 h-4 mr-2" />{t('scanDetails.resume')}

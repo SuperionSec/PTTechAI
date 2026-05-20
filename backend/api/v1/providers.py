@@ -10,19 +10,10 @@ from typing import Optional
 
 from backend.core.auth import get_current_user
 from backend.models.user import User, Role
+from backend.core.resource_guard import require_api_permission
 from fastapi import HTTPException
 
 router = APIRouter()
-
-async def require_non_service_role_providers(current_user: User = Depends(get_current_user)) -> User:
-    """Block SERVICE role from accessing providers endpoints"""
-    user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
-    if user_role == Role.SERVICE.value:
-        raise HTTPException(
-            status_code=403,
-            detail="Service role is not authorized for this endpoint"
-        )
-    return current_user
 
 
 class ConnectRequest(BaseModel):
@@ -32,7 +23,7 @@ class ConnectRequest(BaseModel):
     model_override: Optional[str] = None
 
 
-@router.get("", dependencies=[Depends(require_non_service_role_providers)])
+@router.get("", dependencies=[Depends(require_api_permission)])
 async def list_providers(current_user: User = Depends(get_current_user)):
     """List all providers with their accounts and status."""
     from backend.core.smart_router import get_registry
@@ -73,7 +64,7 @@ async def list_providers(current_user: User = Depends(get_current_user)):
     return {"enabled": True, "providers": providers}
 
 
-@router.get("/status", dependencies=[Depends(require_non_service_role_providers)])
+@router.get("/status", dependencies=[Depends(require_api_permission)])
 async def providers_status(current_user: User = Depends(get_current_user)):
     """Get quota and usage summary."""
     from backend.core.smart_router import get_router
@@ -83,7 +74,7 @@ async def providers_status(current_user: User = Depends(get_current_user)):
     return {"enabled": True, **router_instance.get_status()}
 
 
-@router.post("/{provider_id}/detect", dependencies=[Depends(require_non_service_role_providers)])
+@router.post("/{provider_id}/detect", dependencies=[Depends(require_api_permission)])
 async def detect_cli_token(provider_id: str, current_user: User = Depends(get_current_user)):
     """Auto-detect CLI token for a specific provider."""
     from backend.core.smart_router import get_registry, get_extractor
@@ -117,7 +108,7 @@ async def detect_cli_token(provider_id: str, current_user: User = Depends(get_cu
     }
 
 
-@router.post("/{provider_id}/connect", dependencies=[Depends(require_non_service_role_providers)])
+@router.post("/{provider_id}/connect", dependencies=[Depends(require_api_permission)])
 async def connect_provider(provider_id: str, req: ConnectRequest, current_user: User = Depends(get_current_user)):
     """Manually add an API key or credential."""
     from backend.core.smart_router import get_registry
@@ -139,7 +130,7 @@ async def connect_provider(provider_id: str, req: ConnectRequest, current_user: 
     return {"success": True, "account_id": acct_id}
 
 
-@router.delete("/{provider_id}/accounts/{account_id}", dependencies=[Depends(require_non_service_role_providers)])
+@router.delete("/{provider_id}/accounts/{account_id}", dependencies=[Depends(require_api_permission)])
 async def remove_account(provider_id: str, account_id: str, current_user: User = Depends(get_current_user)):
     """Remove an account from a provider."""
     from backend.core.smart_router import get_registry
@@ -153,7 +144,7 @@ async def remove_account(provider_id: str, account_id: str, current_user: User =
     return {"success": True}
 
 
-@router.post("/test/{provider_id}/{account_id}", dependencies=[Depends(require_non_service_role_providers)])
+@router.post("/test/{provider_id}/{account_id}", dependencies=[Depends(require_api_permission)])
 async def test_connection(provider_id: str, account_id: str, current_user: User = Depends(get_current_user)):
     """Test connectivity for a specific account."""
     from backend.core.smart_router import get_router
@@ -269,7 +260,7 @@ PROVIDER_MODELS = {
 }
 
 
-@router.get("/available-models", dependencies=[Depends(require_non_service_role_providers)])
+@router.get("/available-models", dependencies=[Depends(require_api_permission)])
 async def available_models(current_user: User = Depends(get_current_user)):
     """Get list of available provider+model combinations for selection dropdowns."""
     from backend.core.smart_router import get_registry
@@ -295,7 +286,7 @@ async def available_models(current_user: User = Depends(get_current_user)):
     return {"models": models}
 
 
-@router.post("/detect-all", dependencies=[Depends(require_non_service_role_providers)])
+@router.post("/detect-all", dependencies=[Depends(require_api_permission)])
 async def detect_all_tokens(current_user: User = Depends(get_current_user)):
     """Scan all CLI tools for available tokens."""
     from backend.core.smart_router import get_registry, get_extractor
@@ -332,7 +323,7 @@ class ToggleRequest(BaseModel):
     enabled: bool
 
 
-@router.post("/{provider_id}/toggle", dependencies=[Depends(require_non_service_role_providers)])
+@router.post("/{provider_id}/toggle", dependencies=[Depends(require_api_permission)])
 async def toggle_provider(provider_id: str, req: ToggleRequest, current_user: User = Depends(get_current_user)):
     """Enable or disable a provider. Disabled providers are skipped by the router."""
     from backend.core.smart_router import get_registry
@@ -363,7 +354,7 @@ class EnvUpdateRequest(BaseModel):
     value: str
 
 
-@router.get("/env", dependencies=[Depends(require_non_service_role_providers)])
+@router.get("/env", dependencies=[Depends(require_api_permission)])
 async def get_env_keys(current_user: User = Depends(get_current_user)):
     """Get current values of allowed env keys (masked for secrets)."""
     import os
@@ -383,7 +374,7 @@ async def get_env_keys(current_user: User = Depends(get_current_user)):
     return {"env": result, "allowed_keys": sorted(ALLOWED_ENV_KEYS)}
 
 
-@router.post("/env", dependencies=[Depends(require_non_service_role_providers)])
+@router.post("/env", dependencies=[Depends(require_api_permission)])
 async def update_env_key(req: EnvUpdateRequest, current_user: User = Depends(get_current_user)):
     """Update an env var and persist to .env file."""
     import os

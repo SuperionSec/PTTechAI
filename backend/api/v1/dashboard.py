@@ -11,22 +11,13 @@ from backend.db.database import get_db
 from backend.models import Scan, Vulnerability, Endpoint, AgentTask, Report
 from backend.core.auth import get_current_user
 from backend.models.user import User, Role
+from backend.core.resource_guard import require_api_permission
 from fastapi import HTTPException, Depends
 
 router = APIRouter()
 
-async def require_non_service_role_dashboard(current_user: User = Depends(get_current_user)) -> User:
-    """Block SERVICE role from accessing dashboard endpoints"""
-    user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
-    if user_role == Role.SERVICE.value:
-        raise HTTPException(
-            status_code=403,
-            detail="Service role is not authorized for this endpoint"
-        )
-    return current_user
 
-
-@router.get("/stats", dependencies=[Depends(require_non_service_role_dashboard)])
+@router.get("/stats", dependencies=[Depends(require_api_permission)])
 async def get_dashboard_stats(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Get overall dashboard statistics"""
     if current_user.role == Role.SERVICE:
@@ -123,7 +114,7 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db), current_user: 
     }
 
 
-@router.get("/recent", dependencies=[Depends(require_non_service_role_dashboard)])
+@router.get("/recent", dependencies=[Depends(require_api_permission)])
 async def get_recent_activity(
     limit: int = 10,
     db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
@@ -151,7 +142,7 @@ async def get_recent_activity(
     }
 
 
-@router.get("/findings", dependencies=[Depends(require_non_service_role_dashboard)])
+@router.get("/findings", dependencies=[Depends(require_api_permission)])
 async def get_recent_findings(
     limit: int = 20,
     severity: str = None,
@@ -178,7 +169,7 @@ async def get_recent_findings(
     }
 
 
-@router.get("/vulnerability-types", dependencies=[Depends(require_non_service_role_dashboard)])
+@router.get("/vulnerability-types", dependencies=[Depends(require_api_permission)])
 async def get_vulnerability_distribution(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Get vulnerability distribution by type"""
     if current_user.role == Role.SERVICE:
@@ -202,7 +193,7 @@ async def get_vulnerability_distribution(db: AsyncSession = Depends(get_db), cur
     }
 
 
-@router.get("/scan-history", dependencies=[Depends(require_non_service_role_dashboard)])
+@router.get("/scan-history", dependencies=[Depends(require_api_permission)])
 async def get_scan_history(
     days: int = 30,
     db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
@@ -239,7 +230,7 @@ async def get_scan_history(
     return {"history": list(history.values())}
 
 
-@router.get("/agent-tasks", dependencies=[Depends(require_non_service_role_dashboard)])
+@router.get("/agent-tasks", dependencies=[Depends(require_api_permission)])
 async def get_recent_agent_tasks(
     limit: int = 20,
     db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
@@ -264,7 +255,7 @@ async def get_recent_agent_tasks(
     }
 
 
-@router.get("/activity-feed", dependencies=[Depends(require_non_service_role_dashboard)])
+@router.get("/activity-feed", dependencies=[Depends(require_api_permission)])
 async def get_activity_feed(
     limit: int = 30,
     db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)

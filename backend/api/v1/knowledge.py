@@ -10,19 +10,10 @@ from pydantic import BaseModel
 
 from backend.core.auth import get_current_user
 from backend.models.user import User, Role
+from backend.core.resource_guard import require_api_permission
 from fastapi import HTTPException
 
 router = APIRouter()
-
-async def require_non_service_role_knowledge(current_user: User = Depends(get_current_user)) -> User:
-    """Block SERVICE role from accessing knowledge endpoints"""
-    user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
-    if user_role == Role.SERVICE.value:
-        raise HTTPException(
-            status_code=403,
-            detail="Service role is not authorized for this endpoint"
-        )
-    return current_user
 
 # Lazy-loaded processor instance
 _processor = None
@@ -78,7 +69,7 @@ class KnowledgeStatsResponse(BaseModel):
 
 # --- Endpoints ---
 
-@router.post("/upload", response_model=KnowledgeDocumentResponse, dependencies=[Depends(require_non_service_role_knowledge)])
+@router.post("/upload", response_model=KnowledgeDocumentResponse, dependencies=[Depends(require_api_permission)])
 async def upload_knowledge(file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
     """Upload a security document for knowledge extraction.
     
@@ -118,7 +109,7 @@ async def upload_knowledge(file: UploadFile = File(...), current_user: User = De
     )
 
 
-@router.get("/documents", response_model=List[KnowledgeDocumentResponse], dependencies=[Depends(require_non_service_role_knowledge)])
+@router.get("/documents", response_model=List[KnowledgeDocumentResponse], dependencies=[Depends(require_api_permission)])
 async def list_documents(current_user: User = Depends(get_current_user)):
     """List all indexed knowledge documents."""
     processor = _get_processor()
@@ -140,7 +131,7 @@ async def list_documents(current_user: User = Depends(get_current_user)):
     ]
 
 
-@router.get("/documents/{doc_id}", dependencies=[Depends(require_non_service_role_knowledge)])
+@router.get("/documents/{doc_id}", dependencies=[Depends(require_api_permission)])
 async def get_document(doc_id: str, current_user: User = Depends(get_current_user)):
     """Get a specific document with its full knowledge entries."""
     processor = _get_processor()
@@ -150,7 +141,7 @@ async def get_document(doc_id: str, current_user: User = Depends(get_current_use
     return doc
 
 
-@router.delete("/documents/{doc_id}", dependencies=[Depends(require_non_service_role_knowledge)])
+@router.delete("/documents/{doc_id}", dependencies=[Depends(require_api_permission)])
 async def delete_document(doc_id: str, current_user: User = Depends(get_current_user)):
     """Delete a knowledge document and its index entries."""
     processor = _get_processor()
@@ -160,7 +151,7 @@ async def delete_document(doc_id: str, current_user: User = Depends(get_current_
     return {"message": f"Document '{doc_id}' deleted", "id": doc_id}
 
 
-@router.get("/search", response_model=List[KnowledgeEntryResponse], dependencies=[Depends(require_non_service_role_knowledge)])
+@router.get("/search", response_model=List[KnowledgeEntryResponse], dependencies=[Depends(require_api_permission)])
 async def search_knowledge(vuln_type: str = Query(..., description="Vulnerability type to search"), current_user: User = Depends(get_current_user)):
     """Search knowledge entries by vulnerability type."""
     processor = _get_processor()
@@ -178,7 +169,7 @@ async def search_knowledge(vuln_type: str = Query(..., description="Vulnerabilit
     ]
 
 
-@router.get("/stats", response_model=KnowledgeStatsResponse, dependencies=[Depends(require_non_service_role_knowledge)])
+@router.get("/stats", response_model=KnowledgeStatsResponse, dependencies=[Depends(require_api_permission)])
 async def get_stats(current_user: User = Depends(get_current_user)):
     """Get knowledge base statistics."""
     processor = _get_processor()

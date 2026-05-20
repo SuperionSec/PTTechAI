@@ -11,6 +11,7 @@ from backend.db.database import get_db
 from backend.models.user import User, Role
 from backend.schemas.auth import UserResponse, UserUpdate, UserCreate
 from backend.core.auth import get_current_user, require_role, get_password_hash, get_user_by_id, get_user, create_access_token
+from backend.core.permissions import require_user_manage, require_user_read, require_user_create, require_user_update, require_user_delete
 
 router = APIRouter()
 
@@ -22,7 +23,7 @@ class ResetPasswordRequest(BaseModel):
 @router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def create_user(
     user_data: UserCreate,
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_user_create()),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new user (Admin only)"""
@@ -80,7 +81,7 @@ async def get_users(
     limit: int = 100,
     is_active: Optional[bool] = None,
     role: Optional[Role] = None,
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_user_read()),
     db: AsyncSession = Depends(get_db)
 ):
     """Get list of users (Admin only)"""
@@ -112,7 +113,7 @@ async def get_users(
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user_by_id_route(
     user_id: str,
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_user_read()),
     db: AsyncSession = Depends(get_db)
 ):
     """Get user by ID (Admin only)"""
@@ -137,7 +138,7 @@ async def get_user_by_id_route(
 async def update_user(
     user_id: str,
     user_data: UserUpdate,
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_user_update()),
     db: AsyncSession = Depends(get_db)
 ):
     """Update user by ID (Admin only)"""
@@ -187,7 +188,7 @@ async def update_user(
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: str,
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_user_delete()),
     db: AsyncSession = Depends(get_db)
 ):
     """Delete user by ID (Admin only)"""
@@ -215,7 +216,7 @@ async def delete_user(
 async def reset_user_password(
     user_id: str,
     request: ResetPasswordRequest,
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_user_manage()),
     db: AsyncSession = Depends(get_db)
 ):
     """Reset user password (Admin only)"""

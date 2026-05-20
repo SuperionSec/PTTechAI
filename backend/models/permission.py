@@ -52,6 +52,7 @@ class Permission(Base):
 
     # Relationships
     role_permissions: Mapped[List["RolePermission"]] = relationship("RolePermission", back_populates="permission", cascade="all, delete-orphan")
+    resource_mappings: Mapped[List["ResourceMapping"]] = relationship("ResourceMapping", back_populates="permission", cascade="all, delete-orphan")
 
     def to_dict(self):
         return {
@@ -84,4 +85,55 @@ class RolePermission(Base):
             "permission_id": self.permission_id,
             "permission": self.permission.to_dict() if self.permission else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class ResourceMapping(Base):
+    """Permission-Resource mapping table (Permission -> Frontend Page / Backend API)"""
+    __tablename__ = "resource_mappings"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    permission_id: Mapped[str] = mapped_column(String(36), ForeignKey("permissions.id", ondelete="CASCADE"), nullable=False)
+    resource_type: Mapped[str] = mapped_column(String(20), nullable=False)  # 'frontend_page' | 'backend_api'
+    resource_path: Mapped[str] = mapped_column(String(255), nullable=False)  # '/scan/new' or 'POST /api/v1/scans'
+    version: Mapped[int] = mapped_column(default=1)
+    updated_by: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    permission: Mapped["Permission"] = relationship("Permission", back_populates="resource_mappings")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "permission_id": self.permission_id,
+            "resource_type": self.resource_type,
+            "resource_path": self.resource_path,
+            "version": self.version,
+            "updated_by": self.updated_by,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class ResourceMappingHistory(Base):
+    """Resource mapping change history table"""
+    __tablename__ = "resource_mapping_history"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    permission_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    resource_type: Mapped[str] = mapped_column(String(20), nullable=False)  # 'frontend_page' | 'backend_api'
+    resource_path: Mapped[str] = mapped_column(String(255), nullable=False)
+    action: Mapped[str] = mapped_column(String(10), nullable=False)  # 'added' | 'removed' | 'modified'
+    changed_by: Mapped[str] = mapped_column(String(36), nullable=False)
+    changed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "permission_id": self.permission_id,
+            "resource_type": self.resource_type,
+            "resource_path": self.resource_path,
+            "action": self.action,
+            "changed_by": self.changed_by,
+            "changed_at": self.changed_at.isoformat() if self.changed_at else None,
         }

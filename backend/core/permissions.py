@@ -53,13 +53,16 @@ async def has_permission(
     return result.scalar_one_or_none() is not None
 
 
-async def require_permission(
+def require_permission(
     scope: PermissionScope,
     action: PermissionAction
 ):
-    """Dependency factory to require a specific permission"""
+    """Dependency factory to require a specific permission.
+
+    Usage:
+        @router.get("", dependencies=[Depends(require_permission(PermissionScope.SCAN, PermissionAction.READ))])
+    """
     async def _check_permission(
-        request: Request,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
     ) -> User:
@@ -71,27 +74,54 @@ async def require_permission(
     return _check_permission
 
 
-# Common permission dependencies
-require_scan_create = lambda: require_permission(PermissionScope.SCAN, PermissionAction.CREATE)
-require_scan_read = lambda: require_permission(PermissionScope.SCAN, PermissionAction.READ)
-require_scan_update = lambda: require_permission(PermissionScope.SCAN, PermissionAction.UPDATE)
-require_scan_delete = lambda: require_permission(PermissionScope.SCAN, PermissionAction.DELETE)
-require_scan_execute = lambda: require_permission(PermissionScope.SCAN, PermissionAction.EXECUTE)
+# Common permission dependencies - direct callables for FastAPI Depends
+def require_scan_create():
+    return require_permission(PermissionScope.SCAN, PermissionAction.CREATE)
 
-require_report_read = lambda: require_permission(PermissionScope.REPORT, PermissionAction.READ)
-require_report_create = lambda: require_permission(PermissionScope.REPORT, PermissionAction.CREATE)
+def require_scan_read():
+    return require_permission(PermissionScope.SCAN, PermissionAction.READ)
 
-require_user_manage = lambda: require_permission(PermissionScope.USER, PermissionAction.MANAGE)
-require_user_read = lambda: require_permission(PermissionScope.USER, PermissionAction.READ)
+def require_scan_update():
+    return require_permission(PermissionScope.SCAN, PermissionAction.UPDATE)
 
-require_api_key_manage = lambda: require_permission(PermissionScope.API_KEY, PermissionAction.CREATE)
-require_api_key_read = lambda: require_permission(PermissionScope.API_KEY, PermissionAction.READ)
+def require_scan_delete():
+    return require_permission(PermissionScope.SCAN, PermissionAction.DELETE)
 
-require_provider_manage = lambda: require_permission(PermissionScope.PROVIDER, PermissionAction.MANAGE)
-require_provider_read = lambda: require_permission(PermissionScope.PROVIDER, PermissionAction.READ)
+def require_scan_execute():
+    return require_permission(PermissionScope.SCAN, PermissionAction.EXECUTE)
 
-require_settings_manage = lambda: require_permission(PermissionScope.SETTINGS, PermissionAction.MANAGE)
-require_settings_read = lambda: require_permission(PermissionScope.SETTINGS, PermissionAction.READ)
+def require_report_read():
+    return require_permission(PermissionScope.REPORT, PermissionAction.READ)
+
+def require_report_create():
+    return require_permission(PermissionScope.REPORT, PermissionAction.CREATE)
+
+def require_report_delete():
+    return require_permission(PermissionScope.REPORT, PermissionAction.DELETE)
+
+def require_user_manage():
+    return require_permission(PermissionScope.USER, PermissionAction.MANAGE)
+
+def require_user_read():
+    return require_permission(PermissionScope.USER, PermissionAction.READ)
+
+def require_user_create():
+    return require_permission(PermissionScope.USER, PermissionAction.CREATE)
+
+def require_user_update():
+    return require_permission(PermissionScope.USER, PermissionAction.UPDATE)
+
+def require_user_delete():
+    return require_permission(PermissionScope.USER, PermissionAction.DELETE)
+
+def require_settings_read():
+    return require_permission(PermissionScope.SETTINGS, PermissionAction.READ)
+
+def require_settings_update():
+    return require_permission(PermissionScope.SETTINGS, PermissionAction.UPDATE)
+
+def require_settings_manage():
+    return require_permission(PermissionScope.SETTINGS, PermissionAction.MANAGE)
 
 
 class PermissionChecker:

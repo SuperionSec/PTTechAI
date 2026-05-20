@@ -6,7 +6,7 @@ import uuid
 import asyncio
 from sqlalchemy import select
 from backend.db.database import async_session_factory
-from backend.models.permission import Permission, RolePermission, PermissionScope, PermissionAction
+from backend.models.permission import Permission, RolePermission, ResourceMapping, PermissionScope, PermissionAction
 
 
 # Default permission definitions
@@ -112,6 +112,93 @@ ROLE_PERMISSIONS = {
         "agent:read",
         "knowledge:read",
     ],
+    "service": [
+        "scan:create", "scan:read", "scan:update", "scan:delete", "scan:execute",
+        "target:create", "target:read", "target:update", "target:delete",
+        "report:create", "report:read",
+        "vulnerability:read", "vulnerability:update",
+        "dashboard:read",
+        "settings:read",
+        "agent:read", "agent:execute",
+        "scheduler:read", "scheduler:manage",
+        "knowledge:read",
+    ],
+}
+
+# Permission -> Frontend Pages mapping
+PERMISSION_FRONTEND_PAGES = {
+    "dashboard:read": ["/"],
+    "scan:create": ["/scan/new"],
+    "scan:read": ["/", "/scan/:scanId"],
+    "scan:update": ["/scan/:scanId"],
+    "scan:execute": ["/scan/:scanId"],
+    "target:create": ["/scan/new"],
+    "target:read": ["/scan/:scanId"],
+    "target:update": ["/scan/:scanId"],
+    "report:create": ["/reports"],
+    "report:read": ["/reports", "/reports/:reportId"],
+    "vulnerability:read": ["/vuln-lab", "/scan/:scanId"],
+    "vulnerability:update": ["/vuln-lab"],
+    "settings:read": ["/settings", "/languages"],
+    "settings:update": ["/settings"],
+    "settings:manage": ["/settings", "/languages"],
+    "user:create": ["/users"],
+    "user:read": ["/users", "/profile"],
+    "user:update": ["/users"],
+    "user:delete": ["/users"],
+    "user:manage": ["/users", "/roles"],
+    "api_key:create": ["/settings"],
+    "api_key:read": ["/settings"],
+    "api_key:delete": ["/settings"],
+    "provider:read": ["/providers"],
+    "provider:update": ["/providers"],
+    "provider:manage": ["/providers"],
+    "agent:read": ["/agent/:agentId", "/tasks", "/realtime"],
+    "agent:execute": ["/auto", "/realtime", "/scan/new"],
+    "scheduler:read": ["/scheduler"],
+    "scheduler:manage": ["/scheduler"],
+    "knowledge:read": ["/knowledge"],
+    "knowledge:update": ["/knowledge"],
+}
+
+# Permission -> Backend APIs mapping
+PERMISSION_BACKEND_APIS = {
+    "scan:create": ["POST /api/v1/scans"],
+    "scan:read": ["GET /api/v1/scans", "GET /api/v1/scans/{id}", "GET /api/v1/scans/{id}/status", "GET /api/v1/scans/{id}/endpoints"],
+    "scan:update": ["PUT /api/v1/scans/{id}"],
+    "scan:delete": ["DELETE /api/v1/scans/{id}"],
+    "scan:execute": ["POST /api/v1/scans/{id}/start", "POST /api/v1/scans/{id}/stop", "POST /api/v1/scans/{id}/pause", "POST /api/v1/scans/{id}/resume"],
+    "target:create": ["POST /api/v1/targets"],
+    "target:read": ["GET /api/v1/targets"],
+    "target:update": ["PUT /api/v1/targets/{id}"],
+    "target:delete": ["DELETE /api/v1/targets/{id}"],
+    "report:create": ["POST /api/v1/reports", "POST /api/v1/reports/ai-generate"],
+    "report:read": ["GET /api/v1/reports", "GET /api/v1/reports/{id}", "GET /api/v1/reports/{id}/view", "GET /api/v1/reports/{id}/download/{format}", "GET /api/v1/reports/{id}/download-zip"],
+    "report:delete": ["DELETE /api/v1/reports/{id}"],
+    "vulnerability:read": ["GET /api/v1/vulnerabilities/*", "GET /api/v1/scans/{id}/vulnerabilities"],
+    "vulnerability:update": ["PATCH /api/v1/scans/vulnerabilities/{id}/validate", "POST /api/v1/scans/vulnerabilities/{id}/feedback"],
+    "vulnerability:delete": ["DELETE /api/v1/vuln-lab/challenges/{id}"],
+    "dashboard:read": ["GET /api/v1/dashboard/*"],
+    "settings:read": ["GET /api/v1/settings", "GET /api/v1/settings/stats", "GET /api/v1/settings/tools"],
+    "settings:update": ["PUT /api/v1/settings"],
+    "settings:manage": ["POST /api/v1/settings/notifications/test/*", "POST /api/v1/settings/clear-database", "GET /api/v1/settings/models/{provider}"],
+    "user:create": ["POST /api/v1/users"],
+    "user:read": ["GET /api/v1/users", "GET /api/v1/users/{id}", "GET /api/v1/users/me"],
+    "user:update": ["PUT /api/v1/users/{id}"],
+    "user:delete": ["DELETE /api/v1/users/{id}"],
+    "user:manage": ["POST /api/v1/users/{id}/reset-password", "GET /api/v1/permissions/roles", "POST /api/v1/permissions/roles", "PUT /api/v1/permissions/roles/{role}", "DELETE /api/v1/permissions/roles/{role}"],
+    "api_key:create": ["POST /api/v1/api-keys"],
+    "api_key:read": ["GET /api/v1/api-keys"],
+    "api_key:delete": ["DELETE /api/v1/api-keys/{id}"],
+    "provider:read": ["GET /api/v1/providers", "GET /api/v1/providers/status", "GET /api/v1/providers/available-models"],
+    "provider:update": ["POST /api/v1/providers/{id}/detect", "POST /api/v1/providers/{id}/connect", "POST /api/v1/providers/{id}/toggle"],
+    "provider:manage": ["POST /api/v1/providers/detect-all", "DELETE /api/v1/providers/{id}/accounts/{account_id}", "POST /api/v1/providers/test/{id}/{account_id}", "GET /api/v1/providers/env", "POST /api/v1/providers/env"],
+    "agent:read": ["GET /api/v1/agent/*"],
+    "agent:execute": ["POST /api/v1/agent/run", "POST /api/v1/agent/*/{id}/stop", "POST /api/v1/agent/*/{id}/pause", "POST /api/v1/agent/*/{id}/resume"],
+    "scheduler:read": ["GET /api/v1/scheduler/*"],
+    "scheduler:manage": ["POST /api/v1/scheduler/*", "DELETE /api/v1/scheduler/*", "POST /api/v1/scheduler/{id}/pause", "POST /api/v1/scheduler/{id}/resume"],
+    "knowledge:read": ["GET /api/v1/knowledge/documents", "GET /api/v1/knowledge/documents/{id}", "GET /api/v1/knowledge/search", "GET /api/v1/knowledge/stats"],
+    "knowledge:update": ["POST /api/v1/knowledge/upload", "DELETE /api/v1/knowledge/documents/{id}"],
 }
 
 
@@ -164,6 +251,58 @@ async def init_permissions():
                     )
                     db.add(rp)
                     print(f"[ROLE_PERMISSION] Created: {role} -> {perm_name}")
+
+        await db.commit()
+
+        # Create resource mappings (frontend pages)
+        for perm_name, pages in PERMISSION_FRONTEND_PAGES.items():
+            perm_id = permission_map.get(perm_name)
+            if not perm_id:
+                continue
+
+            for page_path in pages:
+                result = await db.execute(
+                    select(ResourceMapping).where(
+                        ResourceMapping.permission_id == perm_id,
+                        ResourceMapping.resource_type == "frontend_page",
+                        ResourceMapping.resource_path == page_path
+                    )
+                )
+                existing = result.scalar_one_or_none()
+                if not existing:
+                    rm = ResourceMapping(
+                        id=str(uuid.uuid4()),
+                        permission_id=perm_id,
+                        resource_type="frontend_page",
+                        resource_path=page_path,
+                    )
+                    db.add(rm)
+                    print(f"[RESOURCE_MAPPING] Created: {perm_name} -> frontend_page:{page_path}")
+
+        # Create resource mappings (backend APIs)
+        for perm_name, apis in PERMISSION_BACKEND_APIS.items():
+            perm_id = permission_map.get(perm_name)
+            if not perm_id:
+                continue
+
+            for api_path in apis:
+                result = await db.execute(
+                    select(ResourceMapping).where(
+                        ResourceMapping.permission_id == perm_id,
+                        ResourceMapping.resource_type == "backend_api",
+                        ResourceMapping.resource_path == api_path
+                    )
+                )
+                existing = result.scalar_one_or_none()
+                if not existing:
+                    rm = ResourceMapping(
+                        id=str(uuid.uuid4()),
+                        permission_id=perm_id,
+                        resource_type="backend_api",
+                        resource_path=api_path,
+                    )
+                    db.add(rm)
+                    print(f"[RESOURCE_MAPPING] Created: {perm_name} -> backend_api:{api_path}")
 
         await db.commit()
         print("[PERMISSIONS] Initialization completed")

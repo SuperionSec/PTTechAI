@@ -15,24 +15,12 @@ from backend.models.user import User, Role
 from backend.schemas.scan import ScanCreate, ScanUpdate, ScanResponse, ScanListResponse, ScanProgress
 from backend.services.scan_service import run_scan_task, skip_to_phase as _skip_to_phase, PHASE_ORDER
 from backend.core.auth import get_current_user
-from backend.models.user import Role
-from fastapi import Request
+from backend.core.permissions import require_scan_read, require_scan_create, require_scan_update, require_scan_delete, require_scan_execute
 
 router = APIRouter()
 
 
-async def require_non_service_role_scan(current_user: User = Depends(get_current_user)) -> User:
-    """Block SERVICE role from accessing scan endpoints"""
-    user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
-    if user_role == Role.SERVICE.value:
-        raise HTTPException(
-            status_code=403,
-            detail="Service role is not authorized for this endpoint"
-        )
-    return current_user
-
-
-@router.get("", response_model=ScanListResponse, dependencies=[Depends(require_non_service_role_scan)])
+@router.get("", response_model=ScanListResponse, dependencies=[Depends(require_scan_read())])
 async def list_scans(
     page: int = 1,
     per_page: int = 10,
@@ -82,7 +70,7 @@ async def list_scans(
     )
 
 
-@router.post("", response_model=ScanResponse, dependencies=[Depends(require_non_service_role_scan)])
+@router.post("", response_model=ScanResponse, dependencies=[Depends(require_scan_create())])
 async def create_scan(
     scan_data: ScanCreate,
     background_tasks: BackgroundTasks,
@@ -149,7 +137,7 @@ async def create_scan(
     return ScanResponse(**scan_dict)
 
 
-@router.get("/{scan_id}", response_model=ScanResponse, dependencies=[Depends(require_non_service_role_scan)])
+@router.get("/{scan_id}", response_model=ScanResponse, dependencies=[Depends(require_scan_read())])
 async def get_scan(scan_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Get scan details by ID"""
     result = await db.execute(select(Scan).where(Scan.id == scan_id))
@@ -170,7 +158,7 @@ async def get_scan(scan_id: str, db: AsyncSession = Depends(get_db), current_use
     return ScanResponse(**scan_dict)
 
 
-@router.post("/{scan_id}/start", dependencies=[Depends(require_non_service_role_scan)])
+@router.post("/{scan_id}/start", dependencies=[Depends(require_scan_execute())])
 async def start_scan(
     scan_id: str,
     background_tasks: BackgroundTasks,
@@ -202,7 +190,7 @@ async def start_scan(
     return {"message": "Scan started", "scan_id": scan_id}
 
 
-@router.post("/{scan_id}/stop", dependencies=[Depends(require_non_service_role_scan)])
+@router.post("/{scan_id}/stop", dependencies=[Depends(require_scan_execute())])
 async def stop_scan(scan_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Stop a running scan and save partial results"""
     from backend.api.websocket import manager as ws_manager
@@ -299,7 +287,7 @@ async def stop_scan(scan_id: str, db: AsyncSession = Depends(get_db), current_us
     }
 
 
-@router.post("/{scan_id}/pause", dependencies=[Depends(require_non_service_role_scan)])
+@router.post("/{scan_id}/pause", dependencies=[Depends(require_scan_execute())])
 async def pause_scan(scan_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Pause a running scan"""
     from backend.api.websocket import manager as ws_manager
@@ -333,7 +321,7 @@ async def pause_scan(scan_id: str, db: AsyncSession = Depends(get_db), current_u
     return {"message": "Scan paused", "scan_id": scan_id}
 
 
-@router.post("/{scan_id}/resume", dependencies=[Depends(require_non_service_role_scan)])
+@router.post("/{scan_id}/resume", dependencies=[Depends(require_scan_execute())])
 async def resume_scan(scan_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Resume a paused scan"""
     from backend.api.websocket import manager as ws_manager
@@ -367,7 +355,7 @@ async def resume_scan(scan_id: str, db: AsyncSession = Depends(get_db), current_
     return {"message": "Scan resumed", "scan_id": scan_id}
 
 
-@router.post("/{scan_id}/skip-to/{target_phase}", dependencies=[Depends(require_non_service_role_scan)])
+@router.post("/{scan_id}/skip-to/{target_phase}", dependencies=[Depends(require_scan_execute())])
 async def skip_to_phase_endpoint(scan_id: str, target_phase: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Skip the current scan phase and jump to a target phase.
 
@@ -431,7 +419,7 @@ async def skip_to_phase_endpoint(scan_id: str, target_phase: str, db: AsyncSessi
     }
 
 
-@router.get("/{scan_id}/status", response_model=ScanProgress, dependencies=[Depends(require_non_service_role_scan)])
+@router.get("/{scan_id}/status", response_model=ScanProgress, dependencies=[Depends(require_scan_read())])
 async def get_scan_status(scan_id: str, db: AsyncSession = Depends(get_db)):
     """Get scan progress and status"""
     result = await db.execute(select(Scan).where(Scan.id == scan_id))
@@ -450,7 +438,7 @@ async def get_scan_status(scan_id: str, db: AsyncSession = Depends(get_db)):
     )
 
 
-@router.delete("/{scan_id}", dependencies=[Depends(require_non_service_role_scan)])
+@router.delete("/{scan_id}", dependencies=[Depends(require_scan_delete())])
 async def delete_scan(scan_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Delete a scan"""
     result = await db.execute(select(Scan).where(Scan.id == scan_id))
@@ -470,7 +458,7 @@ async def delete_scan(scan_id: str, db: AsyncSession = Depends(get_db), current_
     return {"message": "Scan deleted", "scan_id": scan_id}
 
 
-@router.get("/{scan_id}/endpoints", dependencies=[Depends(require_non_service_role_scan)])
+@router.get("/{scan_id}/endpoints", dependencies=[Depends(require_scan_read())])
 async def get_scan_endpoints(
     scan_id: str,
     page: int = 1,
@@ -506,7 +494,7 @@ async def get_scan_endpoints(
     }
 
 
-@router.get("/{scan_id}/vulnerabilities", dependencies=[Depends(require_non_service_role_scan)])
+@router.get("/{scan_id}/vulnerabilities", dependencies=[Depends(require_scan_read())])
 async def get_scan_vulnerabilities(
     scan_id: str,
     severity: Optional[str] = None,
@@ -556,7 +544,7 @@ class ValidationRequest(BaseModel):
     notes: Optional[str] = None
 
 
-@router.patch("/vulnerabilities/{vuln_id}/validate", dependencies=[Depends(require_non_service_role_scan)])
+@router.patch("/vulnerabilities/{vuln_id}/validate", dependencies=[Depends(require_scan_update())])
 async def validate_vulnerability(
     vuln_id: str,
     body: ValidationRequest,
@@ -624,7 +612,7 @@ class FeedbackRequest(BaseModel):
     explanation: str = ""
 
 
-@router.post("/vulnerabilities/{vuln_id}/feedback", dependencies=[Depends(require_non_service_role_scan)])
+@router.post("/vulnerabilities/{vuln_id}/feedback", dependencies=[Depends(require_scan_update())])
 async def submit_vulnerability_feedback(
     vuln_id: str,
     body: FeedbackRequest,
@@ -691,7 +679,7 @@ async def submit_vulnerability_feedback(
     }
 
 
-@router.get("/vulnerabilities/learning/stats", dependencies=[Depends(require_non_service_role_scan)])
+@router.get("/vulnerabilities/learning/stats", dependencies=[Depends(require_scan_read())])
 async def get_learning_stats():
     """Get adaptive learning statistics."""
     try:

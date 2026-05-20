@@ -12,19 +12,10 @@ from typing import Optional, List, Dict
 
 from backend.core.auth import get_current_user
 from backend.models.user import User, Role
+from backend.core.resource_guard import require_api_permission
 from fastapi import HTTPException
 
 router = APIRouter()
-
-async def require_non_service_role_scheduler(current_user: User = Depends(get_current_user)) -> User:
-    """Block SERVICE role from accessing scheduler endpoints"""
-    user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
-    if user_role == Role.SERVICE.value:
-        raise HTTPException(
-            status_code=403,
-            detail="Service role is not authorized for this endpoint"
-        )
-    return current_user
 
 CONFIG_PATH = Path(__file__).parent.parent.parent.parent / "config" / "config.json"
 
@@ -52,7 +43,7 @@ class ScheduleJobResponse(BaseModel):
     run_count: int = 0
 
 
-@router.get("/", response_model=List[Dict], dependencies=[Depends(require_non_service_role_scheduler)])
+@router.get("/", response_model=List[Dict], dependencies=[Depends(require_api_permission)])
 async def list_scheduled_jobs(request: Request, current_user: User = Depends(get_current_user)):
     """List all scheduled scan jobs."""
     scheduler = getattr(request.app.state, 'scheduler', None)
@@ -61,7 +52,7 @@ async def list_scheduled_jobs(request: Request, current_user: User = Depends(get
     return scheduler.list_jobs()
 
 
-@router.post("/", response_model=Dict, dependencies=[Depends(require_non_service_role_scheduler)])
+@router.post("/", response_model=Dict, dependencies=[Depends(require_api_permission)])
 async def create_scheduled_job(job: ScheduleJobRequest, request: Request, current_user: User = Depends(get_current_user)):
     """Create a new scheduled scan job."""
     scheduler = getattr(request.app.state, 'scheduler', None)
@@ -90,7 +81,7 @@ async def create_scheduled_job(job: ScheduleJobRequest, request: Request, curren
     return result
 
 
-@router.delete("/{job_id}", dependencies=[Depends(require_non_service_role_scheduler)])
+@router.delete("/{job_id}", dependencies=[Depends(require_api_permission)])
 async def delete_scheduled_job(job_id: str, request: Request, current_user: User = Depends(get_current_user)):
     """Delete a scheduled scan job."""
     scheduler = getattr(request.app.state, 'scheduler', None)
@@ -104,7 +95,7 @@ async def delete_scheduled_job(job_id: str, request: Request, current_user: User
     return {"message": f"Job '{job_id}' deleted", "id": job_id}
 
 
-@router.post("/{job_id}/pause", dependencies=[Depends(require_non_service_role_scheduler)])
+@router.post("/{job_id}/pause", dependencies=[Depends(require_api_permission)])
 async def pause_scheduled_job(job_id: str, request: Request, current_user: User = Depends(get_current_user)):
     """Pause a scheduled scan job."""
     scheduler = getattr(request.app.state, 'scheduler', None)
@@ -118,7 +109,7 @@ async def pause_scheduled_job(job_id: str, request: Request, current_user: User 
     return {"message": f"Job '{job_id}' paused", "id": job_id, "status": "paused"}
 
 
-@router.post("/{job_id}/resume", dependencies=[Depends(require_non_service_role_scheduler)])
+@router.post("/{job_id}/resume", dependencies=[Depends(require_api_permission)])
 async def resume_scheduled_job(job_id: str, request: Request, current_user: User = Depends(get_current_user)):
     """Resume a paused scheduled scan job."""
     scheduler = getattr(request.app.state, 'scheduler', None)
@@ -132,7 +123,7 @@ async def resume_scheduled_job(job_id: str, request: Request, current_user: User
     return {"message": f"Job '{job_id}' resumed", "id": job_id, "status": "active"}
 
 
-@router.get("/agent-roles", response_model=List[Dict], dependencies=[Depends(require_non_service_role_scheduler)])
+@router.get("/agent-roles", response_model=List[Dict], dependencies=[Depends(require_api_permission)])
 async def get_agent_roles(current_user: User = Depends(get_current_user)):
     """Return available agent roles from config.json for scheduler dropdown."""
     try:

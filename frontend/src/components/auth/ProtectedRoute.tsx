@@ -5,10 +5,11 @@ import { useAuth } from '../../contexts/AuthContext'
 interface ProtectedRouteProps {
   children: React.ReactNode
   requiredRole?: 'admin' | 'user' | 'viewer' | 'service'
+  requiredPermission?: string
 }
 
-export default function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-  const { user, loading } = useAuth()
+export default function ProtectedRoute({ children, requiredRole, requiredPermission }: ProtectedRouteProps) {
+  const { user, loading, hasPermission } = useAuth()
   const { t } = useTranslation()
 
   if (loading) {
@@ -40,6 +41,14 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
     )
   }
 
+  // Permission-based check takes precedence
+  if (requiredPermission) {
+    if (!hasPermission(requiredPermission)) {
+      return <Navigate to="/" replace />
+    }
+  }
+
+  // Role-based check (legacy, for backward compatibility)
   if (requiredRole && user.role !== requiredRole) {
     if (requiredRole === 'admin') {
       return <Navigate to="/" replace />

@@ -15,22 +15,12 @@ from backend.schemas.agent_task import (
     AgentTaskListResponse,
     AgentTaskSummary
 )
+from backend.core.resource_guard import require_api_permission
 
 router = APIRouter()
 
 
-async def require_non_service_role_agent_task(current_user: User = Depends(get_current_user)) -> User:
-    """Block SERVICE role from accessing agent task endpoints"""
-    user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
-    if user_role == Role.SERVICE.value:
-        raise HTTPException(
-            status_code=403,
-            detail="Service role is not authorized for this endpoint"
-        )
-    return current_user
-
-
-@router.get("", response_model=AgentTaskListResponse, dependencies=[Depends(require_non_service_role_agent_task)])
+@router.get("", response_model=AgentTaskListResponse, dependencies=[Depends(require_api_permission)])
 async def list_agent_tasks(
     scan_id: str,
     status: Optional[str] = None,
@@ -79,7 +69,7 @@ async def list_agent_tasks(
     )
 
 
-@router.get("/summary", response_model=AgentTaskSummary, dependencies=[Depends(require_non_service_role_agent_task)])
+@router.get("/summary", response_model=AgentTaskSummary, dependencies=[Depends(require_api_permission)])
 async def get_agent_tasks_summary(
     scan_id: str,
     db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
@@ -136,7 +126,7 @@ async def get_agent_tasks_summary(
     )
 
 
-@router.get("/{task_id}", response_model=AgentTaskResponse, dependencies=[Depends(require_non_service_role_agent_task)])
+@router.get("/{task_id}", response_model=AgentTaskResponse, dependencies=[Depends(require_api_permission)])
 async def get_agent_task(
     task_id: str,
     db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
@@ -151,7 +141,7 @@ async def get_agent_task(
     return AgentTaskResponse(**task.to_dict())
 
 
-@router.get("/scan/{scan_id}/timeline", dependencies=[Depends(require_non_service_role_agent_task)])
+@router.get("/scan/{scan_id}/timeline", dependencies=[Depends(require_api_permission)])
 async def get_agent_tasks_timeline(
     scan_id: str,
     db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)

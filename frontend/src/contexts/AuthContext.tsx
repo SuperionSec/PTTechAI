@@ -11,13 +11,23 @@ interface User {
   created_at: string
 }
 
+interface UserPermissions {
+  role: string
+  permissions: string[]
+  frontend_pages: string[]
+  backend_apis: string[]
+}
+
 interface AuthContextType {
   user: User | null
+  userPermissions: UserPermissions | null
   token: string | null
   loading: boolean
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string, fullName?: string) => Promise<void>
   logout: () => void
+  hasPermission: (permission: string) => boolean
+  canAccessPage: (path: string) => boolean
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -98,11 +108,22 @@ axios.interceptors.response.use(
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [userPermissions, setUserPermissions] = useState<UserPermissions | null>(null)
   const [token, setToken] = useState<string | null>(getStoredToken())
   const [loading, setLoading] = useState(true)
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isFetchingRef = useRef(false)
   const navigate = useNavigate()
+
+  const fetchUserPermissions = useCallback(async () => {
+    try {
+      const res = await axios.get('/api/v1/permissions/me/detail')
+      setUserPermissions(res.data)
+    } catch (error) {
+      console.error('Failed to fetch user permissions:', error)
+      setUserPermissions(null)
+    }
+  }, [])
 
   const fetchUser = useCallback(async () => {
     if (isFetchingRef.current) return
@@ -133,6 +154,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await axios.get(`${AUTH_URL}/me`)
       setUser(res.data)
       setToken(t)
+      // Fetch user permissions after user is loaded
+      await fetchUserPermissions()
     } catch (error: any) {
       // 401 will be handled by axios interceptor (refresh + redirect)
       // Network errors: keep token, don't clear
@@ -143,7 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false)
       isFetchingRef.current = false
     }
-  }, [])
+  }, [fetchUserPermissions])
 
   // Setup automatic token refresh
   const setupTokenRefresh = useCallback(() => {
@@ -210,6 +233,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(access_token)
     const userRes = await axios.get(`${AUTH_URL}/me`)
     setUser(userRes.data)
+    await fetchUserPermissions()
     setupTokenRefresh()
   }
 
@@ -230,10 +254,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     removeStoredToken()
     setToken(null)
     setUser(null)
+    setUserPermissions(null)
   }
 
+  const hasPermission = useCallback((permission: string) => {
+    if (!userPermissions) return false
+    return userPermissions.permissions.includes(permission)
+  }, [userPermissions])
+
+  const canAccessPage = useCallback((path: string) => {
+    if (!userPermissions) return false
+    // Admin can access everything
+    if (userPermissions.role === 'admin') return true
+    return userPermissions.frontend_pages.includes(path)
+  }, [userPermissions])
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, userPermissions, token, loading, login, register, logout, hasPermission, canAccessPage }}>
       {children}
     </AuthContext.Provider>
   )

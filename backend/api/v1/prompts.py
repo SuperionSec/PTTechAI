@@ -14,18 +14,9 @@ from backend.schemas.prompt import (
     PromptCreate, PromptUpdate, PromptResponse, PromptParse, PromptParseResult, PromptPreset
 )
 from backend.core.prompt_engine.parser import PromptParser
+from backend.core.resource_guard import require_api_permission
 
 router = APIRouter()
-
-async def require_non_service_role_prompts(current_user: User = Depends(get_current_user)) -> User:
-    """Block SERVICE role from accessing prompts endpoints"""
-    user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
-    if user_role == Role.SERVICE.value:
-        raise HTTPException(
-            status_code=403,
-            detail="Service role is not authorized for this endpoint"
-        )
-    return current_user
 
 # Preset prompts
 PRESET_PROMPTS = [
@@ -221,7 +212,7 @@ OAuth/SSO:
 ]
 
 
-@router.get("/presets", response_model=List[PromptPreset], dependencies=[Depends(require_non_service_role_prompts)])
+@router.get("/presets", response_model=List[PromptPreset], dependencies=[Depends(require_api_permission)])
 async def get_preset_prompts(current_user: User = Depends(get_current_user)):
     """Get list of preset prompts"""
     return [
@@ -236,7 +227,7 @@ async def get_preset_prompts(current_user: User = Depends(get_current_user)):
     ]
 
 
-@router.get("/presets/{preset_id}", dependencies=[Depends(require_non_service_role_prompts)])
+@router.get("/presets/{preset_id}", dependencies=[Depends(require_api_permission)])
 async def get_preset_prompt(preset_id: str, current_user: User = Depends(get_current_user)):
     """Get a specific preset prompt by ID"""
     for preset in PRESET_PROMPTS:
@@ -245,7 +236,7 @@ async def get_preset_prompt(preset_id: str, current_user: User = Depends(get_cur
     raise HTTPException(status_code=404, detail="Preset not found")
 
 
-@router.post("/parse", response_model=PromptParseResult, dependencies=[Depends(require_non_service_role_prompts)])
+@router.post("/parse", response_model=PromptParseResult, dependencies=[Depends(require_api_permission)])
 async def parse_prompt(prompt_data: PromptParse, current_user: User = Depends(get_current_user)):
     """Parse a prompt to extract vulnerability types and testing scope"""
     parser = PromptParser()
@@ -253,7 +244,7 @@ async def parse_prompt(prompt_data: PromptParse, current_user: User = Depends(ge
     return result
 
 
-@router.get("", response_model=List[PromptResponse], dependencies=[Depends(require_non_service_role_prompts)])
+@router.get("", response_model=List[PromptResponse], dependencies=[Depends(require_api_permission)])
 async def list_prompts(
     category: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
@@ -271,7 +262,7 @@ async def list_prompts(
     return [PromptResponse(**p.to_dict()) for p in prompts]
 
 
-@router.post("", response_model=PromptResponse, dependencies=[Depends(require_non_service_role_prompts)])
+@router.post("", response_model=PromptResponse, dependencies=[Depends(require_api_permission)])
 async def create_prompt(prompt_data: PromptCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Create a custom prompt"""
     # Parse vulnerabilities from content
@@ -293,7 +284,7 @@ async def create_prompt(prompt_data: PromptCreate, db: AsyncSession = Depends(ge
     return PromptResponse(**prompt.to_dict())
 
 
-@router.get("/{prompt_id}", response_model=PromptResponse, dependencies=[Depends(require_non_service_role_prompts)])
+@router.get("/{prompt_id}", response_model=PromptResponse, dependencies=[Depends(require_api_permission)])
 async def get_prompt(prompt_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Get a prompt by ID"""
     result = await db.execute(select(Prompt).where(Prompt.id == prompt_id))
@@ -305,7 +296,7 @@ async def get_prompt(prompt_id: str, db: AsyncSession = Depends(get_db), current
     return PromptResponse(**prompt.to_dict())
 
 
-@router.put("/{prompt_id}", response_model=PromptResponse, dependencies=[Depends(require_non_service_role_prompts)])
+@router.put("/{prompt_id}", response_model=PromptResponse, dependencies=[Depends(require_api_permission)])
 async def update_prompt(
     prompt_id: str,
     prompt_data: PromptUpdate,
@@ -341,7 +332,7 @@ async def update_prompt(
     return PromptResponse(**prompt.to_dict())
 
 
-@router.delete("/{prompt_id}", dependencies=[Depends(require_non_service_role_prompts)])
+@router.delete("/{prompt_id}", dependencies=[Depends(require_api_permission)])
 async def delete_prompt(prompt_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Delete a prompt"""
     result = await db.execute(select(Prompt).where(Prompt.id == prompt_id))
@@ -359,7 +350,7 @@ async def delete_prompt(prompt_id: str, db: AsyncSession = Depends(get_db), curr
     return {"message": "Prompt deleted"}
 
 
-@router.post("/upload", dependencies=[Depends(require_non_service_role_prompts)])
+@router.post("/upload", dependencies=[Depends(require_api_permission)])
 async def upload_prompt(file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
     """Upload a prompt file (.md or .txt)"""
     if not file.filename:

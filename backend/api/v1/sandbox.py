@@ -9,18 +9,9 @@ from fastapi import APIRouter, HTTPException, Depends
 
 from backend.core.auth import get_current_user
 from backend.models.user import User, Role
+from backend.core.resource_guard import require_api_permission
 
 router = APIRouter()
-
-async def require_non_service_role_sandbox(current_user: User = Depends(get_current_user)) -> User:
-    """Block SERVICE role from accessing sandbox endpoints"""
-    user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
-    if user_role == Role.SERVICE.value:
-        raise HTTPException(
-            status_code=403,
-            detail="Service role is not authorized for this endpoint"
-        )
-    return current_user
 
 
 def _docker_available() -> bool:
@@ -32,7 +23,7 @@ def _docker_available() -> bool:
         return False
 
 
-@router.get("/", dependencies=[Depends(require_non_service_role_sandbox)])
+@router.get("/", dependencies=[Depends(require_api_permission)])
 async def list_sandboxes(current_user: User = Depends(get_current_user)):
     """List all sandbox containers with pool status."""
     try:
@@ -81,7 +72,7 @@ async def list_sandboxes(current_user: User = Depends(get_current_user)):
     }
 
 
-@router.get("/{scan_id}", dependencies=[Depends(require_non_service_role_sandbox)])
+@router.get("/{scan_id}", dependencies=[Depends(require_api_permission)])
 async def get_sandbox(scan_id: str, current_user: User = Depends(get_current_user)):
     """Get health check for a specific sandbox container."""
     try:
@@ -102,7 +93,7 @@ async def get_sandbox(scan_id: str, current_user: User = Depends(get_current_use
     return health
 
 
-@router.delete("/{scan_id}", dependencies=[Depends(require_non_service_role_sandbox)])
+@router.delete("/{scan_id}", dependencies=[Depends(require_api_permission)])
 async def destroy_sandbox(scan_id: str, current_user: User = Depends(get_current_user)):
     """Destroy a specific sandbox container."""
     try:
@@ -119,7 +110,7 @@ async def destroy_sandbox(scan_id: str, current_user: User = Depends(get_current
     return {"message": f"Sandbox for scan {scan_id} destroyed", "scan_id": scan_id}
 
 
-@router.post("/cleanup", dependencies=[Depends(require_non_service_role_sandbox)])
+@router.post("/cleanup", dependencies=[Depends(require_api_permission)])
 async def cleanup_expired(current_user: User = Depends(get_current_user)):
     """Remove containers that have exceeded their TTL."""
     try:
@@ -131,7 +122,7 @@ async def cleanup_expired(current_user: User = Depends(get_current_user)):
         raise HTTPException(status_code=503, detail=str(e))
 
 
-@router.post("/cleanup-orphans", dependencies=[Depends(require_non_service_role_sandbox)])
+@router.post("/cleanup-orphans", dependencies=[Depends(require_api_permission)])
 async def cleanup_orphans(current_user: User = Depends(get_current_user)):
     """Remove orphan containers not tracked by the pool."""
     try:

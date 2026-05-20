@@ -15,19 +15,10 @@ from backend.db.database import get_db, engine
 from backend.models import Scan, Target, Endpoint, Vulnerability, VulnerabilityTest, Report, AgentTask, VulnLabChallenge, Prompt
 from backend.core.auth import get_current_user
 from backend.models.user import User, Role
+from backend.core.resource_guard import require_api_permission
 from fastapi import Depends, HTTPException
 
 router = APIRouter()
-
-async def require_non_service_role_settings(current_user: User = Depends(get_current_user)) -> User:
-    """Block SERVICE role from accessing settings endpoints"""
-    user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
-    if user_role == Role.SERVICE.value:
-        raise HTTPException(
-            status_code=403,
-            detail="Service role is not authorized for this endpoint"
-        )
-    return current_user
 
 # Path to .env file (project root)
 ENV_FILE_PATH = Path(__file__).parent.parent.parent.parent / ".env"
@@ -422,10 +413,10 @@ async def update_settings(settings_data: SettingsUpdate, current_user: User = De
     except ImportError:
         pass
 
-    return await get_settings()
+    return await get_settings(current_user=current_user)
 
 
-@router.post("/notifications/test/{channel}", dependencies=[Depends(require_non_service_role_settings)])
+@router.post("/notifications/test/{channel}", dependencies=[Depends(require_api_permission)])
 async def test_notification_channel(channel: str, current_user: User = Depends(get_current_user)):
     """Send a test notification to a specific channel (discord, telegram, whatsapp)."""
     try:
@@ -440,7 +431,7 @@ class ClearDatabaseRequest(BaseModel):
     confirm: bool
 
 
-@router.post("/clear-database", dependencies=[Depends(require_non_service_role_settings)])
+@router.post("/clear-database", dependencies=[Depends(require_api_permission)])
 async def clear_database(
     request: ClearDatabaseRequest,
     db: AsyncSession = Depends(get_db),
@@ -485,7 +476,7 @@ async def clear_database(
         raise HTTPException(status_code=500, detail=f"Failed to clear database: {str(e)}")
 
 
-@router.get("/stats", dependencies=[Depends(require_non_service_role_settings)])
+@router.get("/stats", dependencies=[Depends(require_api_permission)])
 async def get_database_stats(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Get database statistics"""
     from sqlalchemy import func
@@ -503,7 +494,7 @@ async def get_database_stats(db: AsyncSession = Depends(get_db), current_user: U
     }
 
 
-@router.get("/tools", dependencies=[Depends(require_non_service_role_settings)])
+@router.get("/tools", dependencies=[Depends(require_api_permission)])
 async def get_installed_tools(current_user: User = Depends(get_current_user)):
     """Check which security tools are installed"""
     import asyncio
@@ -611,7 +602,7 @@ CLOUD_MODELS = {
 }
 
 
-@router.get("/models/{provider}", response_model=ModelCatalogResponse, dependencies=[Depends(require_non_service_role_settings)])
+@router.get("/models/{provider}", response_model=ModelCatalogResponse, dependencies=[Depends(require_api_permission)])
 async def get_provider_models(provider: str, current_user: User = Depends(get_current_user)):
     """Get available models for a specific provider.
 

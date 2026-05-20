@@ -22,19 +22,10 @@ from backend.api.v1.agent import (
 
 from backend.core.auth import get_current_user
 from backend.models.user import User, Role
+from backend.core.resource_guard import require_api_permission
 from fastapi import HTTPException
 
 router = APIRouter()
-
-async def require_non_service_role_vuln_lab(current_user: User = Depends(get_current_user)) -> User:
-    """Block SERVICE role from accessing vuln lab endpoints"""
-    user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
-    if user_role == Role.SERVICE.value:
-        raise HTTPException(
-            status_code=403,
-            detail="Service role is not authorized for this endpoint"
-        )
-    return current_user
 
 # In-memory tracking for running lab tests
 lab_agents: Dict[str, AutonomousAgent] = {}
@@ -169,7 +160,7 @@ def _get_vuln_category(vuln_type: str) -> str:
 
 # --- Endpoints ---
 
-@router.get("/types", dependencies=[Depends(require_non_service_role_vuln_lab)])
+@router.get("/types", dependencies=[Depends(require_api_permission)])
 async def list_vuln_types(current_user: User = Depends(get_current_user)):
     """List all available vulnerability types grouped by category"""
     registry = VulnerabilityRegistry()
@@ -195,7 +186,7 @@ async def list_vuln_types(current_user: User = Depends(get_current_user)):
     return {"categories": result, "total_types": sum(len(c["types"]) for c in VULN_CATEGORIES.values())}
 
 
-@router.post("/run", response_model=VulnLabResponse, dependencies=[Depends(require_non_service_role_vuln_lab)])
+@router.post("/run", response_model=VulnLabResponse, dependencies=[Depends(require_api_permission)])
 async def run_vuln_lab(request: VulnLabRunRequest, background_tasks: BackgroundTasks, current_user: User = Depends(get_current_user)):
     """Launch an isolated vulnerability test for a specific vuln type"""
     import uuid
@@ -650,7 +641,7 @@ def _vuln_type_matches(target_type: str, found_type: str) -> bool:
     return False
 
 
-@router.get("/challenges", dependencies=[Depends(require_non_service_role_vuln_lab)])
+@router.get("/challenges", dependencies=[Depends(require_api_permission)])
 async def list_challenges(
     vuln_type: Optional[str] = None,
     vuln_category: Optional[str] = None,
@@ -690,7 +681,7 @@ async def list_challenges(
         }
 
 
-@router.get("/challenges/{challenge_id}", dependencies=[Depends(require_non_service_role_vuln_lab)])
+@router.get("/challenges/{challenge_id}", dependencies=[Depends(require_api_permission)])
 async def get_challenge(challenge_id: str, current_user: User = Depends(get_current_user)):
     """Get challenge details including real-time status if running"""
     # Check in-memory first for real-time data
@@ -729,7 +720,7 @@ async def get_challenge(challenge_id: str, current_user: User = Depends(get_curr
         return data
 
 
-@router.get("/stats", dependencies=[Depends(require_non_service_role_vuln_lab)])
+@router.get("/stats", dependencies=[Depends(require_api_permission)])
 async def get_lab_stats(current_user: User = Depends(get_current_user)):
     """Get aggregated stats for all lab challenges"""
     async with async_session_factory() as db:
@@ -805,7 +796,7 @@ async def get_lab_stats(current_user: User = Depends(get_current_user)):
         }
 
 
-@router.post("/challenges/{challenge_id}/stop", dependencies=[Depends(require_non_service_role_vuln_lab)])
+@router.post("/challenges/{challenge_id}/stop", dependencies=[Depends(require_api_permission)])
 async def stop_challenge(challenge_id: str, current_user: User = Depends(get_current_user)):
     """Stop a running lab challenge"""
     agent = lab_agents.get(challenge_id)
@@ -834,7 +825,7 @@ async def stop_challenge(challenge_id: str, current_user: User = Depends(get_cur
     return {"message": "Challenge stopped"}
 
 
-@router.delete("/challenges/{challenge_id}", dependencies=[Depends(require_non_service_role_vuln_lab)])
+@router.delete("/challenges/{challenge_id}", dependencies=[Depends(require_api_permission)])
 async def delete_challenge(challenge_id: str, current_user: User = Depends(get_current_user)):
     """Delete a lab challenge record"""
     # Stop if running
@@ -859,7 +850,7 @@ async def delete_challenge(challenge_id: str, current_user: User = Depends(get_c
     return {"message": "Challenge deleted"}
 
 
-@router.get("/logs/{challenge_id}", dependencies=[Depends(require_non_service_role_vuln_lab)])
+@router.get("/logs/{challenge_id}", dependencies=[Depends(require_api_permission)])
 async def get_challenge_logs(challenge_id: str, limit: int = 200, current_user: User = Depends(get_current_user)):
     """Get logs for a challenge (real-time or from DB)"""
     # Check in-memory first for real-time data

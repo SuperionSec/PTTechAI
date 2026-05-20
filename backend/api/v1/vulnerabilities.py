@@ -11,18 +11,9 @@ from backend.models import Vulnerability
 from backend.core.auth import get_current_user
 from backend.models.user import User, Role
 from backend.schemas.vulnerability import VulnerabilityResponse, VulnerabilityTypeInfo
+from backend.core.resource_guard import require_api_permission
 
 router = APIRouter()
-
-async def require_non_service_role_vulnerabilities(current_user: User = Depends(get_current_user)) -> User:
-    """Block SERVICE role from accessing vulnerabilities endpoints"""
-    user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
-    if user_role == Role.SERVICE.value:
-        raise HTTPException(
-            status_code=403,
-            detail="Service role is not authorized for this endpoint"
-        )
-    return current_user
 
 # Vulnerability type definitions
 VULNERABILITY_TYPES = {
@@ -357,13 +348,13 @@ VULNERABILITY_TYPES = {
 }
 
 
-@router.get("/types", dependencies=[Depends(require_non_service_role_vulnerabilities)])
+@router.get("/types", dependencies=[Depends(require_api_permission)])
 async def get_vulnerability_types(current_user: User = Depends(get_current_user)):
     """Get all vulnerability types organized by category"""
     return VULNERABILITY_TYPES
 
 
-@router.get("/types/{category}", dependencies=[Depends(require_non_service_role_vulnerabilities)])
+@router.get("/types/{category}", dependencies=[Depends(require_api_permission)])
 async def get_vulnerability_types_by_category(category: str, current_user: User = Depends(get_current_user)):
     """Get vulnerability types for a specific category"""
     if category not in VULNERABILITY_TYPES:
@@ -372,7 +363,7 @@ async def get_vulnerability_types_by_category(category: str, current_user: User 
     return VULNERABILITY_TYPES[category]
 
 
-@router.get("/types/{category}/{vuln_type}", response_model=VulnerabilityTypeInfo, dependencies=[Depends(require_non_service_role_vulnerabilities)])
+@router.get("/types/{category}/{vuln_type}", response_model=VulnerabilityTypeInfo, dependencies=[Depends(require_api_permission)])
 async def get_vulnerability_type_info(category: str, vuln_type: str, current_user: User = Depends(get_current_user)):
     """Get detailed info for a specific vulnerability type"""
     if category not in VULNERABILITY_TYPES:
@@ -389,7 +380,7 @@ async def get_vulnerability_type_info(category: str, vuln_type: str, current_use
     )
 
 
-@router.get("/{vuln_id}", response_model=VulnerabilityResponse, dependencies=[Depends(require_non_service_role_vulnerabilities)])
+@router.get("/{vuln_id}", response_model=VulnerabilityResponse, dependencies=[Depends(require_api_permission)])
 async def get_vulnerability(vuln_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Get a specific vulnerability by ID"""
     result = await db.execute(select(Vulnerability).where(Vulnerability.id == vuln_id))

@@ -25,6 +25,7 @@ from backend.models import Scan, Target, Vulnerability, Endpoint, Report
 
 from backend.core.auth import get_current_user
 from backend.models.user import User, Role
+from backend.core.resource_guard import require_api_permission
 from fastapi import Request
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
@@ -40,17 +41,6 @@ async def require_service_or_user_role(current_user: User = Depends(get_current_
         )
     return current_user
 
-
-async def require_non_service_role(current_user: User = Depends(get_current_user)) -> User:
-    """Block SERVICE role from accessing non-authorized endpoints"""
-    user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
-    if user_role == Role.SERVICE.value:
-        raise HTTPException(
-            status_code=403,
-            detail="Service role is not authorized for this endpoint"
-        )
-    return current_user
-
 # Store for agent results (in-memory cache for real-time status)
 agent_results: Dict[str, Dict] = {}
 agent_tasks: Dict[str, asyncio.Task] = {}
@@ -62,7 +52,7 @@ agent_to_scan: Dict[str, str] = {}
 scan_to_agent: Dict[str, str] = {}
 
 
-@router.get("/status", dependencies=[Depends(require_non_service_role)])
+@router.get("/status", dependencies=[Depends(require_api_permission)])
 async def get_llm_status():
     """
     Check if LLM is properly configured.
@@ -605,7 +595,7 @@ async def _run_agent_task(
                 pass
 
 
-@router.get("/md-agents", dependencies=[Depends(require_non_service_role)])
+@router.get("/md-agents", dependencies=[Depends(require_api_permission)])
 async def list_md_agents():
     """List all available .md-based specialist agents."""
     try:
@@ -618,7 +608,7 @@ async def list_md_agents():
         return {"agents": [], "error": str(e)}
 
 
-@router.get("/active", dependencies=[Depends(require_non_service_role)])
+@router.get("/active", dependencies=[Depends(require_api_permission)])
 async def list_active_agents():
     """List all active and recently completed agent sessions."""
     from backend.config import settings
@@ -662,7 +652,7 @@ async def list_active_agents():
     }
 
 
-@router.get("/history", dependencies=[Depends(require_non_service_role)])
+@router.get("/history", dependencies=[Depends(require_api_permission)])
 async def get_agent_history(
     page: int = 1,
     per_page: int = 20,
@@ -746,7 +736,7 @@ async def get_agent_history(
         }
 
 
-@router.get("/by-scan/{scan_id}", dependencies=[Depends(require_non_service_role)])
+@router.get("/by-scan/{scan_id}", dependencies=[Depends(require_api_permission)])
 async def get_agent_by_scan(scan_id: str):
     """Look up agent status by scan_id (reverse lookup for ScanDetailsPage)"""
     agent_id = scan_to_agent.get(scan_id)
@@ -894,7 +884,7 @@ async def _get_status_from_db(agent_id: str, scan_id: str):
         }
 
 
-@router.post("/stop/{agent_id}", dependencies=[Depends(require_non_service_role)])
+@router.post("/stop/{agent_id}", dependencies=[Depends(require_api_permission)])
 async def stop_agent(agent_id: str):
     """Stop a running agent scan, save all findings to DB, and generate report."""
     if agent_id not in agent_results:
@@ -1036,7 +1026,7 @@ async def stop_agent(agent_id: str):
     }
 
 
-@router.post("/pause/{agent_id}", dependencies=[Depends(require_non_service_role)])
+@router.post("/pause/{agent_id}", dependencies=[Depends(require_api_permission)])
 async def pause_agent(agent_id: str):
     """Pause a running agent scan"""
     if agent_id not in agent_results:
@@ -1056,7 +1046,7 @@ async def pause_agent(agent_id: str):
     return {"message": "Agent paused", "agent_id": agent_id}
 
 
-@router.post("/resume/{agent_id}", dependencies=[Depends(require_non_service_role)])
+@router.post("/resume/{agent_id}", dependencies=[Depends(require_api_permission)])
 async def resume_agent(agent_id: str):
     """Resume a paused agent scan"""
     if agent_id not in agent_results:
@@ -1081,7 +1071,7 @@ class TripleCheckRequest(BaseModel):
     preferred_model: Optional[str] = None
 
 
-@router.post("/triple-check/{scan_id}", dependencies=[Depends(require_non_service_role)])
+@router.post("/triple-check/{scan_id}", dependencies=[Depends(require_api_permission)])
 async def triple_check_scan(scan_id: str, request: TripleCheckRequest, background_tasks: BackgroundTasks):
     """Re-validate findings from a completed scan using a different LLM model.
 
@@ -1364,7 +1354,7 @@ PHASE_NORMALIZE = {
 }
 
 
-@router.post("/skip-to/{agent_id}/{target_phase}", dependencies=[Depends(require_non_service_role)])
+@router.post("/skip-to/{agent_id}/{target_phase}", dependencies=[Depends(require_api_permission)])
 async def skip_agent_phase(agent_id: str, target_phase: str):
     """Skip the current agent phase and jump to a target phase.
 
@@ -1434,7 +1424,7 @@ class PromptRequest(BaseModel):
     prompt: str = Field(..., description="Custom prompt for the agent")
 
 
-@router.post("/prompt/{agent_id}", dependencies=[Depends(require_non_service_role)])
+@router.post("/prompt/{agent_id}", dependencies=[Depends(require_api_permission)])
 async def send_custom_prompt(agent_id: str, request: PromptRequest):
     """Send a custom prompt to a running agent for interactive testing"""
     if agent_id not in agent_results:
@@ -1472,7 +1462,7 @@ async def send_custom_prompt(agent_id: str, request: PromptRequest):
     }
 
 
-@router.get("/prompts/{agent_id}", dependencies=[Depends(require_non_service_role)])
+@router.get("/prompts/{agent_id}", dependencies=[Depends(require_api_permission)])
 async def get_prompt_queue(agent_id: str):
     """Get pending prompts for an agent"""
     return {
@@ -1481,7 +1471,7 @@ async def get_prompt_queue(agent_id: str):
     }
 
 
-@router.get("/logs/{agent_id}", dependencies=[Depends(require_non_service_role)])
+@router.get("/logs/{agent_id}", dependencies=[Depends(require_api_permission)])
 async def get_agent_logs(agent_id: str, limit: int = 100):
     """Get the logs from an agent run"""
     if agent_id not in agent_results:
@@ -1532,7 +1522,7 @@ async def get_agent_findings(agent_id: str):
 
 # === TASK LIBRARY ENDPOINTS ===
 
-@router.get("/tasks", response_model=List[TaskResponse], dependencies=[Depends(require_non_service_role)])
+@router.get("/tasks", response_model=List[TaskResponse], dependencies=[Depends(require_api_permission)])
 async def list_tasks(category: Optional[str] = None):
     """List all tasks from the library"""
     library = get_task_library()
@@ -1553,7 +1543,7 @@ async def list_tasks(category: Optional[str] = None):
     ]
 
 
-@router.get("/tasks/{task_id}", dependencies=[Depends(require_non_service_role)])
+@router.get("/tasks/{task_id}", dependencies=[Depends(require_api_permission)])
 async def get_task(task_id: str):
     """Get a specific task from the library"""
     library = get_task_library()
@@ -1588,7 +1578,7 @@ class CreateTaskRequest(BaseModel):
     tags: List[str] = []
 
 
-@router.post("/tasks", dependencies=[Depends(require_non_service_role)])
+@router.post("/tasks", dependencies=[Depends(require_api_permission)])
 async def create_task(request: CreateTaskRequest):
     """Create a new task in the library"""
     from backend.core.task_library import Task
@@ -1612,7 +1602,7 @@ async def create_task(request: CreateTaskRequest):
     return {"message": "Task created", "task_id": task.id}
 
 
-@router.delete("/tasks/{task_id}", dependencies=[Depends(require_non_service_role)])
+@router.delete("/tasks/{task_id}", dependencies=[Depends(require_api_permission)])
 async def delete_task(task_id: str):
     """Delete a task from the library (cannot delete presets)"""
     library = get_task_library()
@@ -1630,7 +1620,7 @@ async def delete_task(task_id: str):
         raise HTTPException(status_code=500, detail="Failed to delete task")
 
 
-@router.post("/quick", dependencies=[Depends(require_non_service_role)])
+@router.post("/quick", dependencies=[Depends(require_api_permission)])
 async def quick_agent_run(target: str, mode: AgentMode = AgentMode.FULL_AUTO):
     """
     Quick agent run - synchronous, returns results directly.
@@ -1682,7 +1672,7 @@ async def quick_agent_run(target: str, mode: AgentMode = AgentMode.FULL_AUTO):
         }
 
 
-@router.delete("/{agent_id}", dependencies=[Depends(require_non_service_role)])
+@router.delete("/{agent_id}", dependencies=[Depends(require_api_permission)])
 async def delete_agent_result(agent_id: str):
     """Delete agent results from memory"""
     if agent_id in agent_results:
@@ -1717,7 +1707,7 @@ class RealtimeMessage(BaseModel):
     metadata: Optional[Dict] = None
 
 
-@router.get("/realtime/llm-status", dependencies=[Depends(require_non_service_role)])
+@router.get("/realtime/llm-status", dependencies=[Depends(require_api_permission)])
 async def get_llm_status():
     """
     Get the current LLM provider status and availability.
@@ -1759,7 +1749,7 @@ async def get_llm_status():
     }
 
 
-@router.post("/realtime/session", dependencies=[Depends(require_non_service_role)])
+@router.post("/realtime/session", dependencies=[Depends(require_api_permission)])
 async def create_realtime_session(request: RealtimeSessionRequest):
     """
     Create a new real-time task session for interactive security testing.
@@ -1829,7 +1819,7 @@ When executing tests, always provide:
     }
 
 
-@router.post("/realtime/{session_id}/message", dependencies=[Depends(require_non_service_role)])
+@router.post("/realtime/{session_id}/message", dependencies=[Depends(require_api_permission)])
 async def send_realtime_message(session_id: str, request: RealtimeMessageRequest):
     """
     Send a message to a real-time task session.
@@ -2554,7 +2544,7 @@ async def _save_realtime_findings_to_db(session_id: str, session: Dict):
         traceback.print_exc()
 
 
-@router.get("/realtime/{session_id}", dependencies=[Depends(require_non_service_role)])
+@router.get("/realtime/{session_id}", dependencies=[Depends(require_api_permission)])
 async def get_realtime_session(session_id: str):
     """Get the current state of a real-time session"""
     if session_id not in realtime_sessions:
@@ -2574,7 +2564,7 @@ async def get_realtime_session(session_id: str):
     }
 
 
-@router.get("/realtime/{session_id}/report", dependencies=[Depends(require_non_service_role)])
+@router.get("/realtime/{session_id}/report", dependencies=[Depends(require_api_permission)])
 async def generate_realtime_report(session_id: str, format: str = "json"):
     """Generate a report from the real-time session findings
 
@@ -2673,7 +2663,7 @@ async def generate_realtime_report(session_id: str, format: str = "json"):
     }
 
 
-@router.delete("/realtime/{session_id}", dependencies=[Depends(require_non_service_role)])
+@router.delete("/realtime/{session_id}", dependencies=[Depends(require_api_permission)])
 async def delete_realtime_session(session_id: str):
     """Delete a real-time session"""
     if session_id not in realtime_sessions:
@@ -2683,7 +2673,7 @@ async def delete_realtime_session(session_id: str):
     return {"message": f"Session {session_id} deleted"}
 
 
-@router.get("/realtime/sessions/list", dependencies=[Depends(require_non_service_role)])
+@router.get("/realtime/sessions/list", dependencies=[Depends(require_api_permission)])
 async def list_realtime_sessions():
     """List all active real-time sessions"""
     return {
@@ -2711,7 +2701,7 @@ class ToolExecutionRequest(BaseModel):
     timeout: Optional[int] = Field(default=300, description="Timeout in seconds")
 
 
-@router.get("/realtime/tools/list", dependencies=[Depends(require_non_service_role)])
+@router.get("/realtime/tools/list", dependencies=[Depends(require_api_permission)])
 async def list_available_tools():
     """List all available security tools"""
     from backend.core.tool_executor import SecurityTool
@@ -2728,7 +2718,7 @@ async def list_available_tools():
     }
 
 
-@router.get("/realtime/tools/status", dependencies=[Depends(require_non_service_role)])
+@router.get("/realtime/tools/status", dependencies=[Depends(require_api_permission)])
 async def get_tools_status():
     """Check if Docker tool executor is available"""
     from backend.core.tool_executor import get_tool_executor
@@ -2749,7 +2739,7 @@ async def get_tools_status():
         }
 
 
-@router.post("/realtime/{session_id}/execute-tool", dependencies=[Depends(require_non_service_role)])
+@router.post("/realtime/{session_id}/execute-tool", dependencies=[Depends(require_api_permission)])
 async def execute_security_tool(session_id: str, request: ToolExecutionRequest):
     """Execute a security tool against the session's target"""
     if session_id not in realtime_sessions:
@@ -3151,7 +3141,7 @@ def parse_llm_findings(llm_response: str, target: str) -> List[Dict]:
 # Per-Vulnerability-Type Agent Orchestration Dashboard
 # ──────────────────────────────────────────────────────────────────────
 
-@router.get("/checkpoints", dependencies=[Depends(require_non_service_role)])
+@router.get("/checkpoints", dependencies=[Depends(require_api_permission)])
 async def list_checkpoints():
     """List available scan checkpoints for resume."""
     try:
@@ -3161,7 +3151,7 @@ async def list_checkpoints():
         return {"checkpoints": []}
 
 
-@router.get("/vuln-agents/{agent_id}", dependencies=[Depends(require_non_service_role)])
+@router.get("/vuln-agents/{agent_id}", dependencies=[Depends(require_api_permission)])
 async def get_vuln_agent_statuses(agent_id: str):
     """Get per-vulnerability-type agent statuses for the dashboard grid.
 

@@ -25,6 +25,7 @@ import UserManagementPage from './pages/UserManagementPage'
 import UserProfilePage from './pages/UserProfilePage'
 import LanguagesPage from './pages/LanguagesPage'
 import RoleManagementPage from './pages/RoleManagementPage'
+import UnmappedResourcesPage from './pages/UnmappedResourcesPage'
 
 function App() {
   return (
@@ -54,6 +55,7 @@ function App() {
         <Route path="/profile" element={<ProtectedRoute><UserProfilePage /></ProtectedRoute>} />
         <Route path="/languages" element={<ProtectedRoute><LanguagesPage /></ProtectedRoute>} />
         <Route path="/roles" element={<ProtectedRoute><RoleManagementPage /></ProtectedRoute>} />
+        <Route path="/unmapped-resources" element={<ProtectedRoute><UnmappedResourcesPage /></ProtectedRoute>} />
       </Routes>
     </Layout>
   )

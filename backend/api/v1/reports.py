@@ -15,22 +15,12 @@ from backend.core.report_engine.generator import ReportGenerator
 from backend.config import settings
 from backend.core.auth import get_current_user, get_current_user_optional
 from backend.models.user import User, Role
+from backend.core.permissions import require_report_read, require_report_create, require_report_delete
 
 router = APIRouter()
 
 
-async def require_non_service_role_report(current_user: User = Depends(get_current_user)) -> User:
-    """Block SERVICE role from accessing report endpoints"""
-    user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
-    if user_role == Role.SERVICE.value:
-        raise HTTPException(
-            status_code=403,
-            detail="Service role is not authorized for this endpoint"
-        )
-    return current_user
-
-
-@router.get("", response_model=ReportListResponse, dependencies=[Depends(require_non_service_role_report)])
+@router.get("", response_model=ReportListResponse, dependencies=[Depends(require_report_read())])
 async def list_reports(
     scan_id: Optional[str] = None,
     auto_generated: Optional[bool] = None,
@@ -62,7 +52,7 @@ async def list_reports(
     )
 
 
-@router.post("", response_model=ReportResponse, dependencies=[Depends(require_non_service_role_report)])
+@router.post("", response_model=ReportResponse, dependencies=[Depends(require_report_create())])
 async def generate_report(
     report_data: ReportGenerate,
     db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
@@ -131,7 +121,7 @@ async def generate_report(
     return ReportResponse(**report.to_dict())
 
 
-@router.post("/ai-generate", response_model=ReportResponse, dependencies=[Depends(require_non_service_role_report)])
+@router.post("/ai-generate", response_model=ReportResponse, dependencies=[Depends(require_report_create())])
 async def generate_ai_report(
     report_data: ReportGenerate,
     db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
@@ -197,7 +187,7 @@ async def generate_ai_report(
     return ReportResponse(**report.to_dict())
 
 
-@router.get("/{report_id}", response_model=ReportResponse, dependencies=[Depends(require_non_service_role_report)])
+@router.get("/{report_id}", response_model=ReportResponse, dependencies=[Depends(require_report_read())])
 async def get_report(report_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Get report details"""
     result = await db.execute(select(Report).where(Report.id == report_id))

@@ -16,21 +16,12 @@ from backend.core.auth import (
     get_password_hash
 )
 from backend.models.user import Role
+from backend.core.resource_guard import require_api_permission
 
 router = APIRouter()
 
-async def require_non_service_role_api_keys(current_user: User = Depends(get_current_user)) -> User:
-    """Block SERVICE role from accessing API keys endpoints"""
-    user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
-    if user_role == Role.SERVICE.value:
-        raise HTTPException(
-            status_code=403,
-            detail="Service role is not authorized for this endpoint"
-        )
-    return current_user
 
-
-@router.get("", response_model=List[APIKeyResponse], dependencies=[Depends(require_non_service_role_api_keys)])
+@router.get("", response_model=List[APIKeyResponse], dependencies=[Depends(require_api_permission)])
 async def get_api_keys(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -43,7 +34,7 @@ async def get_api_keys(
     return api_keys
 
 
-@router.post("", response_model=APIKeyResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_non_service_role_api_keys)])
+@router.post("", response_model=APIKeyResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_api_permission)])
 async def create_api_key(
     api_key_data: APIKeyCreate,
     current_user: User = Depends(get_current_user),
@@ -76,7 +67,7 @@ async def create_api_key(
     }
 
 
-@router.delete("/{key_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_non_service_role_api_keys)])
+@router.delete("/{key_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_api_permission)])
 async def delete_api_key(
     key_id: str,
     current_user: User = Depends(get_current_user),
