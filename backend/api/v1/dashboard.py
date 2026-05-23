@@ -2,7 +2,7 @@
 PTTechAI v3 - Dashboard API Endpoints
 """
 from typing import List
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from datetime import datetime, timedelta
@@ -11,17 +11,14 @@ from backend.db.database import get_db
 from backend.models import Scan, Vulnerability, Endpoint, AgentTask, Report
 from backend.core.auth import get_current_user
 from backend.models.user import User, Role
-from backend.core.resource_guard import require_api_permission
-from fastapi import HTTPException, Depends
+from backend.core.permissions import require_dashboard_read
 
 router = APIRouter()
 
 
-@router.get("/stats", dependencies=[Depends(require_api_permission)])
+@router.get("/stats", dependencies=[Depends(require_dashboard_read())])
 async def get_dashboard_stats(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Get overall dashboard statistics"""
-    if current_user.role == Role.SERVICE:
-        raise HTTPException(status_code=403, detail="Service accounts cannot access dashboard")
     # Build base scan query with user filter
     base_scan_query = select(func.count()).select_from(Scan)
     if current_user.role != Role.ADMIN:
@@ -114,14 +111,12 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db), current_user: 
     }
 
 
-@router.get("/recent", dependencies=[Depends(require_api_permission)])
+@router.get("/recent", dependencies=[Depends(require_dashboard_read())])
 async def get_recent_activity(
     limit: int = 10,
     db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """Get recent scan activity"""
-    if current_user.role == Role.SERVICE:
-        raise HTTPException(status_code=403, detail="Service accounts cannot access dashboard")
     # Recent scans (filtered by user)
     scans_query = select(Scan).order_by(Scan.created_at.desc()).limit(limit)
     if current_user.role != Role.ADMIN:
@@ -142,15 +137,13 @@ async def get_recent_activity(
     }
 
 
-@router.get("/findings", dependencies=[Depends(require_api_permission)])
+@router.get("/findings", dependencies=[Depends(require_dashboard_read())])
 async def get_recent_findings(
     limit: int = 20,
     severity: str = None,
     db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """Get recent vulnerability findings"""
-    if current_user.role == Role.SERVICE:
-        raise HTTPException(status_code=403, detail="Service accounts cannot access dashboard")
     query = select(Vulnerability).order_by(Vulnerability.created_at.desc())
 
     if current_user.role != Role.ADMIN:
@@ -169,11 +162,9 @@ async def get_recent_findings(
     }
 
 
-@router.get("/vulnerability-types", dependencies=[Depends(require_api_permission)])
+@router.get("/vulnerability-types", dependencies=[Depends(require_dashboard_read())])
 async def get_vulnerability_distribution(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Get vulnerability distribution by type"""
-    if current_user.role == Role.SERVICE:
-        raise HTTPException(status_code=403, detail="Service accounts cannot access dashboard")
     query = select(
         Vulnerability.vulnerability_type,
         func.count(Vulnerability.id).label("count")
@@ -193,14 +184,12 @@ async def get_vulnerability_distribution(db: AsyncSession = Depends(get_db), cur
     }
 
 
-@router.get("/scan-history", dependencies=[Depends(require_api_permission)])
+@router.get("/scan-history", dependencies=[Depends(require_dashboard_read())])
 async def get_scan_history(
     days: int = 30,
     db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """Get scan history for charts"""
-    if current_user.role == Role.SERVICE:
-        raise HTTPException(status_code=403, detail="Service accounts cannot access dashboard")
     start_date = datetime.utcnow() - timedelta(days=days)
 
     # Get scans grouped by date (filtered by user)
@@ -230,14 +219,12 @@ async def get_scan_history(
     return {"history": list(history.values())}
 
 
-@router.get("/agent-tasks", dependencies=[Depends(require_api_permission)])
+@router.get("/agent-tasks", dependencies=[Depends(require_dashboard_read())])
 async def get_recent_agent_tasks(
     limit: int = 20,
     db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """Get recent agent tasks across all scans"""
-    if current_user.role == Role.SERVICE:
-        raise HTTPException(status_code=403, detail="Service accounts cannot access dashboard")
     query = (
         select(AgentTask)
         .order_by(AgentTask.created_at.desc())
@@ -255,14 +242,12 @@ async def get_recent_agent_tasks(
     }
 
 
-@router.get("/activity-feed", dependencies=[Depends(require_api_permission)])
+@router.get("/activity-feed", dependencies=[Depends(require_dashboard_read())])
 async def get_activity_feed(
     limit: int = 30,
     db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """Get unified activity feed with all recent events"""
-    if current_user.role == Role.SERVICE:
-        raise HTTPException(status_code=403, detail="Service accounts cannot access dashboard")
     activities = []
 
     # Get recent scans (filtered by user)

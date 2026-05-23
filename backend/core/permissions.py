@@ -19,12 +19,13 @@ class PermissionDenied(HTTPException):
         super().__init__(status_code=403, detail=detail)
 
 
-async def get_role_permissions(db: AsyncSession, role: Role) -> List[Permission]:
+async def get_role_permissions(db: AsyncSession, role) -> List[Permission]:
     """Get all permissions for a role"""
+    role_value = role.value if hasattr(role, 'value') else role
     result = await db.execute(
         select(Permission)
         .join(RolePermission, Permission.id == RolePermission.permission_id)
-        .where(RolePermission.role == role.value)
+        .where(RolePermission.role == role_value)
         .where(Permission.is_active == True)
     )
     return result.scalars().all()
@@ -45,7 +46,7 @@ async def has_permission(
     result = await db.execute(
         select(Permission)
         .join(RolePermission, Permission.id == RolePermission.permission_id)
-        .where(RolePermission.role == user.role.value)
+        .where(RolePermission.role == (user.role.value if hasattr(user.role, 'value') else user.role))
         .where(Permission.scope == scope)
         .where(Permission.action == action)
         .where(Permission.is_active == True)
@@ -114,6 +115,9 @@ def require_user_update():
 def require_user_delete():
     return require_permission(PermissionScope.USER, PermissionAction.DELETE)
 
+def require_dashboard_read():
+    return require_permission(PermissionScope.DASHBOARD, PermissionAction.READ)
+
 def require_settings_read():
     return require_permission(PermissionScope.SETTINGS, PermissionAction.READ)
 
@@ -122,6 +126,12 @@ def require_settings_update():
 
 def require_settings_manage():
     return require_permission(PermissionScope.SETTINGS, PermissionAction.MANAGE)
+
+def require_agent_read():
+    return require_permission(PermissionScope.AGENT, PermissionAction.READ)
+
+def require_agent_execute():
+    return require_permission(PermissionScope.AGENT, PermissionAction.EXECUTE)
 
 
 class PermissionChecker:

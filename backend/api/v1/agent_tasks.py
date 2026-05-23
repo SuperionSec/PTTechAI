@@ -16,11 +16,12 @@ from backend.schemas.agent_task import (
     AgentTaskSummary
 )
 from backend.core.resource_guard import require_api_permission
+from backend.core.permissions import require_agent_read
 
 router = APIRouter()
 
 
-@router.get("", response_model=AgentTaskListResponse, dependencies=[Depends(require_api_permission)])
+@router.get("", response_model=AgentTaskListResponse, dependencies=[Depends(require_agent_read())])
 async def list_agent_tasks(
     scan_id: str,
     status: Optional[str] = None,
@@ -69,7 +70,7 @@ async def list_agent_tasks(
     )
 
 
-@router.get("/summary", response_model=AgentTaskSummary, dependencies=[Depends(require_api_permission)])
+@router.get("/summary", response_model=AgentTaskSummary, dependencies=[Depends(require_agent_read())])
 async def get_agent_tasks_summary(
     scan_id: str,
     db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
@@ -126,7 +127,7 @@ async def get_agent_tasks_summary(
     )
 
 
-@router.get("/{task_id}", response_model=AgentTaskResponse, dependencies=[Depends(require_api_permission)])
+@router.get("/{task_id}", response_model=AgentTaskResponse, dependencies=[Depends(require_agent_read())])
 async def get_agent_task(
     task_id: str,
     db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
@@ -141,7 +142,7 @@ async def get_agent_task(
     return AgentTaskResponse(**task.to_dict())
 
 
-@router.get("/scan/{scan_id}/timeline", dependencies=[Depends(require_api_permission)])
+@router.get("/scan/{scan_id}/timeline", dependencies=[Depends(require_agent_read())])
 async def get_agent_tasks_timeline(
     scan_id: str,
     db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)

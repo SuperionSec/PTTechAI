@@ -4,7 +4,7 @@ PTTechAI v0.1.0 - RBAC Permission System
 """
 import uuid
 import asyncio
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from backend.db.database import async_session_factory
 from backend.models.permission import Permission, RolePermission, ResourceMapping, PermissionScope, PermissionAction
 
@@ -112,17 +112,7 @@ ROLE_PERMISSIONS = {
         "agent:read",
         "knowledge:read",
     ],
-    "service": [
-        "scan:create", "scan:read", "scan:update", "scan:delete", "scan:execute",
-        "target:create", "target:read", "target:update", "target:delete",
-        "report:create", "report:read",
-        "vulnerability:read", "vulnerability:update",
-        "dashboard:read",
-        "settings:read",
-        "agent:read", "agent:execute",
-        "scheduler:read", "scheduler:manage",
-        "knowledge:read",
-    ],
+    "service": [],
 }
 
 # Permission -> Frontend Pages mapping
@@ -193,8 +183,29 @@ PERMISSION_BACKEND_APIS = {
     "provider:read": ["GET /api/v1/providers", "GET /api/v1/providers/status", "GET /api/v1/providers/available-models"],
     "provider:update": ["POST /api/v1/providers/{id}/detect", "POST /api/v1/providers/{id}/connect", "POST /api/v1/providers/{id}/toggle"],
     "provider:manage": ["POST /api/v1/providers/detect-all", "DELETE /api/v1/providers/{id}/accounts/{account_id}", "POST /api/v1/providers/test/{id}/{account_id}", "GET /api/v1/providers/env", "POST /api/v1/providers/env"],
-    "agent:read": ["GET /api/v1/agent/*"],
-    "agent:execute": ["POST /api/v1/agent/run", "POST /api/v1/agent/*/{id}/stop", "POST /api/v1/agent/*/{id}/pause", "POST /api/v1/agent/*/{id}/resume"],
+    "agent:read": [
+        "GET /api/v1/agent/status",
+        "GET /api/v1/agent/status/{agent_id}",
+        "GET /api/v1/agent/active",
+        "GET /api/v1/agent/history",
+        "GET /api/v1/agent/by-scan/{scan_id}",
+        "GET /api/v1/agent/md-agents",
+        "GET /api/v1/agent/prompts/{agent_id}",
+        "GET /api/v1/agent/logs/{agent_id}",
+        "GET /api/v1/agent-tasks",
+        "GET /api/v1/agent-tasks/summary",
+        "GET /api/v1/agent-tasks/{task_id}",
+        "GET /api/v1/agent-tasks/scan/{scan_id}/timeline",
+    ],
+    "agent:execute": [
+        "POST /api/v1/agent/run",
+        "POST /api/v1/agent/stop/{agent_id}",
+        "POST /api/v1/agent/pause/{agent_id}",
+        "POST /api/v1/agent/resume/{agent_id}",
+        "POST /api/v1/agent/triple-check/{scan_id}",
+        "POST /api/v1/agent/skip-to/{agent_id}/{target_phase}",
+        "POST /api/v1/agent/prompt/{agent_id}",
+    ],
     "scheduler:read": ["GET /api/v1/scheduler/*"],
     "scheduler:manage": ["POST /api/v1/scheduler/*", "DELETE /api/v1/scheduler/*", "POST /api/v1/scheduler/{id}/pause", "POST /api/v1/scheduler/{id}/resume"],
     "knowledge:read": ["GET /api/v1/knowledge/documents", "GET /api/v1/knowledge/documents/{id}", "GET /api/v1/knowledge/search", "GET /api/v1/knowledge/stats"],
@@ -230,6 +241,10 @@ async def init_permissions():
         await db.commit()
 
         # Create role-permission mappings
+        # Clear old permissions for each role before assigning new ones
+        for role_name in ROLE_PERMISSIONS.keys():
+            await db.execute(delete(RolePermission).where(RolePermission.role == role_name))
+
         for role, perm_names in ROLE_PERMISSIONS.items():
             for perm_name in perm_names:
                 perm_id = permission_map.get(perm_name)

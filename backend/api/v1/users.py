@@ -35,7 +35,7 @@ async def create_user(
         )
     
     hashed_password = get_password_hash(user_data.password)
-    role_value = Role(user_data.role) if user_data.role else Role.USER
+    role_value = user_data.role if user_data.role else "user"
     db_user = User(
         email=user_data.email,
         hashed_password=hashed_password,
@@ -169,7 +169,7 @@ async def update_user(
         user.is_active = user_data.is_active
     
     if user_data.role is not None:
-        user.role = Role(user_data.role)
+        user.role = user_data.role
     
     await db.commit()
     await db.refresh(user)

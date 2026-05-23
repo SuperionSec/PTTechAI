@@ -21,16 +21,11 @@ class PermissionDenied(HTTPException):
 
 async def require_api_permission(current_user: User = Depends(get_current_user)) -> User:
     """Check if user has permission to access API endpoints.
-    
-    This is a dynamic permission check that inspects the request method and path,
-    then verifies the user's role has the required permission via ResourceMapping.
+
+    Legacy guard - now delegates to Permission-based checks.
+    Admin always passes. Other roles (including Service) are allowed through
+    and will be checked by the specific require_permission guards on each endpoint.
     """
-    user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
-    if user_role == Role.SERVICE.value:
-        raise HTTPException(
-            status_code=403,
-            detail="Service role is not authorized for this endpoint"
-        )
     return current_user
 
 
@@ -45,14 +40,7 @@ async def check_api_permission(
     by looking up the ResourceMapping table.
     """
     user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
-    
-    # Service role is always blocked from non-service endpoints
-    if user_role == Role.SERVICE.value:
-        raise HTTPException(
-            status_code=403,
-            detail="Service role is not authorized for this endpoint"
-        )
-    
+
     # Admin always has access
     if current_user.role == Role.ADMIN:
         return current_user

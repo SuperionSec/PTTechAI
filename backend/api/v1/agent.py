@@ -26,6 +26,7 @@ from backend.models import Scan, Target, Vulnerability, Endpoint, Report
 from backend.core.auth import get_current_user
 from backend.models.user import User, Role
 from backend.core.resource_guard import require_api_permission
+from backend.core.permissions import require_agent_read, require_agent_execute
 from fastapi import Request
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
@@ -52,7 +53,7 @@ agent_to_scan: Dict[str, str] = {}
 scan_to_agent: Dict[str, str] = {}
 
 
-@router.get("/status", dependencies=[Depends(require_api_permission)])
+@router.get("/status", dependencies=[Depends(require_agent_read())])
 async def get_llm_status():
     """
     Check if LLM is properly configured.
@@ -595,7 +596,7 @@ async def _run_agent_task(
                 pass
 
 
-@router.get("/md-agents", dependencies=[Depends(require_api_permission)])
+@router.get("/md-agents", dependencies=[Depends(require_agent_read())])
 async def list_md_agents():
     """List all available .md-based specialist agents."""
     try:
@@ -608,7 +609,7 @@ async def list_md_agents():
         return {"agents": [], "error": str(e)}
 
 
-@router.get("/active", dependencies=[Depends(require_api_permission)])
+@router.get("/active", dependencies=[Depends(require_agent_read())])
 async def list_active_agents():
     """List all active and recently completed agent sessions."""
     from backend.config import settings
@@ -652,7 +653,7 @@ async def list_active_agents():
     }
 
 
-@router.get("/history", dependencies=[Depends(require_api_permission)])
+@router.get("/history", dependencies=[Depends(require_agent_read())])
 async def get_agent_history(
     page: int = 1,
     per_page: int = 20,
@@ -736,7 +737,7 @@ async def get_agent_history(
         }
 
 
-@router.get("/by-scan/{scan_id}", dependencies=[Depends(require_api_permission)])
+@router.get("/by-scan/{scan_id}", dependencies=[Depends(require_agent_read())])
 async def get_agent_by_scan(scan_id: str):
     """Look up agent status by scan_id (reverse lookup for ScanDetailsPage)"""
     agent_id = scan_to_agent.get(scan_id)
@@ -884,7 +885,7 @@ async def _get_status_from_db(agent_id: str, scan_id: str):
         }
 
 
-@router.post("/stop/{agent_id}", dependencies=[Depends(require_api_permission)])
+@router.post("/stop/{agent_id}", dependencies=[Depends(require_agent_execute())])
 async def stop_agent(agent_id: str):
     """Stop a running agent scan, save all findings to DB, and generate report."""
     if agent_id not in agent_results:
@@ -1026,7 +1027,7 @@ async def stop_agent(agent_id: str):
     }
 
 
-@router.post("/pause/{agent_id}", dependencies=[Depends(require_api_permission)])
+@router.post("/pause/{agent_id}", dependencies=[Depends(require_agent_execute())])
 async def pause_agent(agent_id: str):
     """Pause a running agent scan"""
     if agent_id not in agent_results:
@@ -1046,7 +1047,7 @@ async def pause_agent(agent_id: str):
     return {"message": "Agent paused", "agent_id": agent_id}
 
 
-@router.post("/resume/{agent_id}", dependencies=[Depends(require_api_permission)])
+@router.post("/resume/{agent_id}", dependencies=[Depends(require_agent_execute())])
 async def resume_agent(agent_id: str):
     """Resume a paused agent scan"""
     if agent_id not in agent_results:
@@ -1071,7 +1072,7 @@ class TripleCheckRequest(BaseModel):
     preferred_model: Optional[str] = None
 
 
-@router.post("/triple-check/{scan_id}", dependencies=[Depends(require_api_permission)])
+@router.post("/triple-check/{scan_id}", dependencies=[Depends(require_agent_execute())])
 async def triple_check_scan(scan_id: str, request: TripleCheckRequest, background_tasks: BackgroundTasks):
     """Re-validate findings from a completed scan using a different LLM model.
 
@@ -1354,7 +1355,7 @@ PHASE_NORMALIZE = {
 }
 
 
-@router.post("/skip-to/{agent_id}/{target_phase}", dependencies=[Depends(require_api_permission)])
+@router.post("/skip-to/{agent_id}/{target_phase}", dependencies=[Depends(require_agent_execute())])
 async def skip_agent_phase(agent_id: str, target_phase: str):
     """Skip the current agent phase and jump to a target phase.
 
@@ -1424,7 +1425,7 @@ class PromptRequest(BaseModel):
     prompt: str = Field(..., description="Custom prompt for the agent")
 
 
-@router.post("/prompt/{agent_id}", dependencies=[Depends(require_api_permission)])
+@router.post("/prompt/{agent_id}", dependencies=[Depends(require_agent_execute())])
 async def send_custom_prompt(agent_id: str, request: PromptRequest):
     """Send a custom prompt to a running agent for interactive testing"""
     if agent_id not in agent_results:
@@ -1462,7 +1463,7 @@ async def send_custom_prompt(agent_id: str, request: PromptRequest):
     }
 
 
-@router.get("/prompts/{agent_id}", dependencies=[Depends(require_api_permission)])
+@router.get("/prompts/{agent_id}", dependencies=[Depends(require_agent_read())])
 async def get_prompt_queue(agent_id: str):
     """Get pending prompts for an agent"""
     return {
@@ -1471,7 +1472,7 @@ async def get_prompt_queue(agent_id: str):
     }
 
 
-@router.get("/logs/{agent_id}", dependencies=[Depends(require_api_permission)])
+@router.get("/logs/{agent_id}", dependencies=[Depends(require_agent_read())])
 async def get_agent_logs(agent_id: str, limit: int = 100):
     """Get the logs from an agent run"""
     if agent_id not in agent_results:

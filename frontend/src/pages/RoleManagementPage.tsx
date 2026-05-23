@@ -355,9 +355,8 @@ export default function RoleManagementPage() {
                   </button>
                   <button
                     onClick={() => openEditModal(role.role)}
-                    disabled={isSystemRole(role.role)}
-                    className={`mr-3 ${isSystemRole(role.role) ? 'text-dark-600 cursor-not-allowed' : 'text-blue-400 hover:text-blue-300'}`}
-                    title={isSystemRole(role.role) ? t('roleManagement.systemRoleEditDisabled') : t('roleManagement.edit')}
+                    className="mr-3 text-blue-400 hover:text-blue-300"
+                    title={t('roleManagement.edit')}
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
@@ -659,8 +658,11 @@ export default function RoleManagementPage() {
             </p>
             {roleToDelete.user_count > 0 ? (
               <div className="bg-red-900/20 border border-red-800 rounded-md px-3 py-2 mb-4">
-                <p className="text-red-400 text-sm">
+                <p className="text-red-400 text-sm font-medium">
                   {t('roleManagement.cannotDeleteUsersAssigned', { count: roleToDelete.user_count })}
+                </p>
+                <p className="text-red-300/70 text-xs mt-1">
+                  {t('roleManagement.pleaseReassignUsersFirst') || 'Please reassign these users to another role before deleting.'}
                 </p>
               </div>
             ) : (

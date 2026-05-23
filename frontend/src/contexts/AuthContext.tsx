@@ -6,7 +6,7 @@ interface User {
   id: string
   email: string
   full_name: string | null
-  role: 'admin' | 'user' | 'viewer' | 'service'
+  role: string
   is_active: boolean
   created_at: string
 }
@@ -151,7 +151,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      const res = await axios.get(`${AUTH_URL}/me`)
+      const res = await axios.get(`${AUTH_URL}/me`, {
+        headers: { Authorization: `Bearer ${t}` }
+      })
       setUser(res.data)
       setToken(t)
       // Fetch user permissions after user is loaded
@@ -231,7 +233,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setStoredToken(access_token)
     localStorage.setItem('refresh_token', refresh_token)
     setToken(access_token)
-    const userRes = await axios.get(`${AUTH_URL}/me`)
+    const userRes = await axios.get(`${AUTH_URL}/me`, {
+      headers: { Authorization: `Bearer ${access_token}` }
+    })
     setUser(userRes.data)
     await fetchUserPermissions()
     setupTokenRefresh()

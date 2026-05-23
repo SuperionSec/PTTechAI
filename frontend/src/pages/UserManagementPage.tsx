@@ -9,7 +9,7 @@ interface User {
   id: string
   email: string
   full_name: string | null
-  role: 'admin' | 'user' | 'viewer' | 'service'
+  role: string
   is_active: boolean
   created_at: string
   last_login: string | null
@@ -27,6 +27,7 @@ export default function UserManagementPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [showServiceNotice, setShowServiceNotice] = useState(false)
+  const [availableRoles, setAvailableRoles] = useState<Array<{role: string, user_count: number, permission_count: number}>>([])
 
   useEffect(() => {
     if (currentUser?.role !== 'admin') {
@@ -34,6 +35,7 @@ export default function UserManagementPage() {
       return
     }
     fetchUsers()
+    fetchAvailableRoles()
   }, [currentUser, navigate])
 
   const fetchUsers = async () => {
@@ -44,6 +46,15 @@ export default function UserManagementPage() {
       console.error('Failed to fetch users:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchAvailableRoles = async () => {
+    try {
+      const res = await api.get('/permissions/roles')
+      setAvailableRoles(res.data)
+    } catch (error) {
+      console.error('Failed to fetch roles:', error)
     }
   }
 
@@ -89,7 +100,7 @@ export default function UserManagementPage() {
     const email = formData.get('email') as string
     const password = formData.get('password') as string
     const fullName = formData.get('full_name') as string
-    const role = formData.get('role') as 'admin' | 'user' | 'viewer' | 'service'
+    const role = formData.get('role') as string
 
     if (password.length < 6) {
       setCreateError('密码长度至少为6位')
@@ -231,10 +242,9 @@ export default function UserManagementPage() {
                 </div>
               )}
               <select name="role" className="w-full px-3 py-2 bg-dark-900 border border-dark-600 rounded-md text-white" defaultValue="user">
-                <option value="admin">{t('usersManagement.admin')}</option>
-                <option value="user">{t('usersManagement.user')}</option>
-                <option value="viewer">{t('usersManagement.viewer')}</option>
-                <option value="service">Service (API Only)</option>
+                {availableRoles.map(r => (
+                  <option key={r.role} value={r.role}>{roleLabels[r.role] || r.role}</option>
+                ))}
               </select>
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setShowCreateModal(false)} className="px-4 py-2 text-dark-300 bg-dark-700 rounded-md hover:bg-dark-600">{t('common.cancel')}</button>

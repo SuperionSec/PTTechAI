@@ -15,8 +15,7 @@ from backend.db.database import get_db, engine
 from backend.models import Scan, Target, Endpoint, Vulnerability, VulnerabilityTest, Report, AgentTask, VulnLabChallenge, Prompt
 from backend.core.auth import get_current_user
 from backend.models.user import User, Role
-from backend.core.resource_guard import require_api_permission
-from fastapi import Depends, HTTPException
+from backend.core.permissions import require_settings_read, require_settings_manage
 
 router = APIRouter()
 
@@ -219,11 +218,9 @@ def _load_settings_from_env() -> dict:
 _settings = _load_settings_from_env()
 
 
-@router.get("", response_model=SettingsResponse)
+@router.get("", response_model=SettingsResponse, dependencies=[Depends(require_settings_read())])
 async def get_settings(current_user: User = Depends(get_current_user)):
     """Get current settings"""
-    if current_user.role == Role.SERVICE:
-        raise HTTPException(status_code=403, detail="Service accounts cannot access settings")
     import os
     return SettingsResponse(
         llm_provider=_settings["llm_provider"],
@@ -256,11 +253,9 @@ async def get_settings(current_user: User = Depends(get_current_user)):
     )
 
 
-@router.put("", response_model=SettingsResponse)
+@router.put("", response_model=SettingsResponse, dependencies=[Depends(require_settings_manage())])
 async def update_settings(settings_data: SettingsUpdate, current_user: User = Depends(get_current_user)):
     """Update settings - persists to memory, env vars, AND .env file"""
-    if current_user.role == Role.SERVICE:
-        raise HTTPException(status_code=403, detail="Service accounts cannot access settings")
     env_updates: Dict[str, str] = {}
 
     if settings_data.llm_provider is not None:
@@ -416,7 +411,7 @@ async def update_settings(settings_data: SettingsUpdate, current_user: User = De
     return await get_settings(current_user=current_user)
 
 
-@router.post("/notifications/test/{channel}", dependencies=[Depends(require_api_permission)])
+@router.post("/notifications/test/{channel}", dependencies=[Depends(require_settings_manage())])
 async def test_notification_channel(channel: str, current_user: User = Depends(get_current_user)):
     """Send a test notification to a specific channel (discord, telegram, whatsapp)."""
     try:
@@ -431,7 +426,7 @@ class ClearDatabaseRequest(BaseModel):
     confirm: bool
 
 
-@router.post("/clear-database", dependencies=[Depends(require_api_permission)])
+@router.post("/clear-database", dependencies=[Depends(require_settings_manage())])
 async def clear_database(
     request: ClearDatabaseRequest,
     db: AsyncSession = Depends(get_db),
@@ -476,7 +471,7 @@ async def clear_database(
         raise HTTPException(status_code=500, detail=f"Failed to clear database: {str(e)}")
 
 
-@router.get("/stats", dependencies=[Depends(require_api_permission)])
+@router.get("/stats", dependencies=[Depends(require_settings_read())])
 async def get_database_stats(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Get database statistics"""
     from sqlalchemy import func
@@ -494,7 +489,7 @@ async def get_database_stats(db: AsyncSession = Depends(get_db), current_user: U
     }
 
 
-@router.get("/tools", dependencies=[Depends(require_api_permission)])
+@router.get("/tools", dependencies=[Depends(require_settings_read())])
 async def get_installed_tools(current_user: User = Depends(get_current_user)):
     """Check which security tools are installed"""
     import asyncio
@@ -602,7 +597,7 @@ CLOUD_MODELS = {
 }
 
 
-@router.get("/models/{provider}", response_model=ModelCatalogResponse, dependencies=[Depends(require_api_permission)])
+@router.get("/models/{provider}", response_model=ModelCatalogResponse, dependencies=[Depends(require_settings_manage())])
 async def get_provider_models(provider: str, current_user: User = Depends(get_current_user)):
     """Get available models for a specific provider.
 

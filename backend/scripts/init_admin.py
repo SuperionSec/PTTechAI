@@ -35,7 +35,7 @@ async def init_admin():
             email=admin_email,
             hashed_password=get_password_hash(admin_password),
             full_name=admin_name,
-            role=Role.ADMIN,
+            role="admin",
             is_active=True,
         )
         db.add(admin)

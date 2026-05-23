@@ -137,8 +137,10 @@ async def list_roles(
     role_result = await db.execute(select(RolePermission.role).distinct())
     db_roles = set(role_result.scalars().all())
 
-    # Also include system roles that may have no permissions yet
-    all_roles = db_roles | SYSTEM_ROLES
+    user_role_result = await db.execute(select(User.role).distinct())
+    user_roles = set(user_role_result.scalars().all())
+
+    all_roles = db_roles | user_roles | SYSTEM_ROLES
 
     # Count users per role
     user_counts = {}
@@ -230,10 +232,6 @@ async def update_role_permissions(
     current_user: User = Depends(require_role(Role.ADMIN))
 ):
     """Update role permissions (admin only)"""
-    # Protect system roles
-    if role in SYSTEM_ROLES:
-        raise HTTPException(status_code=403, detail="Cannot modify system role")
-
     # Check all permission_ids exist in Permission table
     if request.permission_ids:
         perm_result = await db.execute(
