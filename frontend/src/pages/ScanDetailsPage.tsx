@@ -1,16 +1,60 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { PageContainer, ProCard, ProTable, StatisticCard } from '@ant-design/pro-components'
+import type { ProColumns } from '@ant-design/pro-components'
 import {
-  Globe, FileText, StopCircle, RefreshCw, ChevronDown, ChevronRight,
-  ExternalLink, Copy, Shield, AlertTriangle, Cpu, CheckCircle, XCircle, Clock,
-  SkipForward, Check, Minus, Pause, Play, Download, Sparkles, Bug, Search,
-  ScrollText, X, Terminal
-} from 'lucide-react'
-import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
-import Card from '../components/common/Card'
-import Button from '../components/common/Button'
-import { SeverityBadge } from '../components/common/Badge'
+  Alert,
+  App as AntApp,
+  Badge,
+  Button,
+  Card,
+  Checkbox,
+  Col,
+  Descriptions,
+  Empty,
+  Input,
+  List,
+  Modal,
+  Popconfirm,
+  Progress,
+  Radio,
+  Row,
+  Select,
+  Space,
+  Spin,
+  Steps,
+  Table,
+  Tabs,
+  Tag,
+  Typography,
+} from 'antd'
+import {
+  BugOutlined,
+  CheckCircleOutlined,
+  CheckOutlined,
+  ClockCircleOutlined,
+  CloseCircleOutlined,
+  CodeOutlined,
+  CopyOutlined,
+  DownloadOutlined,
+  DownOutlined,
+  ExclamationCircleOutlined,
+  FileTextOutlined,
+  GlobalOutlined,
+  LinkOutlined,
+  MinusOutlined,
+  PauseCircleOutlined,
+  PlayCircleOutlined,
+  ProfileOutlined,
+  ReloadOutlined,
+  RightOutlined,
+  RobotOutlined,
+  SafetyCertificateOutlined,
+  SearchOutlined,
+  StopOutlined,
+  ThunderboltOutlined,
+} from '@ant-design/icons'
 import { scansApi, reportsApi, agentTasksApi, agentApi, vulnerabilitiesApi, providersApi } from '../services/api'
 import { wsService } from '../services/websocket'
 import { isLogContainerNearBottom } from '../utils/logScroll'
@@ -18,38 +62,35 @@ import { useScanStore } from '../store'
 import { usePermission } from '../hooks/usePermission'
 import type { Endpoint, Vulnerability, WSMessage, ScanAgentTask, Report, AgentStatus, AgentFinding, AgentLog, ToolExecution, ContainerStatus } from '../types'
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
 const POLL_INTERVAL = 4000
 const POLL_INTERVAL_ERROR = 8000
 const TOAST_DURATION = 5000
 const MAX_TOASTS = 5
+const { Text, Paragraph } = Typography
+const { TextArea } = Input
 
 const SEVERITY_COLORS: Record<string, string> = {
-  critical: 'bg-red-500', high: 'bg-orange-500', medium: 'bg-yellow-500',
-  low: 'bg-blue-500', info: 'bg-gray-500',
+  critical: 'red',
+  high: 'volcano',
+  medium: 'gold',
+  low: 'blue',
+  info: 'default',
 }
 
-const SEVERITY_CHART_COLORS: Record<string, string> = {
-  critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#3b82f6', info: '#6b7280',
+const STATUS_COLORS: Record<string, string> = {
+  running: 'processing',
+  paused: 'warning',
+  completed: 'success',
+  stopped: 'default',
+  failed: 'error',
+  pending: 'default',
 }
 
-const CONFIDENCE_STYLES: Record<string, string> = {
-  green: 'bg-green-500/15 text-green-400 border-green-500/30',
-  yellow: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
-  red: 'bg-red-500/15 text-red-400 border-red-500/30',
+const CONFIDENCE_COLORS: Record<string, string> = {
+  green: 'success',
+  yellow: 'warning',
+  red: 'error',
 }
-
-const getLogFilters = (t: (key: string) => string) => [
-  { key: 'all', label: t('common.all'), color: '' },
-  { key: 'stream1', label: t('autoPentest.recon'), color: 'text-blue-400' },
-  { key: 'stream2', label: t('autoPentest.juniorAi'), color: 'text-purple-400' },
-  { key: 'stream3', label: t('autoPentest.tools'), color: 'text-orange-400' },
-  { key: 'deep', label: t('newScan.deepAnalysis'), color: 'text-cyan-400' },
-  { key: 'error', label: t('common.error'), color: 'text-red-400' },
-]
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Toast {
   id: string
@@ -57,8 +98,6 @@ interface Toast {
   severity: string
   timestamp: number
 }
-
-// ─── Utility Functions ────────────────────────────────────────────────────────
 
 function formatElapsed(totalSeconds: number): string {
   const h = Math.floor(totalSeconds / 3600)
@@ -89,20 +128,6 @@ function getConfidenceDisplay(finding: { confidence_score?: number; confidence?:
   const color = score >= 90 ? 'green' : score >= 60 ? 'yellow' : 'red'
   const label = score >= 90 ? (t ? t('scanDetails.confirmedStatus') : 'Confirmed') : score >= 60 ? (t ? t('scanDetails.likely') : 'Likely') : score > 0 ? (t ? t('scanDetails.lowConfidence') : 'Low') : (t ? t('scanDetails.rejected') : 'Rejected')
   return { score, color, label }
-}
-
-function logMessageColor(message: string): string {
-  if (message.startsWith('[STREAM 1]')) return 'text-blue-400'
-  if (message.startsWith('[STREAM 2]')) return 'text-purple-400'
-  if (message.startsWith('[STREAM 3]')) return 'text-orange-400'
-  if (message.startsWith('[TOOL]')) return 'text-orange-300'
-  if (message.startsWith('[DEEP]')) return 'text-cyan-400'
-  if (message.startsWith('[FINAL]')) return 'text-green-400'
-  if (message.startsWith('[CONTAINER]')) return 'text-cyan-300'
-  if (message.startsWith('[PHASE]')) return 'text-yellow-400'
-  if (message.startsWith('[WAF]')) return 'text-amber-400'
-  if (message.startsWith('[SITE ANALYZER]')) return 'text-emerald-400'
-  return ''
 }
 
 function matchLogFilter(log: AgentLog, filter: string): boolean {
@@ -147,102 +172,144 @@ function mapAgentFindingToVuln(f: AgentFinding, scanId: string): Vulnerability {
   }
 }
 
-// ─── Sub-Components ───────────────────────────────────────────────────────────
+function SeverityTag({ severity }: { severity?: string }) {
+  const value = severity || 'info'
+  return <Tag color={SEVERITY_COLORS[value] || 'default'}>{value.toUpperCase()}</Tag>
+}
 
-function SeverityMiniChart({ vulnCounts }: { vulnCounts: Record<string, number> }) {
-  const data = ['critical', 'high', 'medium', 'low', 'info']
-    .filter(s => (vulnCounts[s] || 0) > 0)
-    .map(s => ({ name: s, value: vulnCounts[s] || 0 }))
+function StatusBadge({ status }: { status?: string }) {
+  const value = status || 'pending'
+  return <Badge status={(STATUS_COLORS[value] || 'default') as any} text={value} />
+}
 
-  if (data.length === 0) return null
-
+function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: string) => void }) {
+  if (toasts.length === 0) return null
   return (
-    <div className="w-20 h-20 flex-shrink-0">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={32} innerRadius={16} strokeWidth={0}>
-            {data.map(entry => (
-              <Cell key={entry.name} fill={SEVERITY_CHART_COLORS[entry.name]} />
-            ))}
-          </Pie>
-          <RechartsTooltip
-            contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #334155', borderRadius: '8px', fontSize: '11px', padding: '4px 8px' }}
-            itemStyle={{ color: '#e2e8f0' }}
-            formatter={(value: number, name: string) => [`${value}`, name.charAt(0).toUpperCase() + name.slice(1)]}
+    <div style={{ position: 'fixed', top: 24, right: 24, zIndex: 1050, width: 360 }}>
+      <Space direction="vertical" style={{ width: '100%' }}>
+        {toasts.map(toast => (
+          <Alert
+            key={toast.id}
+            showIcon
+            closable
+            onClose={() => onDismiss(toast.id)}
+            type={toast.severity === 'critical' || toast.severity === 'error' ? 'error' : toast.severity === 'completed' ? 'success' : toast.severity === 'high' || toast.severity === 'medium' ? 'warning' : 'info'}
+            message={toast.message}
           />
-        </PieChart>
-      </ResponsiveContainer>
+        ))}
+      </Space>
     </div>
   )
 }
 
-function ToolExecutionRow({ exec, expanded, onToggle, t }: {
-  exec: ToolExecution; expanded: boolean; onToggle: () => void; t: (key: string) => string
-}) {
-  const hasExpandable = !!(exec.stdout_preview || exec.stderr_preview || exec.reason)
+function CodeBlock({ value }: { value: string }) {
   return (
-    <div className="border-b border-dark-800 last:border-0">
-      <button
-        onClick={hasExpandable ? onToggle : undefined}
-        className={`w-full grid grid-cols-[50px_70px_1fr_50px_65px_55px_20px] sm:grid-cols-[60px_80px_1fr_50px_70px_60px_24px] gap-2 items-center px-2 py-2 text-xs transition-colors ${
-          hasExpandable ? 'hover:bg-dark-700/50 cursor-pointer' : 'cursor-default'
-        }`}
-      >
-        <span className="font-mono text-dark-500 truncate">{exec.task_id?.slice(0, 6) || '---'}</span>
-        <span className="text-cyan-400 font-medium truncate">{exec.tool}</span>
-        <span className="text-dark-300 truncate text-left" title={exec.command}>{exec.command}</span>
-        <span className={`font-bold text-center ${exec.exit_code === 0 ? 'text-green-400' : exec.exit_code !== null ? 'text-red-400' : 'text-dark-500'}`}>
-          {exec.exit_code ?? '...'}
-        </span>
-        <span className="text-dark-400 text-right">{exec.duration !== null ? `${exec.duration.toFixed(1)}s` : '---'}</span>
-        <span className="text-dark-300 text-center">{exec.findings_count ?? 0}</span>
-        <span className="text-dark-500">
-          {hasExpandable ? (expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />) : null}
-        </span>
-      </button>
-      {expanded && (
-        <div className="px-3 pb-3 space-y-2 bg-dark-900/50 border-t border-dark-800">
-          {exec.reason && (
-            <p className="text-xs text-dark-400 pt-2"><span className="text-dark-500 font-medium">{t('scanDetails.reason')}: </span>{exec.reason}</p>
-          )}
-          {exec.stdout_preview && (
-            <div>
-              <p className="text-[10px] font-medium text-dark-500 mb-1 uppercase tracking-wider">{t('scanDetails.stdout')}</p>
-              <pre className="bg-dark-950 rounded p-2 text-xs text-green-400/80 max-h-[200px] overflow-y-auto whitespace-pre-wrap font-mono">{exec.stdout_preview}</pre>
-            </div>
-          )}
-          {exec.stderr_preview && (
-            <div>
-              <p className="text-[10px] font-medium text-dark-500 mb-1 uppercase tracking-wider">{t('scanDetails.stderr')}</p>
-              <pre className="bg-dark-950 rounded p-2 text-xs text-red-400/70 max-h-[200px] overflow-y-auto whitespace-pre-wrap font-mono">{exec.stderr_preview}</pre>
-            </div>
-          )}
-          {exec.container_name && (
-            <p className="text-[10px] text-dark-500">{t('scanDetails.container')}: <span className="font-mono text-dark-400">{exec.container_name}</span></p>
-          )}
-        </div>
+    <pre style={{ margin: 0, padding: 12, background: '#141414', color: '#d9d9d9', borderRadius: 6, overflow: 'auto', maxHeight: 360, whiteSpace: 'pre-wrap' }}>
+      {value}
+    </pre>
+  )
+}
+
+function SeveritySummary({ counts }: { counts: Record<string, number> }) {
+  return (
+    <Space wrap>
+      {['critical', 'high', 'medium', 'low', 'info'].map(sev => {
+        const count = counts[sev] || 0
+        if (count === 0) return null
+        return <Tag key={sev} color={SEVERITY_COLORS[sev]}>{sev.toUpperCase()}: {count}</Tag>
+      })}
+    </Space>
+  )
+}
+
+function ToolExecutionTable({ toolExecutions, expandedTool, setExpandedTool, t }: {
+  toolExecutions: ToolExecution[]
+  expandedTool: string | null
+  setExpandedTool: (value: string | null) => void
+  t: (key: string) => string
+}) {
+  return (
+    <Table<ToolExecution>
+      rowKey={(record, index) => record.task_id || String(index)}
+      size="small"
+      pagination={false}
+      dataSource={toolExecutions}
+      expandable={{
+        expandedRowKeys: expandedTool ? [expandedTool] : [],
+        onExpand: (expanded, record) => setExpandedTool(expanded ? record.task_id || '' : null),
+        rowExpandable: record => Boolean(record.stdout_preview || record.stderr_preview || record.reason),
+        expandedRowRender: record => (
+          <Space direction="vertical" style={{ width: '100%' }}>
+            {record.reason && <Text type="secondary">{t('scanDetails.reason')}: {record.reason}</Text>}
+            {record.stdout_preview && <CodeBlock value={record.stdout_preview} />}
+            {record.stderr_preview && <CodeBlock value={record.stderr_preview} />}
+            {record.container_name && <Text type="secondary">{t('scanDetails.container')}: {record.container_name}</Text>}
+          </Space>
+        ),
+      }}
+      columns={[
+        { title: t('scanDetails.task'), dataIndex: 'task_id', width: 100, render: value => <Text code>{String(value || '---').slice(0, 8)}</Text> },
+        { title: t('scanDetails.tool'), dataIndex: 'tool', width: 120, render: value => <Tag color="cyan">{value}</Tag> },
+        { title: t('scanDetails.command'), dataIndex: 'command', ellipsis: true, render: value => <Text>{value}</Text> },
+        { title: t('scanDetails.exit'), dataIndex: 'exit_code', width: 80, align: 'center', render: value => value === 0 ? <Tag color="success">0</Tag> : value !== null && value !== undefined ? <Tag color="error">{value}</Tag> : <Tag>...</Tag> },
+        { title: t('scanDetails.duration'), dataIndex: 'duration', width: 100, align: 'right', render: value => value !== null && value !== undefined ? `${Number(value).toFixed(1)}s` : '---' },
+        { title: t('scanDetails.finds'), dataIndex: 'findings_count', width: 80, align: 'center' },
+      ]}
+    />
+  )
+}
+
+function ContainerTelemetry({ containerStatus, toolExecutions, expandedTool, setExpandedTool, isRunning, t }: {
+  containerStatus: ContainerStatus
+  toolExecutions: ToolExecution[]
+  expandedTool: string | null
+  setExpandedTool: (value: string | null) => void
+  isRunning: boolean
+  t: (key: string) => string
+}) {
+  return (
+    <ProCard
+      title={<Space><CodeOutlined />{t('scanDetails.containerTelemetry')}</Space>}
+      extra={(
+        <Space>
+          <Badge status={containerStatus.online ? 'success' : 'error'} text={containerStatus.online ? t('scanDetails.online') : t('scanDetails.offline')} />
+          {containerStatus.container_id && <Text code>ID: {containerStatus.container_id.slice(0, 12)}</Text>}
+        </Space>
       )}
-    </div>
+    >
+      {toolExecutions.length > 0 ? (
+        <ToolExecutionTable toolExecutions={toolExecutions} expandedTool={expandedTool} setExpandedTool={setExpandedTool} t={t} />
+      ) : (
+        <Empty description={isRunning ? t('scanDetails.waitingToolExec') : t('scanDetails.noToolExecs')} />
+      )}
+    </ProCard>
   )
 }
 
 function LogViewer({ logs, logFilter, setLogFilter, logSearch, setLogSearch, t }: {
-  logs: AgentLog[]; logFilter: string; setLogFilter: (f: string) => void
-  logSearch: string; setLogSearch: (s: string) => void
+  logs: AgentLog[]
+  logFilter: string
+  setLogFilter: (f: string) => void
+  logSearch: string
+  setLogSearch: (s: string) => void
   t: (key: string, options?: any) => string
 }) {
   const logScrollRef = useRef<HTMLDivElement>(null)
   const [followLatest, setFollowLatest] = useState(true)
+  const filters = [
+    { key: 'all', label: t('common.all') },
+    { key: 'stream1', label: t('autoPentest.recon') },
+    { key: 'stream2', label: t('autoPentest.juniorAi') },
+    { key: 'stream3', label: t('autoPentest.tools') },
+    { key: 'deep', label: t('newScan.deepAnalysis') },
+    { key: 'error', label: t('common.error') },
+  ]
 
-  const filteredLogs = useMemo(() =>
-    logs.filter(log => {
-      if (!matchLogFilter(log, logFilter)) return false
-      if (logSearch && !log.message.toLowerCase().includes(logSearch.toLowerCase())) return false
-      return true
-    }), [logs, logFilter, logSearch]
-  )
-
-  const LOG_FILTERS = useMemo(() => getLogFilters(t), [t])
+  const filteredLogs = useMemo(() => logs.filter(log => {
+    if (!matchLogFilter(log, logFilter)) return false
+    if (logSearch && !log.message.toLowerCase().includes(logSearch.toLowerCase())) return false
+    return true
+  }), [logs, logFilter, logSearch])
 
   const onLogScroll = useCallback(() => {
     const el = logScrollRef.current
@@ -257,120 +324,60 @@ function LogViewer({ logs, logFilter, setLogFilter, logSearch, setLogSearch, t }
   }, [logs, logFilter, logSearch, followLatest, filteredLogs.length])
 
   return (
-    <div className="bg-dark-900 rounded-xl overflow-hidden">
-      <div className="flex items-center gap-1.5 p-2 border-b border-dark-700 flex-wrap">
-        {LOG_FILTERS.map(f => (
-          <button
-            key={f.key}
-            onClick={() => setLogFilter(f.key)}
-            className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
-              logFilter === f.key ? 'bg-dark-700 text-white' : `text-dark-500 hover:text-dark-300 ${f.color}`
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
-        <div className="flex-1 min-w-0" />
-        <label className="flex items-center gap-1.5 text-[10px] text-dark-500 cursor-pointer shrink-0">
-          <input
-            type="checkbox"
-            checked={followLatest}
-            onChange={e => {
-              const on = e.target.checked
-              setFollowLatest(on)
-              if (on) {
-                requestAnimationFrame(() => {
-                  const el = logScrollRef.current
-                  if (el) el.scrollTop = el.scrollHeight
-                })
-              }
-            }}
-            className="w-3.5 h-3.5 rounded border-dark-600 bg-dark-800 text-primary-500"
-          />
+    <ProCard title={t('scanDetails.activityLog')} extra={<Text type="secondary">{filteredLogs.length}/{logs.length}</Text>}>
+      <Space wrap style={{ marginBottom: 12, width: '100%' }}>
+        <Radio.Group size="small" value={logFilter} onChange={e => setLogFilter(e.target.value)}>
+          {filters.map(filter => <Radio.Button key={filter.key} value={filter.key}>{filter.label}</Radio.Button>)}
+        </Radio.Group>
+        <Checkbox
+          checked={followLatest}
+          onChange={e => {
+            const on = e.target.checked
+            setFollowLatest(on)
+            if (on) {
+              requestAnimationFrame(() => {
+                const el = logScrollRef.current
+                if (el) el.scrollTop = el.scrollHeight
+              })
+            }
+          }}
+        >
           {t('autoPentest.followLatestLogs')}
-        </label>
-        <div className="relative">
-          <Search className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-dark-500 pointer-events-none" />
-          <input
-            type="text"
-            value={logSearch}
-            onChange={e => setLogSearch(e.target.value)}
-            placeholder={t('common.search') + '...'}
-            className="pl-6 pr-2 py-1 bg-dark-800 border border-dark-700 rounded text-xs text-white placeholder-dark-500 focus:outline-none focus:border-dark-500 w-32 sm:w-40"
-          />
-        </div>
-        <span className="text-[10px] text-dark-600 tabular-nums">{filteredLogs.length}/{logs.length}</span>
-      </div>
-      <div
-        ref={logScrollRef}
-        onScroll={onLogScroll}
-        className="p-3 max-h-[400px] overflow-y-auto font-mono text-xs space-y-px overscroll-y-contain"
-      >
+        </Checkbox>
+        <Input
+          allowClear
+          size="small"
+          prefix={<SearchOutlined />}
+          value={logSearch}
+          onChange={e => setLogSearch(e.target.value)}
+          placeholder={`${t('common.search')}...`}
+          style={{ width: 220 }}
+        />
+      </Space>
+      <div ref={logScrollRef} onScroll={onLogScroll} style={{ maxHeight: 460, overflow: 'auto', background: '#141414', borderRadius: 8, padding: 12, fontFamily: 'monospace' }}>
         {filteredLogs.length === 0 ? (
-          <p className="text-dark-500 text-center py-4">
-            {logs.length === 0 ? t('scanDetails.waitingForActivity') : t('scanDetails.noLogsMatch')}
-          </p>
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={logs.length === 0 ? t('scanDetails.waitingForActivity') : t('scanDetails.noLogsMatch')} />
         ) : (
-          filteredLogs.map((log, i) => (
-            <div key={i} className="flex gap-2 py-0.5 hover:bg-dark-800/30 rounded px-1 -mx-1">
-              <span className="text-dark-600 flex-shrink-0 text-[10px] tabular-nums">{log.time?.slice(11, 19) || new Date(log.time).toLocaleTimeString().slice(0, 8)}</span>
-              <span className={`flex-shrink-0 uppercase w-10 text-[10px] ${
-                log.level === 'error' ? 'text-red-400' :
-                log.level === 'warning' ? 'text-yellow-400' :
-                log.level === 'success' ? 'text-green-400' :
-                log.level === 'info' ? 'text-blue-400' : 'text-dark-500'
-              }`}>{log.level}</span>
-              <span className={`break-all ${logMessageColor(log.message) || (log.source === 'llm' ? 'text-purple-400' : 'text-dark-300')}`}>
-                {log.message}
-              </span>
-            </div>
-          ))
+          <Space direction="vertical" size={2} style={{ width: '100%' }}>
+            {filteredLogs.map((log, index) => (
+              <div key={index} style={{ display: 'grid', gridTemplateColumns: '76px 64px 1fr', gap: 8, color: '#d9d9d9' }}>
+                <Text type="secondary">{log.time?.slice(11, 19) || new Date(log.time).toLocaleTimeString().slice(0, 8)}</Text>
+                <Tag color={log.level === 'error' ? 'error' : log.level === 'warning' ? 'warning' : log.level === 'success' ? 'success' : 'processing'}>{log.level}</Tag>
+                <Text style={{ color: log.source === 'llm' ? '#b37feb' : undefined }}>{log.message}</Text>
+              </div>
+            ))}
+          </Space>
         )}
       </div>
-    </div>
+    </ProCard>
   )
 }
-
-function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: string) => void }) {
-  if (toasts.length === 0) return null
-  return (
-    <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm pointer-events-none">
-      {toasts.map(toast => (
-        <div
-          key={toast.id}
-          style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
-          className={`flex items-center gap-2 px-4 py-3 rounded-xl border shadow-2xl pointer-events-auto ${
-            toast.severity === 'critical' ? 'bg-red-950/90 border-red-500/40 text-red-300' :
-            toast.severity === 'high' ? 'bg-orange-950/90 border-orange-500/40 text-orange-300' :
-            toast.severity === 'medium' ? 'bg-yellow-950/90 border-yellow-500/40 text-yellow-300' :
-            toast.severity === 'completed' ? 'bg-green-950/90 border-green-500/40 text-green-300' :
-            toast.severity === 'error' ? 'bg-red-950/90 border-red-500/40 text-red-300' :
-            'bg-dark-800/95 border-dark-600 text-dark-300'
-          }`}
-        >
-          {toast.severity === 'completed' ? (
-            <CheckCircle className="w-4 h-4 flex-shrink-0" />
-          ) : toast.severity === 'error' || toast.severity === 'critical' ? (
-            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-          ) : (
-            <Bug className="w-4 h-4 flex-shrink-0" />
-          )}
-          <span className="text-sm flex-1 line-clamp-2">{toast.message}</span>
-          <button onClick={() => onDismiss(toast.id)} className="text-dark-500 hover:text-white flex-shrink-0">
-            <X className="w-3 h-3" />
-          </button>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ScanDetailsPage() {
   const { scanId } = useParams<{ scanId: string }>()
   const navigate = useNavigate()
   const { t } = useTranslation()
+  const { message } = AntApp.useApp()
   const { hasPermission } = usePermission()
   const {
     currentScan, endpoints, vulnerabilities, logs, agentTasks,
@@ -380,7 +387,6 @@ export default function ScanDetailsPage() {
     loadScanData, saveScanData, getVulnCounts
   } = useScanStore()
 
-  // Core state
   const [isGeneratingReport, setIsGeneratingReport] = useState(false)
   const [isGeneratingAiReport, setIsGeneratingAiReport] = useState(false)
   const [expandedVulns, setExpandedVulns] = useState<Set<string>>(new Set())
@@ -389,59 +395,55 @@ export default function ScanDetailsPage() {
   const [error, setError] = useState<string | null>(null)
   const [autoGeneratedReport, setAutoGeneratedReport] = useState<Report | null>(null)
   const [agentData, setAgentData] = useState<AgentStatus | null>(null)
-
-  // Phase stepper
   const [skipConfirm, setSkipConfirm] = useState<string | null>(null)
   const [skippedPhases, setSkippedPhases] = useState<Set<string>>(new Set())
-
-  // Validation
   const [validationFilter, setValidationFilter] = useState<'all' | 'confirmed' | 'rejected' | 'validated'>('all')
   const [feedbackVulnId, setFeedbackVulnId] = useState<string | null>(null)
   const [feedbackIsTp, setFeedbackIsTp] = useState(true)
   const [feedbackText, setFeedbackText] = useState('')
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
   const [learningPatternCount, setLearningPatternCount] = useState<number | null>(null)
-
-  // Report model picker
   const [availableModels, setAvailableModels] = useState<Array<{ provider_id: string; provider_name: string; default_model: string; tier: number; available_models: string[] }>>([])
   const [reportProvider, setReportProvider] = useState('')
   const [reportModel, setReportModel] = useState('')
   const [showReportModelPicker, setShowReportModelPicker] = useState(false)
-
-  // Live stats
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
-
-  // Agent logs (from agent API, richer than scan store logs)
   const [agentLogs, setAgentLogs] = useState<AgentLog[]>([])
   const [logFilter, setLogFilter] = useState('all')
   const [logSearch, setLogSearch] = useState('')
-
-  // Tool execution & container
   const [expandedTool, setExpandedTool] = useState<string | null>(null)
-
-  // Toast notifications
   const [toasts, setToasts] = useState<Toast[]>([])
   const [newFindingIds, setNewFindingIds] = useState<Set<string>>(new Set())
   const [connectionLost, setConnectionLost] = useState(false)
 
-  // Refs
   const seenVulnIdsRef = useRef<Set<string>>(new Set())
   const prevPhaseRef = useRef<string | null>(null)
   const consecutiveErrorsRef = useRef(0)
   const newFindingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // ─── Derived ─────────────────────────────────────────────────────────────
-
-  const vulnCounts = useMemo(() => getVulnCounts(), [vulnerabilities])
+  const vulnCounts = useMemo(() => getVulnCounts(), [getVulnCounts, vulnerabilities])
   const isRunning = currentScan?.status === 'running' || currentScan?.status === 'paused'
   const toolExecutions: ToolExecution[] = agentData?.tool_executions || []
   const containerStatus: ContainerStatus | undefined = agentData?.container_status
+  const displayLogs: AgentLog[] = agentLogs.length > 0 ? agentLogs : logs
 
-  // ─── Toast Helper ─────────────────────────────────────────────────────────
+  const filteredVulnerabilities = useMemo(() => vulnerabilities.filter(vuln => {
+    if (validationFilter === 'all') return true
+    if (validationFilter === 'confirmed') return !vuln.validation_status || vuln.validation_status === 'ai_confirmed' || vuln.validation_status === 'validated'
+    if (validationFilter === 'rejected') return vuln.validation_status === 'ai_rejected' || vuln.validation_status === 'false_positive'
+    if (validationFilter === 'validated') return vuln.validation_status === 'validated'
+    return true
+  }), [validationFilter, vulnerabilities])
 
-  const addToast = useCallback((message: string, severity: string = 'info') => {
+  const providerOptions = availableModels.map(provider => ({ label: provider.provider_name, value: provider.provider_id }))
+  const modelOptions = (reportProvider
+    ? availableModels.find(provider => provider.provider_id === reportProvider)?.available_models || []
+    : [...new Set(availableModels.flatMap(provider => provider.available_models))]
+  ).map(model => ({ label: model, value: model }))
+
+  const addToast = useCallback((toastMessage: string, severity: string = 'info') => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
-    setToasts(prev => [...prev.slice(-(MAX_TOASTS - 1)), { id, message, severity, timestamp: Date.now() }])
+    setToasts(prev => [...prev.slice(-(MAX_TOASTS - 1)), { id, message: toastMessage, severity, timestamp: Date.now() }])
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), TOAST_DURATION)
   }, [])
 
@@ -449,15 +451,11 @@ export default function ScanDetailsPage() {
     setToasts(prev => prev.filter(t => t.id !== id))
   }, [])
 
-  // ─── Mount: fetch LLM providers ────────────────────────────────────────────
-
   useEffect(() => {
     providersApi.getAvailableModels()
       .then(data => setAvailableModels(data.providers || []))
       .catch(() => {})
   }, [])
-
-  // ─── Elapsed Time Ticker ──────────────────────────────────────────────────
 
   useEffect(() => {
     if (!isRunning || !currentScan?.started_at) return
@@ -467,8 +465,6 @@ export default function ScanDetailsPage() {
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
   }, [isRunning, currentScan?.started_at])
-
-  // ─── Main data fetch + polling + WebSocket ─────────────────────────────────
 
   useEffect(() => {
     if (!scanId) return
@@ -508,10 +504,9 @@ export default function ScanDetailsPage() {
                 updateScan(scanId, { progress: agentStatus.progress, current_phase: agentStatus.phase })
               }
             }
-            // Seed seen vuln IDs
             seenVulnIdsRef.current = new Set((agentStatus.findings || []).map(f => f.id))
           }
-        } catch { /* Agent data not available for non-agent scans */ }
+        } catch {}
       } catch (err: any) {
         console.error('Failed to fetch scan:', err)
         setError(err?.response?.data?.detail || 'Failed to load scan')
@@ -521,7 +516,6 @@ export default function ScanDetailsPage() {
     }
     fetchData()
 
-    // Poll for updates
     const pollInterval = setInterval(async () => {
       if (currentScan?.status === 'running' || currentScan?.status === 'paused' || !currentScan) {
         try {
@@ -540,26 +534,23 @@ export default function ScanDetailsPage() {
           if (vulnsData.vulnerabilities?.length > 0) setVulnerabilities(vulnsData.vulnerabilities)
           if (tasksData.tasks?.length > 0) setAgentTasks(tasksData.tasks)
 
-          // Poll agent data for tool_executions, container_status, findings
           try {
             const agentStatus = await agentApi.getByScan(scanId)
             if (agentStatus) {
               setAgentData(agentStatus)
 
-              // Phase change detection
               if (prevPhaseRef.current && agentStatus.phase && agentStatus.phase !== prevPhaseRef.current) {
                 addToast(`Phase: ${agentStatus.phase}`, 'info')
               }
               prevPhaseRef.current = agentStatus.phase || null
 
-              // New finding detection
               const currentIds = new Set((agentStatus.findings || []).map(f => f.id))
               if (seenVulnIdsRef.current.size > 0) {
                 const newIds = [...currentIds].filter(id => !seenVulnIdsRef.current.has(id))
                 if (newIds.length > 0) {
                   newIds.forEach(id => {
-                    const f = agentStatus.findings?.find(x => x.id === id)
-                    if (f) addToast(`${f.severity.toUpperCase()}: ${f.title}`, f.severity)
+                    const finding = agentStatus.findings?.find(item => item.id === id)
+                    if (finding) addToast(`${finding.severity.toUpperCase()}: ${finding.title}`, finding.severity)
                   })
                   setNewFindingIds(new Set(newIds))
                   if (newFindingTimerRef.current) clearTimeout(newFindingTimerRef.current)
@@ -579,14 +570,13 @@ export default function ScanDetailsPage() {
                 }
               }
             }
-          } catch { /* Agent data not available */ }
+          } catch {}
 
-          // Fetch agent logs
           if (agentData?.agent_id) {
             try {
               const logData = await agentApi.getLogs(agentData.agent_id, 300)
               setAgentLogs(logData.logs || [])
-            } catch { /* ignore */ }
+            } catch {}
           }
         } catch (err) {
           consecutiveErrorsRef.current += 1
@@ -596,41 +586,32 @@ export default function ScanDetailsPage() {
       }
     }, connectionLost ? POLL_INTERVAL_ERROR : POLL_INTERVAL)
 
-    // Connect WebSocket
     wsService.connect(scanId)
 
-    const unsubscribe = wsService.subscribe('*', (message: WSMessage) => {
-      switch (message.type) {
+    const unsubscribe = wsService.subscribe('*', (wsMessage: WSMessage) => {
+      switch (wsMessage.type) {
         case 'progress_update':
-          updateScan(scanId, {
-            progress: message.progress as number,
-            current_phase: message.message as string
-          })
+          updateScan(scanId, { progress: wsMessage.progress as number, current_phase: wsMessage.message as string })
           break
         case 'phase_change': {
-          const phase = message.phase as string
+          const phase = wsMessage.phase as string
           updateScan(scanId, { current_phase: phase })
           addLog('info', `Phase: ${phase}`)
           addToast(`Phase: ${phase}`, 'info')
-          if (phase.endsWith('_skipped')) {
-            setSkippedPhases(prev => new Set([...prev, phase.replace('_skipped', '')]))
-          }
+          if (phase.endsWith('_skipped')) setSkippedPhases(prev => new Set([...prev, phase.replace('_skipped', '')]))
           break
         }
         case 'endpoint_found':
-          addEndpoint(message.endpoint as Endpoint)
+          addEndpoint(wsMessage.endpoint as Endpoint)
           break
         case 'vuln_found':
-          addVulnerability(message.vulnerability as Vulnerability)
-          addLog('warning', `Found: ${(message.vulnerability as Vulnerability).title}`)
-          addToast(`Found: ${(message.vulnerability as Vulnerability).title}`, (message.vulnerability as Vulnerability).severity || 'medium')
+          addVulnerability(wsMessage.vulnerability as Vulnerability)
+          addLog('warning', `Found: ${(wsMessage.vulnerability as Vulnerability).title}`)
+          addToast(`Found: ${(wsMessage.vulnerability as Vulnerability).title}`, (wsMessage.vulnerability as Vulnerability).severity || 'medium')
           break
         case 'stats_update':
-          if (message.stats) {
-            const stats = message.stats as {
-              total_vulnerabilities?: number; critical?: number; high?: number
-              medium?: number; low?: number; info?: number; total_endpoints?: number
-            }
+          if (wsMessage.stats) {
+            const stats = wsMessage.stats as { total_vulnerabilities?: number; critical?: number; high?: number; medium?: number; low?: number; info?: number; total_endpoints?: number }
             updateScan(scanId, {
               total_vulnerabilities: stats.total_vulnerabilities,
               critical_count: stats.critical,
@@ -643,7 +624,7 @@ export default function ScanDetailsPage() {
           }
           break
         case 'log_message':
-          addLog(message.level as string, message.message as string)
+          addLog(wsMessage.level as string, wsMessage.message as string)
           break
         case 'scan_completed':
           updateScan(scanId, { status: 'completed', progress: 100 })
@@ -652,12 +633,8 @@ export default function ScanDetailsPage() {
           saveScanData(scanId)
           break
         case 'scan_stopped':
-          if (message.summary) {
-            const summary = message.summary as {
-              total_vulnerabilities?: number; critical?: number; high?: number
-              medium?: number; low?: number; info?: number; total_endpoints?: number
-              duration?: number; progress?: number
-            }
+          if (wsMessage.summary) {
+            const summary = wsMessage.summary as { total_vulnerabilities?: number; critical?: number; high?: number; medium?: number; low?: number; info?: number; total_endpoints?: number; duration?: number; progress?: number }
             updateScan(scanId, {
               status: 'stopped',
               progress: summary.progress || currentScan?.progress,
@@ -679,30 +656,30 @@ export default function ScanDetailsPage() {
           break
         case 'scan_failed':
           updateScan(scanId, { status: 'failed' })
-          addLog('error', `Scan failed: ${message.error || 'Unknown error'}`)
+          addLog('error', `Scan failed: ${wsMessage.error || 'Unknown error'}`)
           addToast(t('scanDetails.scanFailed'), 'error')
           saveScanData(scanId)
           break
         case 'agent_task':
         case 'agent_task_started':
-          if (message.task) addAgentTask(message.task as ScanAgentTask)
+          if (wsMessage.task) addAgentTask(wsMessage.task as ScanAgentTask)
           break
         case 'agent_task_completed':
-          if (message.task) {
-            const task = message.task as ScanAgentTask
+          if (wsMessage.task) {
+            const task = wsMessage.task as ScanAgentTask
             updateAgentTask(task.id, task)
           }
           break
         case 'report_generated':
-          if (message.report) {
-            const report = message.report as Report
+          if (wsMessage.report) {
+            const report = wsMessage.report as Report
             setAutoGeneratedReport(report)
             addLog('info', `Report generated: ${report.title}`)
             addToast(t('scanDetails.reportGenerated'), 'completed')
           }
           break
         case 'error':
-          addLog('error', message.error as string)
+          addLog('error', wsMessage.error as string)
           break
       }
     })
@@ -715,14 +692,13 @@ export default function ScanDetailsPage() {
     }
   }, [scanId])
 
-  // ─── Actions ──────────────────────────────────────────────────────────────
-
   const handleStopScan = async () => {
     if (!scanId) return
     try {
       await scansApi.stop(scanId)
       updateScan(scanId, { status: 'stopped' })
       saveScanData(scanId)
+      message.success(t('scanDetails.scanStopped'))
     } catch (err) { console.error('Failed to stop scan:', err) }
   }
 
@@ -748,7 +724,7 @@ export default function ScanDetailsPage() {
       await scansApi.skipToPhase(scanId, phase)
       setSkipConfirm(null)
       addToast(`Skipping to ${phase}`, 'info')
-    } catch (err: any) { console.error('Failed to skip phase:', err) }
+    } catch (err) { console.error('Failed to skip phase:', err) }
   }
 
   const handleGenerateReport = async () => {
@@ -780,10 +756,10 @@ export default function ScanDetailsPage() {
   }
 
   const toggleVuln = (id: string) => {
-    const newExpanded = new Set(expandedVulns)
-    if (newExpanded.has(id)) newExpanded.delete(id)
-    else newExpanded.add(id)
-    setExpandedVulns(newExpanded)
+    const next = new Set(expandedVulns)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    setExpandedVulns(next)
   }
 
   const copyToClipboard = (text: string) => {
@@ -791,914 +767,383 @@ export default function ScanDetailsPage() {
     addToast(t('scanDetails.copiedToClipboard'), 'info')
   }
 
-  // ─── Display logs: prefer agent logs if available ──────────────────────────
+  const endpointColumns: ProColumns<Endpoint>[] = [
+    { title: 'Method', dataIndex: 'method', width: 100, render: (_, row) => <Tag color={row.method === 'GET' ? 'success' : row.method === 'POST' ? 'processing' : row.method === 'PUT' ? 'warning' : row.method === 'DELETE' ? 'error' : 'default'}>{row.method}</Tag> },
+    { title: 'Path', dataIndex: 'path', ellipsis: true, render: (_, row) => <Text code>{row.path || row.url}</Text> },
+    { title: 'Params', dataIndex: 'parameters', width: 100, render: (_, row) => row.parameters?.length || 0 },
+    { title: 'Content-Type', dataIndex: 'content_type', width: 180, ellipsis: true },
+    { title: 'Status', dataIndex: 'response_status', width: 100, render: (_, row) => row.response_status ? <Tag color={row.response_status < 300 ? 'success' : row.response_status < 400 ? 'warning' : 'error'}>{row.response_status}</Tag> : '-' },
+  ]
 
-  const displayLogs: AgentLog[] = agentLogs.length > 0 ? agentLogs : logs
-
-  // ─── Loading / Error / Not Found ───────────────────────────────────────────
+  const taskColumns: ProColumns<ScanAgentTask>[] = [
+    { title: t('scanDetails.agentTasks'), dataIndex: 'task_name', ellipsis: true, render: (_, row) => <Space direction="vertical" size={0}><Text strong>{row.task_name}</Text>{row.description && <Text type="secondary">{row.description}</Text>}</Space> },
+    { title: 'Tool', dataIndex: 'tool_name', width: 140, render: value => value ? <Tag>{value}</Tag> : '-' },
+    { title: 'Type', dataIndex: 'task_type', width: 120, render: value => <Tag color={value === 'recon' ? 'blue' : value === 'analysis' ? 'purple' : value === 'testing' ? 'orange' : 'green'}>{value}</Tag> },
+    { title: 'Status', dataIndex: 'status', width: 120, render: value => <Badge status={value === 'completed' ? 'success' : value === 'running' ? 'processing' : value === 'failed' ? 'error' : 'default'} text={value} /> },
+    { title: t('scanDetails.duration'), dataIndex: 'duration_ms', width: 120, render: value => value !== null && value !== undefined ? Number(value) < 1000 ? `${value}ms` : `${(Number(value) / 1000).toFixed(1)}s` : '-' },
+    { title: t('scanDetails.finds'), dataIndex: 'items_found', width: 100 },
+  ]
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <RefreshCw className="w-8 h-8 animate-spin text-primary-500" />
-      </div>
-    )
+    return <PageContainer><ProCard><Spin tip={t('common.loading')} style={{ width: '100%', padding: 64 }} /></ProCard></PageContainer>
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-64">
-        <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
-        <p className="text-xl text-white mb-2">{t('scanDetails.failedToLoad')}</p>
-        <p className="text-dark-400 mb-4">{error}</p>
-        <Button onClick={() => navigate('/')}>{t('sidebar.dashboard')}</Button>
-      </div>
+      <PageContainer>
+        <Alert
+          showIcon
+          type="error"
+          message={t('scanDetails.failedToLoad')}
+          description={error}
+          action={<Button onClick={() => navigate('/')}>{t('sidebar.dashboard')}</Button>}
+        />
+      </PageContainer>
     )
   }
 
   if (!currentScan) {
     return (
-      <div className="flex flex-col items-center justify-center h-64">
-        <AlertTriangle className="w-12 h-12 text-yellow-500 mb-4" />
-        <p className="text-xl text-white mb-2">{t('scanDetails.scanNotFound')}</p>
-        <p className="text-dark-400 mb-4">{t('scanDetails.scanInitializing')}</p>
-        <div className="flex gap-2">
-          <Button onClick={() => window.location.reload()}>{t('common.refresh')}</Button>
-          <Button variant="secondary" onClick={() => navigate('/')}>{t('sidebar.dashboard')}</Button>
-        </div>
-      </div>
+      <PageContainer>
+        <Alert
+          showIcon
+          type="warning"
+          message={t('scanDetails.scanNotFound')}
+          description={t('scanDetails.scanInitializing')}
+          action={<Space><Button onClick={() => window.location.reload()}>{t('common.refresh')}</Button><Button onClick={() => navigate('/')}>{t('sidebar.dashboard')}</Button></Space>}
+        />
+      </PageContainer>
     )
   }
 
-  // ─── Render ─────────────────────────────────────────────────────────────────
+  const phases = [
+    { id: 'initializing', title: t('scanDetails.init'), description: t('scanDetails.initializing') },
+    { id: 'recon', title: t('scanDetails.recon'), description: t('scanDetails.recon') },
+    { id: 'analyzing', title: t('scanDetails.analysis'), description: t('scanDetails.analysis') },
+    { id: 'testing', title: t('scanDetails.testing'), description: t('scanDetails.testing') },
+    { id: 'completed', title: t('scanDetails.completed'), description: t('scanDetails.completed') },
+  ]
+  const rawPhase = currentScan.current_phase || 'initializing'
+  const currentPhase = rawPhase.startsWith('skipping_to_') ? rawPhase.replace('skipping_to_', '') : rawPhase.replace('_skipped', '')
+  const currentStep = Math.max(0, phases.findIndex(phase => phase.id === currentPhase))
+  const scanIsRunning = currentScan.status === 'running' || currentScan.status === 'paused'
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Inline keyframes */}
-      <style>{`
-        @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes glowPulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
-      `}</style>
-
-      {/* Toast Notifications */}
+    <PageContainer
+      title={<Space><SafetyCertificateOutlined />{currentScan.name || t('scanDetails.unnamedScan')}</Space>}
+      subTitle={<Space wrap><StatusBadge status={currentScan.status} /><Text type="secondary">{t('scanDetails.started')} {new Date(currentScan.created_at).toLocaleString()}</Text>{isRunning && elapsedSeconds > 0 && <Tag icon={<ClockCircleOutlined />}>{formatElapsed(elapsedSeconds)}</Tag>}</Space>}
+      extra={[
+        agentData?.agent_id ? <Button key="agent" icon={<RobotOutlined />} onClick={() => navigate(`/agent/${agentData.agent_id}`)}>{t('scanDetails.agentView')}</Button> : null,
+        currentScan.status === 'running' && hasPermission('scan:execute') ? <Button key="pause" icon={<PauseCircleOutlined />} onClick={handlePauseScan}>{t('scanDetails.pause')}</Button> : null,
+        currentScan.status === 'paused' && hasPermission('scan:execute') ? <Button key="resume" type="primary" icon={<PlayCircleOutlined />} onClick={handleResumeScan}>{t('scanDetails.resume')}</Button> : null,
+        (currentScan.status === 'running' || currentScan.status === 'paused') && hasPermission('scan:execute') ? <Popconfirm key="stop" title={t('scanDetails.stop')} onConfirm={handleStopScan}><Button danger icon={<StopOutlined />}>{t('scanDetails.stop')}</Button></Popconfirm> : null,
+        autoGeneratedReport ? <Button key="view-report" icon={<FileTextOutlined />} onClick={() => window.open(reportsApi.getViewUrl(autoGeneratedReport.id), '_blank')}>{t('scanDetails.viewReport')}</Button> : null,
+        autoGeneratedReport ? <Button key="download-report" icon={<DownloadOutlined />} onClick={() => window.open(reportsApi.getDownloadZipUrl(autoGeneratedReport.id), '_blank')}>{t('scanDetails.downloadZip')}</Button> : null,
+        (currentScan.status === 'completed' || currentScan.status === 'stopped') ? <Button key="report" type="primary" loading={isGeneratingReport} icon={<FileTextOutlined />} onClick={handleGenerateReport}>{autoGeneratedReport ? t('scanDetails.newReport') : t('scanDetails.generateReport')}</Button> : null,
+        (currentScan.status === 'completed' || currentScan.status === 'stopped') ? <Button key="ai-report" loading={isGeneratingAiReport} icon={<ThunderboltOutlined />} onClick={() => setShowReportModelPicker(true)}>{t('scanDetails.aiReport')}{reportProvider ? ` (${reportProvider})` : ''}</Button> : null,
+      ].filter(Boolean)}
+    >
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
-      {/* Connection Lost Banner */}
-      {connectionLost && (
-        <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl flex items-center gap-2" style={{ animation: 'fadeSlideIn 0.3s ease-out' }}>
-          <AlertTriangle className="w-4 h-4 text-yellow-400 flex-shrink-0" />
-          <span className="text-yellow-400 text-sm flex-1">{t('scanDetails.connectionIssues')}</span>
-          <RefreshCw className="w-4 h-4 text-yellow-400 animate-spin flex-shrink-0" />
-        </div>
-      )}
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        {connectionLost && <Alert showIcon type="warning" message={t('scanDetails.connectionIssues')} icon={<ReloadOutlined spin />} />}
 
-      {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3" style={{ animation: 'fadeSlideIn 0.3s ease-out' }}>
-        <div className="min-w-0">
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Shield className="w-6 h-6 text-primary-500 flex-shrink-0" />
-            <span className="truncate">{currentScan.name || t('scanDetails.unnamedScan')}</span>
-          </h2>
-          <div className="flex items-center gap-3 mt-2 flex-wrap">
-            <SeverityBadge severity={currentScan.status} />
-            <span className="text-dark-400 text-sm">
-              {t('scanDetails.started')} {new Date(currentScan.created_at).toLocaleString()}
-            </span>
-            {isRunning && elapsedSeconds > 0 && (
-              <span className="text-dark-500 text-xs font-mono tabular-nums flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                {formatElapsed(elapsedSeconds)}
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="flex gap-2 flex-wrap flex-shrink-0">
-          {agentData?.agent_id && (
-            <Button variant="secondary" onClick={() => navigate(`/agent/${agentData.agent_id}`)}>
-              <Cpu className="w-4 h-4 mr-2" />
-              {t('scanDetails.agentView')}
-            </Button>
-          )}
-          {currentScan.status === 'running' && hasPermission('scan:execute') && (
-            <>
-              <Button variant="secondary" onClick={handlePauseScan}>
-                <Pause className="w-4 h-4 mr-2" />{t('scanDetails.pause')}
-              </Button>
-              <Button variant="danger" onClick={handleStopScan}>
-                <StopCircle className="w-4 h-4 mr-2" />{t('scanDetails.stop')}
-              </Button>
-            </>
-          )}
-          {currentScan.status === 'paused' && hasPermission('scan:execute') && (
-            <>
-              <Button variant="primary" onClick={handleResumeScan}>
-                <Play className="w-4 h-4 mr-2" />{t('scanDetails.resume')}
-              </Button>
-              <Button variant="danger" onClick={handleStopScan}>
-                <StopCircle className="w-4 h-4 mr-2" />{t('scanDetails.stop')}
-              </Button>
-            </>
-          )}
-          {autoGeneratedReport && (
-            <>
-              <Button variant="secondary" onClick={() => window.open(reportsApi.getViewUrl(autoGeneratedReport.id), '_blank')}>
-                <FileText className="w-4 h-4 mr-2" />{t('scanDetails.viewReport')}
-              </Button>
-              <Button variant="secondary" onClick={() => window.open(reportsApi.getDownloadZipUrl(autoGeneratedReport.id), '_blank')}>
-                <Download className="w-4 h-4 mr-2" />{t('scanDetails.downloadZip')}
-              </Button>
-            </>
-          )}
-          {(currentScan.status === 'completed' || currentScan.status === 'stopped') && (
-            <>
-              <Button onClick={handleGenerateReport} isLoading={isGeneratingReport}>
-                <FileText className="w-4 h-4 mr-2" />{autoGeneratedReport ? t('scanDetails.newReport') : t('scanDetails.generateReport')}
-              </Button>
-              <div className="relative">
-                <Button onClick={() => setShowReportModelPicker(!showReportModelPicker)} isLoading={isGeneratingAiReport} variant="secondary"
-                  title={reportProvider ? `${t('scanDetails.provider')}: ${reportProvider}/${reportModel || 'auto'}` : `${t('scanDetails.provider')}: auto`}>
-                  <Sparkles className="w-4 h-4 mr-2" />{t('scanDetails.aiReport')}
-                  {reportProvider && <span className="text-xs opacity-70 ml-1">({reportProvider})</span>}
-                  <ChevronDown className="w-3 h-3 ml-1" />
-                </Button>
-                {showReportModelPicker && (
-                  <div className="absolute right-0 top-full mt-2 w-72 bg-dark-800 border border-dark-600 rounded-xl p-4 shadow-xl z-50 space-y-3" style={{ animation: 'fadeSlideIn 0.2s ease-out' }}>
-                    <div>
-                      <label className="text-xs text-dark-400 mb-1 block">{t('scanDetails.provider')}</label>
-                      <select value={reportProvider} onChange={e => { setReportProvider(e.target.value); setReportModel('') }}
-                        className="w-full px-3 py-1.5 bg-dark-900 border border-dark-600 rounded-lg text-white text-sm">
-                        <option value="">Auto</option>
-                        {availableModels.map(p => (<option key={p.provider_id} value={p.provider_id}>{p.provider_name}</option>))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-xs text-dark-400 mb-1 block">{t('scanDetails.model')}</label>
-                      <select value={reportModel} onChange={e => setReportModel(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-dark-900 border border-dark-600 rounded-lg text-white text-sm">
-                        <option value="">Auto</option>
-                        {(reportProvider
-                          ? availableModels.find(p => p.provider_id === reportProvider)?.available_models || []
-                          : [...new Set(availableModels.flatMap(p => p.available_models))]
-                        ).map(m => (<option key={m} value={m}>{m}</option>))}
-                      </select>
-                    </div>
-                    <button onClick={handleGenerateAiReport}
-                      className="w-full px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-400 text-sm font-medium transition-colors">
-                      {t('scanDetails.generateAiReport')}
-                    </button>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Phase Stepper */}
-      {(currentScan.status === 'running' || currentScan.status === 'paused' || currentScan.status === 'completed' || currentScan.status === 'stopped') && (() => {
-        const PHASES = [
-          { id: 'initializing', label: t('scanDetails.init'), fullLabel: t('scanDetails.initializing') },
-          { id: 'recon', label: t('scanDetails.recon'), fullLabel: t('scanDetails.recon') },
-          { id: 'analyzing', label: t('scanDetails.analysis'), fullLabel: t('scanDetails.analysis') },
-          { id: 'testing', label: t('scanDetails.testing'), fullLabel: t('scanDetails.testing') },
-          { id: 'completed', label: t('scanDetails.completed'), fullLabel: t('scanDetails.completed') },
-        ]
-        const phaseOrder = PHASES.map(p => p.id)
-        const rawPhase = currentScan.current_phase || 'initializing'
-        const currentPhase = rawPhase.startsWith('skipping_to_') ? rawPhase.replace('skipping_to_', '') : rawPhase.replace('_skipped', '')
-        const currentIdx = phaseOrder.indexOf(currentPhase)
-        const scanIsRunning = currentScan.status === 'running' || currentScan.status === 'paused'
-
-        return (
-          <Card>
-            <div className="space-y-4">
-              {/* Phase nodes */}
-              <div className="flex items-center justify-between relative">
-                {PHASES.map((phase, idx) => {
-                  const isCompleted = idx < currentIdx || currentScan.status === 'completed'
-                  const isActive = idx === currentIdx && scanIsRunning
-                  const isSkipped = skippedPhases.has(phase.id)
-                  const isFuture = idx > currentIdx && scanIsRunning
-                  const canSkipTo = isFuture && phase.id !== 'initializing'
-
-                  return (
-                    <div key={phase.id} className="flex items-center flex-1 last:flex-none">
-                      <div className="flex flex-col items-center relative z-10">
-                        {canSkipTo ? (
-                          skipConfirm === phase.id ? (
-                            <div className="flex items-center gap-1">
-                              <button onClick={() => handleSkipToPhase(phase.id)}
-                                className="w-9 h-9 rounded-full bg-brand-500 text-white flex items-center justify-center hover:bg-brand-400 transition-colors"
-                                title={`Skip to ${phase.fullLabel}`}>
-                                <Check className="w-4 h-4" />
-                              </button>
-                              <button onClick={() => setSkipConfirm(null)}
-                                className="w-7 h-7 rounded-full bg-dark-600 text-dark-300 flex items-center justify-center hover:bg-dark-500 transition-colors">
-                                <XCircle className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          ) : (
-                            <button onClick={() => setSkipConfirm(phase.id)}
-                              className="w-9 h-9 rounded-full border-2 border-dark-500 bg-dark-800 text-dark-400 flex items-center justify-center hover:border-brand-400 hover:text-brand-400 hover:bg-brand-500/10 transition-all group"
-                              title={`Skip to ${phase.fullLabel}`}>
-                              <SkipForward className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-                              <span className="absolute text-[10px] group-hover:hidden">{idx + 1}</span>
-                            </button>
-                          )
-                        ) : isCompleted ? (
-                          <div className={`w-9 h-9 rounded-full flex items-center justify-center ${
-                            isSkipped ? 'bg-yellow-500/20 border-2 border-yellow-500/50' : 'bg-green-500/20 border-2 border-green-500/50'
-                          }`}>
-                            {isSkipped ? <Minus className="w-4 h-4 text-yellow-400" /> : <Check className="w-4 h-4 text-green-400" />}
-                          </div>
-                        ) : isActive ? (
-                          <div className="w-9 h-9 rounded-full bg-brand-500/20 border-2 border-brand-500 flex items-center justify-center animate-pulse">
-                            <div className="w-3 h-3 rounded-full bg-brand-400" />
-                          </div>
-                        ) : (
-                          <div className="w-9 h-9 rounded-full border-2 border-dark-600 bg-dark-800 flex items-center justify-center">
-                            <span className="text-xs text-dark-500">{idx + 1}</span>
-                          </div>
-                        )}
-                        <span className={`text-xs mt-2 font-medium ${
-                          isActive ? 'text-brand-400' : isCompleted ? (isSkipped ? 'text-yellow-400' : 'text-green-400') : 'text-dark-500'
-                        }`}>
-                          {isSkipped ? `${phase.label} (${t('scanDetails.skipped')})` : phase.label}
-                        </span>
-                        {canSkipTo && skipConfirm === phase.id && (
-                          <span className="text-[10px] text-brand-400 mt-0.5">{t('scanDetails.skipHere')}</span>
-                        )}
-                      </div>
-                      {idx < PHASES.length - 1 && (
-                        <div className={`flex-1 h-0.5 mx-2 mt-[-20px] ${idx < currentIdx ? 'bg-green-500/50' : 'bg-dark-600'}`} />
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-
-              {/* Enhanced Progress bar */}
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-dark-300">
-                  {rawPhase.startsWith('skipping_to_')
-                    ? `${t('scanDetails.skippingTo')} ${rawPhase.replace('skipping_to_', '')}...`
-                    : currentScan.current_phase || t('scanDetails.initializing')}
-                </span>
-                <span className="text-white font-medium font-mono tabular-nums">{currentScan.progress}%</span>
-              </div>
-              <div className="relative h-2.5 bg-dark-900 rounded-full overflow-hidden">
-                <div className="absolute top-0 left-1/2 w-px h-full bg-dark-700 z-10" />
-                <div className="absolute top-0 left-3/4 w-px h-full bg-dark-700 z-10" />
-                <div
-                  className="h-full rounded-full transition-all duration-700 ease-out relative"
-                  style={{ width: `${currentScan.progress}%`, background: 'linear-gradient(90deg, #6366f1, #8b5cf6)' }}
-                >
-                  {scanIsRunning && (
-                    <div className="absolute right-0 top-0 h-full w-6 rounded-full"
-                      style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.25))', animation: 'glowPulse 1.5s ease-in-out infinite' }} />
-                  )}
-                </div>
-              </div>
-            </div>
-          </Card>
-        )
-      })()}
-
-      {/* Auto-generated Report Notification */}
-      {autoGeneratedReport && (
-        <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 flex items-center justify-between flex-wrap gap-3" style={{ animation: 'fadeSlideIn 0.3s ease-out' }}>
-          <div className="flex items-center gap-3">
-            <div className="bg-green-500/20 rounded-full p-2">
-              <FileText className="w-5 h-5 text-green-400" />
-            </div>
-            <div>
-              <p className="text-white font-medium">
-                {autoGeneratedReport.is_partial ? t('scanDetails.partialReport') : t('scanDetails.reportGenerated')}
-              </p>
-              <p className="text-sm text-dark-400">{autoGeneratedReport.title || t('scanDetails.reportReady')}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button size="sm" onClick={() => window.open(reportsApi.getViewUrl(autoGeneratedReport.id), '_blank')}>
-              <ExternalLink className="w-4 h-4 mr-2" />{t('scanDetails.viewReport')}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setAutoGeneratedReport(null)}>{t('common.dismiss')}</Button>
-          </div>
-        </div>
-      )}
-
-      {/* Live Stats Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        {[
-          { label: t('scanDetails.endpoints'), value: endpoints.length, icon: Globe, color: 'text-blue-400' },
-          { label: t('scanDetails.totalVulns'), value: vulnerabilities.length, icon: Bug, color: 'text-white' },
-          { label: t('scanDetails.critical'), value: vulnCounts.critical, icon: AlertTriangle, color: 'text-red-500' },
-          { label: t('scanDetails.high'), value: vulnCounts.high, icon: AlertTriangle, color: 'text-orange-500' },
-          { label: t('scanDetails.medium'), value: vulnCounts.medium, icon: AlertTriangle, color: 'text-yellow-500' },
-          { label: t('scanDetails.low'), value: vulnCounts.low, icon: Shield, color: 'text-blue-500' },
-        ].map(stat => (
-          <div key={stat.label} className="bg-dark-800 border border-dark-700 rounded-xl p-4 text-center">
-            <p className={`text-2xl font-bold font-mono tabular-nums ${stat.color}`}>{stat.value}</p>
-            <p className="text-xs text-dark-400 mt-1">{stat.label}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-1.5 flex-wrap border-b border-dark-700 pb-2">
-        {([
-          { key: 'vulns', label: t('scanDetails.vulnerabilities'), icon: AlertTriangle, count: vulnerabilities.length },
-          { key: 'endpoints', label: t('scanDetails.endpoints'), icon: Globe, count: endpoints.length },
-          { key: 'tasks', label: t('scanDetails.agentTasks'), icon: Cpu, count: agentTasks.length },
-          { key: 'logs', label: t('scanDetails.activityLog'), icon: ScrollText, count: displayLogs.length },
-        ] as const).map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-              activeTab === tab.key
-                ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
-                : 'bg-dark-800 text-dark-400 hover:text-white border border-transparent'
-            }`}
-          >
-            <tab.icon className="w-4 h-4" />
-            <span className="hidden sm:inline">{tab.label}</span>
-            <span className="text-[10px] opacity-70">({tab.count})</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Container Telemetry (when agent has sandbox) */}
-      {containerStatus && activeTab !== 'logs' && (
-        <div className="bg-dark-800 border border-dark-700 rounded-xl p-4 sm:p-5">
-          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-            <div className="flex items-center gap-3">
-              <Terminal className="w-5 h-5 text-cyan-400" />
-              <h3 className="text-white font-semibold text-sm">{t('scanDetails.containerTelemetry')}</h3>
-              <span className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                containerStatus.online
-                  ? 'bg-green-500/20 text-green-400 border border-green-500/40'
-                  : 'bg-red-500/20 text-red-400 border border-red-500/40'
-              }`}>
-                <span className={`w-2 h-2 rounded-full ${containerStatus.online ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`} />
-                {containerStatus.online ? t('scanDetails.online') : t('scanDetails.offline')}
-              </span>
-            </div>
-            {containerStatus.container_id && (
-              <span className="text-xs text-dark-400 font-mono">ID: {containerStatus.container_id.slice(0, 12)}</span>
-            )}
-          </div>
-
-          {toolExecutions.length > 0 ? (
-            <div className="space-y-0 max-h-[300px] overflow-y-auto rounded-lg border border-dark-700 bg-dark-900/50">
-              <div className="grid grid-cols-[50px_70px_1fr_50px_65px_55px_20px] sm:grid-cols-[60px_80px_1fr_50px_70px_60px_24px] gap-2 text-[10px] text-dark-500 font-semibold uppercase tracking-wider px-2 py-2 border-b border-dark-700 bg-dark-900 sticky top-0">
-                <span>{t('scanDetails.task')}</span><span>{t('scanDetails.tool')}</span><span>{t('scanDetails.command')}</span>
-                <span className="text-center">{t('scanDetails.exit')}</span><span className="text-right">{t('scanDetails.duration')}</span>
-                <span className="text-center">{t('scanDetails.finds')}</span><span />
-              </div>
-              {toolExecutions.map((exec, i) => (
-                <ToolExecutionRow
-                  key={exec.task_id || i}
-                  exec={exec}
-                  expanded={expandedTool === (exec.task_id || String(i))}
-                  onToggle={() => setExpandedTool(expandedTool === (exec.task_id || String(i)) ? null : (exec.task_id || String(i)))}
-                  t={t}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="text-dark-500 text-sm text-center py-4">
-              {isRunning ? t('scanDetails.waitingToolExec') : t('scanDetails.noToolExecs')}
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* ═══ Vulnerabilities Tab ═══ */}
-      {activeTab === 'vulns' && (
-        <div className="space-y-3">
-          {/* Validation Filter + Severity chart */}
-          {vulnerabilities.length > 0 && (
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="flex gap-1.5">
-                {(['all', 'confirmed', 'rejected', 'validated'] as const).map((filter) => {
-                  const count = filter === 'all' ? vulnerabilities.length
-                    : filter === 'confirmed' ? vulnerabilities.filter(v => !v.validation_status || v.validation_status === 'ai_confirmed' || v.validation_status === 'validated').length
-                    : filter === 'rejected' ? vulnerabilities.filter(v => v.validation_status === 'ai_rejected' || v.validation_status === 'false_positive').length
-                    : vulnerabilities.filter(v => v.validation_status === 'validated').length
-                  return (
-                    <button
-                      key={filter}
-                      onClick={() => setValidationFilter(filter)}
-                      className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                        validationFilter === filter
-                          ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
-                          : 'bg-dark-700 text-dark-400 border border-dark-600 hover:text-dark-300'
-                      }`}
-                    >
-                      {filter.charAt(0).toUpperCase() + filter.slice(1)} ({count})
-                    </button>
-                  )
-                })}
-              </div>
-              <div className="flex gap-1.5 items-center ml-auto">
-                {['critical', 'high', 'medium', 'low', 'info'].map(sev => {
-                  const count = vulnCounts[sev as keyof typeof vulnCounts] || 0
-                  if (count === 0) return null
-                  return (
-                    <span key={sev} className={`${SEVERITY_COLORS[sev]} text-white px-2 py-0.5 rounded-full text-[10px] font-bold tabular-nums`}>
-                      {count}
-                    </span>
-                  )
-                })}
-                <SeverityMiniChart vulnCounts={vulnCounts} />
-              </div>
-            </div>
-          )}
-
-          {vulnerabilities.length === 0 ? (
-            <Card>
-              <p className="text-dark-400 text-center py-8">
-                {currentScan.status === 'running' ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <RefreshCw className="w-5 h-5 animate-spin" />
-                    {t('scanDetails.scanningForVulns')}
-                  </span>
-                ) : t('scanDetails.noVulnsFound')}
-              </p>
-            </Card>
-          ) : (
-            <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
-              {vulnerabilities
-                .filter((vuln) => {
-                  if (validationFilter === 'all') return true
-                  if (validationFilter === 'confirmed') return !vuln.validation_status || vuln.validation_status === 'ai_confirmed' || vuln.validation_status === 'validated'
-                  if (validationFilter === 'rejected') return vuln.validation_status === 'ai_rejected' || vuln.validation_status === 'false_positive'
-                  if (validationFilter === 'validated') return vuln.validation_status === 'validated'
-                  return true
-                })
-                .map((vuln, idx) => {
-                  const vulnKey = vuln.id || `vuln-${idx}`
-                  const isNew = newFindingIds.has(vuln.id)
-                  return (
-                    <div
-                      key={vulnKey}
-                      className={`bg-dark-800 rounded-xl border overflow-hidden transition-all duration-300 ${
-                        vuln.validation_status === 'ai_rejected' ? 'border-orange-500/40 opacity-70' :
-                        vuln.validation_status === 'false_positive' ? 'border-dark-600 opacity-50' :
-                        vuln.validation_status === 'validated' ? 'border-green-500/40' :
-                        'border-dark-700'
-                      } ${isNew ? 'ring-2 ring-primary-500/30' : ''}`}
-                      style={isNew ? { animation: 'fadeSlideIn 0.5s ease-out' } : undefined}
-                    >
-                      {/* Vulnerability Header */}
-                      <div className="p-4 cursor-pointer hover:bg-dark-750 transition-colors" onClick={() => toggleVuln(vulnKey)}>
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-start gap-2 flex-1 min-w-0">
-                            {expandedVulns.has(vulnKey) ? (
-                              <ChevronDown className="w-4 h-4 mt-1 text-dark-400 flex-shrink-0" />
-                            ) : (
-                              <ChevronRight className="w-4 h-4 mt-1 text-dark-400 flex-shrink-0" />
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-white">{vuln.title}</p>
-                              <p className="text-sm text-dark-400 truncate mt-1">{vuln.affected_endpoint}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
-                            {vuln.cvss_score && (
-                              <span className={`text-sm font-bold px-2 py-0.5 rounded tabular-nums ${
-                                vuln.cvss_score >= 9 ? 'bg-red-500/20 text-red-400' :
-                                vuln.cvss_score >= 7 ? 'bg-orange-500/20 text-orange-400' :
-                                vuln.cvss_score >= 4 ? 'bg-yellow-500/20 text-yellow-400' :
-                                'bg-blue-500/20 text-blue-400'
-                              }`}>
-                                CVSS {vuln.cvss_score.toFixed(1)}
-                              </span>
-                            )}
-                            <SeverityBadge severity={vuln.severity} />
-                            {(() => {
-                              const conf = getConfidenceDisplay(vuln)
-                              if (!conf) return null
-                              return (
-                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border tabular-nums ${CONFIDENCE_STYLES[conf.color]}`}>
-                                  {conf.score}/100
-                                </span>
-                              )
-                            })()}
-                            {vuln.validation_status === 'ai_rejected' && (
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30 flex items-center gap-1">
-                                <AlertTriangle className="w-3 h-3" /> {t('scanDetails.rejected')}
-                              </span>
-                            )}
-                            {vuln.validation_status === 'validated' && (
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 border border-green-500/30 flex items-center gap-1">
-                                <CheckCircle className="w-3 h-3" /> {t('scanDetails.validated')}
-                              </span>
-                            )}
-                            {vuln.validation_status === 'false_positive' && (
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-dark-600 text-dark-400 border border-dark-500 flex items-center gap-1">
-                                <XCircle className="w-3 h-3" /> FP
-                              </span>
-                            )}
-                            {(!vuln.validation_status || vuln.validation_status === 'ai_confirmed') && (
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hidden sm:inline-flex">
-                                AI {t('scanDetails.confirmed')}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Vulnerability Details */}
-                      {expandedVulns.has(vulnKey) && (
-                        <div className="p-4 pt-0 space-y-4 border-t border-dark-700">
-                          {/* Meta Info */}
-                          <div className="flex flex-wrap items-center gap-4 text-sm">
-                            {vuln.vulnerability_type && (
-                              <span className="text-dark-400">Type: <span className="text-white">{vuln.vulnerability_type}</span></span>
-                            )}
-                            {vuln.cwe_id && (
-                              <a href={`https://cwe.mitre.org/data/definitions/${vuln.cwe_id.replace('CWE-', '')}.html`}
-                                target="_blank" rel="noopener noreferrer" className="text-primary-400 hover:underline flex items-center gap-1">
-                                {vuln.cwe_id}<ExternalLink className="w-3 h-3" />
-                              </a>
-                            )}
-                            {vuln.cvss_vector && (
-                              <span className="text-xs bg-dark-700 px-2 py-1 rounded font-mono text-dark-300">{vuln.cvss_vector}</span>
-                            )}
-                          </div>
-
-                          {/* Validation Pipeline */}
-                          {(() => {
-                            const conf = getConfidenceDisplay(vuln, t)
-                            if (!conf) return null
-                            return (
-                              <div className={`rounded-lg p-3 border ${CONFIDENCE_STYLES[conf.color]}`}>
-                                <div className="flex items-center gap-2 mb-2">
-                                  <Shield className="w-4 h-4" />
-                                  <span className="text-sm font-semibold">{t('scanDetails.validationPipeline')}</span>
-                                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium tabular-nums ${
-                                    conf.score >= 90 ? 'bg-green-500/20 text-green-400' :
-                                    conf.score >= 60 ? 'bg-yellow-500/20 text-yellow-400' :
-                                    'bg-red-500/20 text-red-400'
-                                  }`}>
-                                    {conf.score}/100 {conf.label}
-                                  </span>
-                                </div>
-                                {vuln.confidence_breakdown && typeof vuln.confidence_breakdown === 'object' && Object.keys(vuln.confidence_breakdown).length > 0 && (
-                                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs mt-1 mb-2">
-                                    {Object.entries(vuln.confidence_breakdown).map(([key, val]) => (
-                                      <div key={key} className="flex justify-between">
-                                        <span className="opacity-70 capitalize">{key.replace(/_/g, ' ')}</span>
-                                        <span className={`font-mono font-medium tabular-nums ${
-                                          Number(val) > 0 ? 'text-green-400' : Number(val) < 0 ? 'text-red-400' : 'opacity-50'
-                                        }`}>{Number(val) > 0 ? '+' : ''}{val}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                                {vuln.proof_of_execution && (
-                                  <div className="text-xs mt-1 flex items-start gap-1">
-                                    <CheckCircle className="w-3 h-3 mt-0.5 flex-shrink-0 text-green-400" />
-                                    <span className="opacity-80">{vuln.proof_of_execution}</span>
-                                  </div>
-                                )}
-                                {vuln.negative_controls && (
-                                  <div className="text-xs mt-1 flex items-start gap-1">
-                                    <Shield className="w-3 h-3 mt-0.5 flex-shrink-0 text-blue-400" />
-                                    <span className="opacity-80">{vuln.negative_controls}</span>
-                                  </div>
-                                )}
-                              </div>
-                            )
-                          })()}
-
-                          {vuln.description && (
-                            <div>
-                              <p className="text-sm font-medium text-dark-300 mb-1">{t('scanDetails.description')}</p>
-                              <p className="text-sm text-dark-400">{vuln.description}</p>
-                            </div>
-                          )}
-
-                          {vuln.impact && (
-                            <div>
-                              <p className="text-sm font-medium text-dark-300 mb-1">{t('scanDetails.impact')}</p>
-                              <p className="text-sm text-dark-400">{vuln.impact}</p>
-                            </div>
-                          )}
-
-                          {(vuln.poc_request || vuln.poc_payload) && (
-                            <div>
-                              <div className="flex items-center justify-between mb-1">
-                                <p className="text-sm font-medium text-dark-300">{t('scanDetails.proofOfConcept')}</p>
-                                <Button variant="ghost" size="sm" onClick={() => copyToClipboard(vuln.poc_request || vuln.poc_payload || '')}>
-                                  <Copy className="w-3 h-3 mr-1" />{t('scanDetails.copy')}
-                                </Button>
-                              </div>
-                              {vuln.poc_payload && (
-                                <div className="mb-2">
-                                  <p className="text-xs text-dark-500 mb-1">{t('scanDetails.payload')}:</p>
-                                  <pre className="text-xs bg-dark-900 p-3 rounded overflow-x-auto text-yellow-400 font-mono">{vuln.poc_payload}</pre>
-                                </div>
-                              )}
-                              {vuln.poc_request && (
-                                <div>
-                                  <p className="text-xs text-dark-500 mb-1">{t('scanDetails.request')}:</p>
-                                  <pre className="text-xs bg-dark-900 p-3 rounded overflow-x-auto text-dark-300 font-mono">{vuln.poc_request}</pre>
-                                </div>
-                              )}
-                              {vuln.poc_response && (
-                                <div className="mt-2">
-                                  <p className="text-xs text-dark-500 mb-1">{t('scanDetails.response')}:</p>
-                                  <pre className="text-xs bg-dark-900 p-3 rounded overflow-x-auto text-dark-300 font-mono max-h-40 overflow-y-auto">{vuln.poc_response}</pre>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {vuln.poc_code && (
-                            <div className="mt-3">
-                              <p className="text-xs font-medium text-dark-400 mb-1">{t('scanDetails.exploitationCode')}</p>
-                              <pre className="p-3 bg-dark-950 rounded text-xs text-green-400 overflow-x-auto max-h-[400px] overflow-y-auto whitespace-pre-wrap font-mono">{vuln.poc_code}</pre>
-                            </div>
-                          )}
-
-                          {vuln.remediation && (
-                            <div>
-                              <p className="text-sm font-medium text-green-400 mb-1">{t('scanDetails.remediation')}</p>
-                              <p className="text-sm text-dark-400">{vuln.remediation}</p>
-                            </div>
-                          )}
-
-                          {vuln.ai_analysis && (
-                            <div>
-                              <p className="text-sm font-medium text-purple-400 mb-1">{t('scanDetails.aiAnalysis')}</p>
-                              <p className="text-sm text-dark-400 whitespace-pre-wrap">{vuln.ai_analysis}</p>
-                            </div>
-                          )}
-
-                          {vuln.validation_status === 'ai_rejected' && vuln.ai_rejection_reason && (
-                            <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-3">
-                              <p className="text-sm font-medium text-orange-400 mb-1 flex items-center gap-1">
-                                <AlertTriangle className="w-4 h-4" /> {t('scanDetails.aiRejectionReason')}
-                              </p>
-                              <p className="text-sm text-orange-300/80">{vuln.ai_rejection_reason}</p>
-                            </div>
-                          )}
-
-                          {/* Manual Validation Actions */}
-                          {vuln.validation_status !== 'validated' && vuln.validation_status !== 'false_positive' && (
-                            <div className="flex items-center gap-2 pt-2 border-t border-dark-700 flex-wrap">
-                              <span className="text-xs text-dark-500 mr-2">{t('scanDetails.manualReview')}:</span>
-                              <Button variant="ghost" size="sm" className="text-green-400 hover:bg-green-500/10 border border-green-500/30"
-                                onClick={async (e) => {
-                                  e.stopPropagation()
-                                  try {
-                                    await vulnerabilitiesApi.validate(vuln.id, 'validated')
-                                    setVulnerabilities(vulnerabilities.map(v => v.id === vuln.id ? { ...v, validation_status: 'validated' as const } : v))
-                                    addToast(t('scanDetails.findingValidated'), 'completed')
-                                  } catch (err) { console.error('Validate error:', err) }
-                                }}>
-                                <CheckCircle className="w-3 h-3 mr-1" />{t('scanDetails.validate')}
-                              </Button>
-                              <Button variant="ghost" size="sm" className="text-dark-400 hover:bg-red-500/10 border border-dark-600"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setFeedbackVulnId(vuln.id); setFeedbackIsTp(false); setFeedbackText(''); setLearningPatternCount(null)
-                                }}>
-                                <XCircle className="w-3 h-3 mr-1" />{t('scanDetails.falsePositive')}
-                              </Button>
-                              <Button variant="ghost" size="sm" className="text-blue-400 hover:bg-blue-500/10 border border-blue-500/30"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setFeedbackVulnId(vuln.id); setFeedbackIsTp(true); setFeedbackText(''); setLearningPatternCount(null)
-                                }}>
-                                <Check className="w-3 h-3 mr-1" />{t('scanDetails.confirmTp')}
-                              </Button>
-                              {vuln.validation_status === 'ai_rejected' && (
-                                <span className="text-xs text-orange-400/60 ml-2">{t('scanDetails.aiRejectedReview')}</span>
-                              )}
-                            </div>
-                          )}
-                          {(vuln.validation_status === 'validated' || vuln.validation_status === 'false_positive') && (
-                            <div className="flex items-center gap-2 pt-2 border-t border-dark-700">
-                              <span className="text-xs text-dark-500">
-                                {vuln.validation_status === 'validated' ? t('scanDetails.manuallyValidated') : t('scanDetails.markedAsFalsePositive')}
-                              </span>
-                              <Button variant="ghost" size="sm" className="text-dark-500 hover:text-dark-300 text-xs"
-                                onClick={async (e) => {
-                                  e.stopPropagation()
-                                  try {
-                                    const revertTo = vuln.ai_rejection_reason ? 'ai_rejected' : 'ai_confirmed'
-                                    await vulnerabilitiesApi.validate(vuln.id, revertTo)
-                                    setVulnerabilities(vulnerabilities.map(v =>
-                                      v.id === vuln.id ? { ...v, validation_status: revertTo as Vulnerability['validation_status'] } : v
-                                    ))
-                                  } catch (err) { console.error('Revert error:', err) }
-                                }}>
-                                {t('scanDetails.undo')}
-                              </Button>
-                            </div>
-                          )}
-
-                          {vuln.references?.length > 0 && (
-                            <div>
-                              <p className="text-sm font-medium text-dark-300 mb-1">{t('scanDetails.references')}</p>
-                              <div className="flex flex-wrap gap-2">
-                                {vuln.references.map((ref, i) => (
-                                  <a key={i} href={ref} target="_blank" rel="noopener noreferrer"
-                                    className="text-xs text-primary-400 hover:underline flex items-center gap-1">
-                                    {(() => { try { return new URL(ref).hostname } catch { return ref } })()}
-                                    <ExternalLink className="w-3 h-3" />
-                                  </a>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ═══ Endpoints Tab ═══ */}
-      {activeTab === 'endpoints' && (
-        <Card title={t('scanDetails.discoveredEndpoints')} subtitle={t('scanDetails.endpointsFound', { count: endpoints.length })}>
-          <div className="space-y-2 max-h-[500px] overflow-auto">
-            {endpoints.length === 0 ? (
-              <p className="text-dark-400 text-center py-8">{t('scanDetails.noEndpointsYet')}</p>
-            ) : (
-              endpoints.map((endpoint, idx) => (
-                <div key={endpoint.id || `endpoint-${idx}`}
-                  className="flex items-center gap-3 p-3 bg-dark-900/50 rounded-lg hover:bg-dark-900 transition-colors">
-                  <Globe className="w-4 h-4 text-dark-400 flex-shrink-0" />
-                  <span className={`text-xs px-2 py-0.5 rounded font-medium ${
-                    endpoint.method === 'GET' ? 'bg-green-500/20 text-green-400' :
-                    endpoint.method === 'POST' ? 'bg-blue-500/20 text-blue-400' :
-                    endpoint.method === 'PUT' ? 'bg-yellow-500/20 text-yellow-400' :
-                    endpoint.method === 'DELETE' ? 'bg-red-500/20 text-red-400' :
-                    'bg-dark-700 text-dark-300'
-                  }`}>{endpoint.method}</span>
-                  <span className="text-sm text-dark-200 truncate flex-1 font-mono">{endpoint.path || endpoint.url}</span>
-                  {endpoint.parameters?.length > 0 && <span className="text-xs text-dark-500">{endpoint.parameters.length} params</span>}
-                  {endpoint.content_type && <span className="text-xs text-dark-500 hidden sm:inline">{endpoint.content_type}</span>}
-                  {endpoint.response_status && (
-                    <span className={`text-xs font-medium tabular-nums ${
-                      endpoint.response_status < 300 ? 'text-green-400' :
-                      endpoint.response_status < 400 ? 'text-yellow-400' : 'text-red-400'
-                    }`}>{endpoint.response_status}</span>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </Card>
-      )}
-
-      {/* ═══ Agent Tasks Tab ═══ */}
-      {activeTab === 'tasks' && (
-        <Card title={t('scanDetails.agentTasks')} subtitle={`${agentTasks.length} ${t('scanDetails.tasksExecuted')}`}>
-          <div className="space-y-3 max-h-[500px] overflow-auto">
-            {agentTasks.length === 0 ? (
-              <p className="text-dark-400 text-center py-8">
-                {currentScan.status === 'running' ? t('scanDetails.tasksWillAppear') : t('scanDetails.noAgentTasks')}
-              </p>
-            ) : (
-              agentTasks.map((task, idx) => (
-                <div key={task.id || `task-${idx}`} className="p-4 bg-dark-900/50 rounded-lg border border-dark-700">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3 flex-1 min-w-0">
-                      <div className={`mt-0.5 flex-shrink-0 ${
-                        task.status === 'completed' ? 'text-green-400' :
-                        task.status === 'running' ? 'text-blue-400' :
-                        task.status === 'failed' ? 'text-red-400' : 'text-dark-400'
-                      }`}>
-                        {task.status === 'completed' ? <CheckCircle className="w-5 h-5" /> :
-                         task.status === 'running' ? <RefreshCw className="w-5 h-5 animate-spin" /> :
-                         task.status === 'failed' ? <XCircle className="w-5 h-5" /> :
-                         <Clock className="w-5 h-5" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-white">{task.task_name}</p>
-                        {task.description && <p className="text-sm text-dark-400 mt-1">{task.description}</p>}
-                        <div className="flex flex-wrap items-center gap-3 mt-2 text-xs">
-                          {task.tool_name && <span className="bg-dark-700 px-2 py-1 rounded text-dark-300">{task.tool_name}</span>}
-                          <span className={`px-2 py-1 rounded ${
-                            task.task_type === 'recon' ? 'bg-blue-500/20 text-blue-400' :
-                            task.task_type === 'analysis' ? 'bg-purple-500/20 text-purple-400' :
-                            task.task_type === 'testing' ? 'bg-orange-500/20 text-orange-400' :
-                            'bg-green-500/20 text-green-400'
-                          }`}>{task.task_type}</span>
-                          {task.duration_ms !== null && (
-                            <span className="text-dark-500 tabular-nums">
-                              {task.duration_ms < 1000 ? `${task.duration_ms}ms` : `${(task.duration_ms / 1000).toFixed(1)}s`}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <span className={`text-xs px-2 py-1 rounded font-medium ${
-                        task.status === 'completed' ? 'bg-green-500/20 text-green-400' :
-                        task.status === 'running' ? 'bg-blue-500/20 text-blue-400' :
-                        task.status === 'failed' ? 'bg-red-500/20 text-red-400' :
-                        'bg-dark-700 text-dark-300'
-                      }`}>{task.status}</span>
-                      {(task.items_processed > 0 || task.items_found > 0) && (
-                        <p className="text-xs text-dark-500 mt-2 tabular-nums">
-                          {task.items_processed > 0 && `${task.items_processed} ${t('scanDetails.processed')}`}
-                          {task.items_processed > 0 && task.items_found > 0 && ' / '}
-                          {task.items_found > 0 && `${task.items_found} ${t('scanDetails.found')}`}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  {task.result_summary && (
-                    <p className="text-xs text-dark-400 mt-3 border-t border-dark-700 pt-3">{task.result_summary}</p>
-                  )}
-                  {task.error_message && (
-                    <p className="text-xs text-red-400 mt-3 border-t border-dark-700 pt-3">{t('scanDetails.error')}: {task.error_message}</p>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </Card>
-      )}
-
-      {/* ═══ Activity Log Tab ═══ */}
-      {activeTab === 'logs' && (
-        <LogViewer
-          logs={displayLogs}
-          logFilter={logFilter}
-          setLogFilter={setLogFilter}
-          logSearch={logSearch}
-          setLogSearch={setLogSearch}
-          t={t}
-        />
-      )}
-
-      {/* Feedback Modal */}
-      {feedbackVulnId && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setFeedbackVulnId(null)}>
-          <div className="bg-dark-800 border border-dark-700 rounded-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()} style={{ animation: 'fadeSlideIn 0.3s ease-out' }}>
-            <h3 className="text-lg font-bold text-white mb-4">
-              {feedbackIsTp ? t('scanDetails.confirmTruePositive') : t('scanDetails.reportFalsePositive')}
-            </h3>
-            <p className="text-sm text-dark-400 mb-4">
-              {feedbackIsTp
-                ? t('scanDetails.optionalExplain')
-                : t('scanDetails.requiredExplain')}
-            </p>
-            <textarea
-              value={feedbackText}
-              onChange={e => setFeedbackText(e.target.value)}
-              rows={4}
-              placeholder={feedbackIsTp
-                ? t('scanDetails.optionalExplain')
-                : t('scanDetails.requiredExplain')}
-              className="w-full px-4 py-3 bg-dark-900 border border-dark-600 rounded-lg text-white text-sm placeholder-dark-500 focus:outline-none focus:border-primary-500 mb-4 transition-colors"
+        {(currentScan.status === 'running' || currentScan.status === 'paused' || currentScan.status === 'completed' || currentScan.status === 'stopped') && (
+          <ProCard>
+            <Steps
+              current={currentStep}
+              status={currentScan.status === 'paused' ? 'process' : 'process'}
+              items={phases.map((phase, index) => {
+                const isFuture = index > currentStep && scanIsRunning
+                const isSkipped = skippedPhases.has(phase.id)
+                return {
+                  title: isSkipped ? `${phase.title} (${t('scanDetails.skipped')})` : phase.title,
+                  description: isFuture && phase.id !== 'initializing' ? (
+                    skipConfirm === phase.id ? (
+                      <Space>
+                        <Button size="small" type="link" icon={<CheckOutlined />} onClick={() => handleSkipToPhase(phase.id)}>{t('scanDetails.skipHere')}</Button>
+                        <Button size="small" type="link" icon={<CloseCircleOutlined />} onClick={() => setSkipConfirm(null)} />
+                      </Space>
+                    ) : (
+                      <Button size="small" type="link" onClick={() => setSkipConfirm(phase.id)}>{t('scanDetails.skipHere')}</Button>
+                    )
+                  ) : phase.description,
+                  icon: isSkipped ? <MinusOutlined /> : undefined,
+                }
+              })}
             />
-            {learningPatternCount !== null && (
-              <div className="mb-4 p-2 bg-primary-500/10 border border-primary-500/30 rounded-lg">
-                <p className="text-xs text-primary-400">
-                  {t('scanDetails.patternsLearned', { count: learningPatternCount })}
-                </p>
-              </div>
-            )}
-            <div className="flex gap-3 justify-end">
-              <Button variant="secondary" onClick={() => setFeedbackVulnId(null)}>{t('common.cancel')}</Button>
-              <Button
-                variant={feedbackIsTp ? 'primary' : 'danger'}
-                isLoading={feedbackSubmitting}
-                onClick={async () => {
-                  if (!feedbackIsTp && feedbackText.length < 3) return
-                  setFeedbackSubmitting(true)
-                  try {
-                    const result = await vulnerabilitiesApi.submitFeedback(feedbackVulnId, feedbackIsTp, feedbackText)
-                    setLearningPatternCount(result.pattern_count)
-                    const newStatus = feedbackIsTp ? 'validated' : 'false_positive'
-                    setVulnerabilities(vulnerabilities.map(v =>
-                      v.id === feedbackVulnId ? { ...v, validation_status: newStatus as Vulnerability['validation_status'] } : v
-                    ))
-                    addToast(feedbackIsTp ? t('scanDetails.confirmTruePositive') : t('scanDetails.reportFalsePositive'), 'completed')
-                    setTimeout(() => setFeedbackVulnId(null), 1500)
-                  } catch (err) { console.error('Feedback error:', err) }
-                  finally { setFeedbackSubmitting(false) }
-                }}
-                disabled={!feedbackIsTp && feedbackText.length < 3}
-              >
-                {feedbackIsTp ? t('scanDetails.confirmTruePositive') : t('scanDetails.submit')}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+            <Space direction="vertical" style={{ width: '100%', marginTop: 20 }}>
+              <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                <Text>{rawPhase.startsWith('skipping_to_') ? `${t('scanDetails.skippingTo')} ${rawPhase.replace('skipping_to_', '')}...` : currentScan.current_phase || t('scanDetails.initializing')}</Text>
+                <Text strong>{currentScan.progress}%</Text>
+              </Space>
+              <Progress percent={currentScan.progress || 0} status={currentScan.status === 'completed' ? 'success' : 'active'} />
+            </Space>
+          </ProCard>
+        )}
+
+        {autoGeneratedReport && (
+          <Alert
+            showIcon
+            type="success"
+            message={autoGeneratedReport.is_partial ? t('scanDetails.partialReport') : t('scanDetails.reportGenerated')}
+            description={autoGeneratedReport.title || t('scanDetails.reportReady')}
+            action={<Space><Button icon={<LinkOutlined />} onClick={() => window.open(reportsApi.getViewUrl(autoGeneratedReport.id), '_blank')}>{t('scanDetails.viewReport')}</Button><Button onClick={() => setAutoGeneratedReport(null)}>{t('common.dismiss')}</Button></Space>}
+          />
+        )}
+
+        <Row gutter={[16, 16]}>
+          <Col xs={12} md={8} lg={4}><StatisticCard statistic={{ title: t('scanDetails.endpoints'), value: endpoints.length, icon: <GlobalOutlined /> }} /></Col>
+          <Col xs={12} md={8} lg={4}><StatisticCard statistic={{ title: t('scanDetails.totalVulns'), value: vulnerabilities.length, icon: <BugOutlined /> }} /></Col>
+          <Col xs={12} md={8} lg={4}><StatisticCard statistic={{ title: t('scanDetails.critical'), value: vulnCounts.critical, valueStyle: { color: '#cf1322' } }} /></Col>
+          <Col xs={12} md={8} lg={4}><StatisticCard statistic={{ title: t('scanDetails.high'), value: vulnCounts.high, valueStyle: { color: '#fa541c' } }} /></Col>
+          <Col xs={12} md={8} lg={4}><StatisticCard statistic={{ title: t('scanDetails.medium'), value: vulnCounts.medium, valueStyle: { color: '#d48806' } }} /></Col>
+          <Col xs={12} md={8} lg={4}><StatisticCard statistic={{ title: t('scanDetails.low'), value: vulnCounts.low, valueStyle: { color: '#1677ff' } }} /></Col>
+        </Row>
+
+        {containerStatus && activeTab !== 'logs' && (
+          <ContainerTelemetry containerStatus={containerStatus} toolExecutions={toolExecutions} expandedTool={expandedTool} setExpandedTool={setExpandedTool} isRunning={Boolean(isRunning)} t={t} />
+        )}
+
+        <Tabs
+          activeKey={activeTab}
+          onChange={key => setActiveTab(key as typeof activeTab)}
+          items={[
+            {
+              key: 'vulns',
+              label: <Space><ExclamationCircleOutlined />{t('scanDetails.vulnerabilities')}<Badge count={vulnerabilities.length} size="small" /></Space>,
+              children: (
+                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                  {vulnerabilities.length > 0 && (
+                    <ProCard>
+                      <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
+                        <Radio.Group value={validationFilter} onChange={event => setValidationFilter(event.target.value)}>
+                          {(['all', 'confirmed', 'rejected', 'validated'] as const).map(filter => {
+                            const count = filter === 'all' ? vulnerabilities.length
+                              : filter === 'confirmed' ? vulnerabilities.filter(v => !v.validation_status || v.validation_status === 'ai_confirmed' || v.validation_status === 'validated').length
+                              : filter === 'rejected' ? vulnerabilities.filter(v => v.validation_status === 'ai_rejected' || v.validation_status === 'false_positive').length
+                              : vulnerabilities.filter(v => v.validation_status === 'validated').length
+                            return <Radio.Button key={filter} value={filter}>{filter.charAt(0).toUpperCase() + filter.slice(1)} ({count})</Radio.Button>
+                          })}
+                        </Radio.Group>
+                        <SeveritySummary counts={vulnCounts} />
+                      </Space>
+                    </ProCard>
+                  )}
+
+                  {vulnerabilities.length === 0 ? (
+                    <ProCard><Empty description={currentScan.status === 'running' ? t('scanDetails.scanningForVulns') : t('scanDetails.noVulnsFound')} /></ProCard>
+                  ) : (
+                    <List
+                      dataSource={filteredVulnerabilities}
+                      renderItem={(vuln, index) => {
+                        const vulnKey = vuln.id || `vuln-${index}`
+                        const isExpanded = expandedVulns.has(vulnKey)
+                        const confidence = getConfidenceDisplay(vuln, t)
+                        const isNew = newFindingIds.has(vuln.id)
+                        return (
+                          <Card
+                            size="small"
+                            style={{ marginBottom: 12, borderColor: isNew ? '#1677ff' : undefined, opacity: vuln.validation_status === 'false_positive' ? 0.65 : 1 }}
+                            title={(
+                              <Space wrap>
+                                <Button type="text" size="small" icon={isExpanded ? <DownOutlined /> : <RightOutlined />} onClick={() => toggleVuln(vulnKey)} />
+                                <Text strong>{vuln.title}</Text>
+                                <SeverityTag severity={vuln.severity} />
+                                {vuln.cvss_score && <Tag color={vuln.cvss_score >= 9 ? 'red' : vuln.cvss_score >= 7 ? 'volcano' : vuln.cvss_score >= 4 ? 'gold' : 'blue'}>CVSS {vuln.cvss_score.toFixed(1)}</Tag>}
+                                {confidence && <Tag color={CONFIDENCE_COLORS[confidence.color]}>{confidence.score}/100 {confidence.label}</Tag>}
+                                {vuln.validation_status === 'ai_rejected' && <Tag color="orange" icon={<ExclamationCircleOutlined />}>{t('scanDetails.rejected')}</Tag>}
+                                {vuln.validation_status === 'validated' && <Tag color="success" icon={<CheckCircleOutlined />}>{t('scanDetails.validated')}</Tag>}
+                                {vuln.validation_status === 'false_positive' && <Tag icon={<CloseCircleOutlined />}>FP</Tag>}
+                                {(!vuln.validation_status || vuln.validation_status === 'ai_confirmed') && <Tag color="green">AI {t('scanDetails.confirmed')}</Tag>}
+                              </Space>
+                            )}
+                            extra={<Text type="secondary" ellipsis style={{ maxWidth: 320 }}>{vuln.affected_endpoint}</Text>}
+                          >
+                            {isExpanded && (
+                              <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                                <Descriptions size="small" column={{ xs: 1, sm: 2, md: 3 }}>
+                                  {vuln.vulnerability_type && <Descriptions.Item label="Type">{vuln.vulnerability_type}</Descriptions.Item>}
+                                  {vuln.cwe_id && <Descriptions.Item label="CWE"><a href={`https://cwe.mitre.org/data/definitions/${vuln.cwe_id.replace('CWE-', '')}.html`} target="_blank" rel="noopener noreferrer">{vuln.cwe_id}</a></Descriptions.Item>}
+                                  {vuln.cvss_vector && <Descriptions.Item label="CVSS Vector"><Text code>{vuln.cvss_vector}</Text></Descriptions.Item>}
+                                  {vuln.affected_endpoint && <Descriptions.Item label="Endpoint" span={3}><Text code>{vuln.affected_endpoint}</Text></Descriptions.Item>}
+                                </Descriptions>
+
+                                {confidence && (
+                                  <Alert
+                                    showIcon
+                                    type={confidence.color === 'green' ? 'success' : confidence.color === 'yellow' ? 'warning' : 'error'}
+                                    message={<Space><SafetyCertificateOutlined />{t('scanDetails.validationPipeline')}<Tag>{confidence.score}/100 {confidence.label}</Tag></Space>}
+                                    description={(
+                                      <Space direction="vertical" style={{ width: '100%' }}>
+                                        {vuln.confidence_breakdown && Object.keys(vuln.confidence_breakdown).length > 0 && (
+                                          <Row gutter={[8, 8]}>
+                                            {Object.entries(vuln.confidence_breakdown).map(([key, value]) => (
+                                              <Col key={key} xs={12} md={8}><Text>{key.replace(/_/g, ' ')}: <Text code>{Number(value) > 0 ? '+' : ''}{String(value)}</Text></Text></Col>
+                                            ))}
+                                          </Row>
+                                        )}
+                                        {vuln.proof_of_execution && <Text><CheckCircleOutlined /> {vuln.proof_of_execution}</Text>}
+                                        {vuln.negative_controls && <Text><SafetyCertificateOutlined /> {vuln.negative_controls}</Text>}
+                                      </Space>
+                                    )}
+                                  />
+                                )}
+
+                                {vuln.description && <ProCard title={t('scanDetails.description')} bordered><Paragraph>{vuln.description}</Paragraph></ProCard>}
+                                {vuln.impact && <ProCard title={t('scanDetails.impact')} bordered><Paragraph>{vuln.impact}</Paragraph></ProCard>}
+                                {(vuln.poc_request || vuln.poc_payload || vuln.poc_response) && (
+                                  <ProCard title={t('scanDetails.proofOfConcept')} bordered extra={<Button size="small" icon={<CopyOutlined />} onClick={() => copyToClipboard(vuln.poc_request || vuln.poc_payload || '')}>{t('scanDetails.copy')}</Button>}>
+                                    <Space direction="vertical" style={{ width: '100%' }}>
+                                      {vuln.poc_payload && <ProCard title={t('scanDetails.payload')} type="inner"><CodeBlock value={vuln.poc_payload} /></ProCard>}
+                                      {vuln.poc_request && <ProCard title={t('scanDetails.request')} type="inner"><CodeBlock value={vuln.poc_request} /></ProCard>}
+                                      {vuln.poc_response && <ProCard title={t('scanDetails.response')} type="inner"><CodeBlock value={vuln.poc_response} /></ProCard>}
+                                    </Space>
+                                  </ProCard>
+                                )}
+                                {vuln.poc_code && <ProCard title={t('scanDetails.exploitationCode')} bordered><CodeBlock value={vuln.poc_code} /></ProCard>}
+                                {vuln.remediation && <ProCard title={t('scanDetails.remediation')} bordered><Paragraph>{vuln.remediation}</Paragraph></ProCard>}
+                                {vuln.ai_analysis && <ProCard title={t('scanDetails.aiAnalysis')} bordered><Paragraph style={{ whiteSpace: 'pre-wrap' }}>{vuln.ai_analysis}</Paragraph></ProCard>}
+                                {vuln.validation_status === 'ai_rejected' && vuln.ai_rejection_reason && <Alert showIcon type="warning" message={t('scanDetails.aiRejectionReason')} description={vuln.ai_rejection_reason} />}
+
+                                {vuln.validation_status !== 'validated' && vuln.validation_status !== 'false_positive' && (
+                                  <Space wrap>
+                                    <Text type="secondary">{t('scanDetails.manualReview')}:</Text>
+                                    <Button size="small" type="primary" icon={<CheckCircleOutlined />} onClick={async event => {
+                                      event.stopPropagation()
+                                      try {
+                                        await vulnerabilitiesApi.validate(vuln.id, 'validated')
+                                        setVulnerabilities(vulnerabilities.map(item => item.id === vuln.id ? { ...item, validation_status: 'validated' as const } : item))
+                                        addToast(t('scanDetails.findingValidated'), 'completed')
+                                      } catch (err) { console.error('Validate error:', err) }
+                                    }}>{t('scanDetails.validate')}</Button>
+                                    <Button size="small" icon={<CloseCircleOutlined />} onClick={event => {
+                                      event.stopPropagation()
+                                      setFeedbackVulnId(vuln.id); setFeedbackIsTp(false); setFeedbackText(''); setLearningPatternCount(null)
+                                    }}>{t('scanDetails.falsePositive')}</Button>
+                                    <Button size="small" icon={<CheckOutlined />} onClick={event => {
+                                      event.stopPropagation()
+                                      setFeedbackVulnId(vuln.id); setFeedbackIsTp(true); setFeedbackText(''); setLearningPatternCount(null)
+                                    }}>{t('scanDetails.confirmTp')}</Button>
+                                    {vuln.validation_status === 'ai_rejected' && <Text type="warning">{t('scanDetails.aiRejectedReview')}</Text>}
+                                  </Space>
+                                )}
+
+                                {(vuln.validation_status === 'validated' || vuln.validation_status === 'false_positive') && (
+                                  <Space>
+                                    <Text type="secondary">{vuln.validation_status === 'validated' ? t('scanDetails.manuallyValidated') : t('scanDetails.markedAsFalsePositive')}</Text>
+                                    <Button size="small" type="link" onClick={async event => {
+                                      event.stopPropagation()
+                                      try {
+                                        const revertTo = vuln.ai_rejection_reason ? 'ai_rejected' : 'ai_confirmed'
+                                        await vulnerabilitiesApi.validate(vuln.id, revertTo)
+                                        setVulnerabilities(vulnerabilities.map(item => item.id === vuln.id ? { ...item, validation_status: revertTo as Vulnerability['validation_status'] } : item))
+                                      } catch (err) { console.error('Revert error:', err) }
+                                    }}>{t('scanDetails.undo')}</Button>
+                                  </Space>
+                                )}
+
+                                {vuln.references?.length > 0 && (
+                                  <ProCard title={t('scanDetails.references')} bordered>
+                                    <Space wrap>
+                                      {vuln.references.map((ref, refIndex) => (
+                                        <a key={refIndex} href={ref} target="_blank" rel="noopener noreferrer">
+                                          <Space>{(() => { try { return new URL(ref).hostname } catch { return ref } })()}<LinkOutlined /></Space>
+                                        </a>
+                                      ))}
+                                    </Space>
+                                  </ProCard>
+                                )}
+                              </Space>
+                            )}
+                          </Card>
+                        )
+                      }}
+                    />
+                  )}
+                </Space>
+              ),
+            },
+            {
+              key: 'endpoints',
+              label: <Space><GlobalOutlined />{t('scanDetails.endpoints')}<Badge count={endpoints.length} size="small" /></Space>,
+              children: <ProTable<Endpoint> rowKey={(row, index) => row.id || `${row.method}-${row.path || row.url}-${index}`} search={false} options={false} columns={endpointColumns} dataSource={endpoints} pagination={{ pageSize: 10 }} headerTitle={t('scanDetails.discoveredEndpoints')} />,
+            },
+            {
+              key: 'tasks',
+              label: <Space><RobotOutlined />{t('scanDetails.agentTasks')}<Badge count={agentTasks.length} size="small" /></Space>,
+              children: <ProTable<ScanAgentTask> rowKey={(row, index) => row.id || `task-${index}`} search={false} options={false} columns={taskColumns} dataSource={agentTasks} pagination={{ pageSize: 10 }} expandable={{ expandedRowRender: row => <Space direction="vertical" style={{ width: '100%' }}>{row.result_summary && <Text>{row.result_summary}</Text>}{row.error_message && <Alert showIcon type="error" message={t('scanDetails.error')} description={row.error_message} />}</Space> }} headerTitle={`${agentTasks.length} ${t('scanDetails.tasksExecuted')}`} />,
+            },
+            {
+              key: 'logs',
+              label: <Space><ProfileOutlined />{t('scanDetails.activityLog')}<Badge count={displayLogs.length} size="small" /></Space>,
+              children: <LogViewer logs={displayLogs} logFilter={logFilter} setLogFilter={setLogFilter} logSearch={logSearch} setLogSearch={setLogSearch} t={t} />,
+            },
+          ]}
+        />
+      </Space>
+
+      <Modal
+        open={showReportModelPicker}
+        title={t('scanDetails.aiReport')}
+        onCancel={() => setShowReportModelPicker(false)}
+        onOk={handleGenerateAiReport}
+        confirmLoading={isGeneratingAiReport}
+        okText={t('scanDetails.generateAiReport')}
+      >
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Select
+            allowClear
+            style={{ width: '100%' }}
+            placeholder={t('scanDetails.provider')}
+            value={reportProvider || undefined}
+            options={providerOptions}
+            onChange={value => { setReportProvider(value || ''); setReportModel('') }}
+          />
+          <Select
+            allowClear
+            showSearch
+            style={{ width: '100%' }}
+            placeholder={t('scanDetails.model')}
+            value={reportModel || undefined}
+            options={modelOptions}
+            onChange={value => setReportModel(value || '')}
+          />
+        </Space>
+      </Modal>
+
+      <Modal
+        open={Boolean(feedbackVulnId)}
+        title={feedbackIsTp ? t('scanDetails.confirmTruePositive') : t('scanDetails.reportFalsePositive')}
+        onCancel={() => setFeedbackVulnId(null)}
+        okButtonProps={{ disabled: !feedbackIsTp && feedbackText.length < 3, danger: !feedbackIsTp }}
+        confirmLoading={feedbackSubmitting}
+        okText={feedbackIsTp ? t('scanDetails.confirmTruePositive') : t('scanDetails.submit')}
+        onOk={async () => {
+          if (!feedbackVulnId || (!feedbackIsTp && feedbackText.length < 3)) return
+          setFeedbackSubmitting(true)
+          try {
+            const result = await vulnerabilitiesApi.submitFeedback(feedbackVulnId, feedbackIsTp, feedbackText)
+            setLearningPatternCount(result.pattern_count)
+            const newStatus = feedbackIsTp ? 'validated' : 'false_positive'
+            setVulnerabilities(vulnerabilities.map(v => v.id === feedbackVulnId ? { ...v, validation_status: newStatus as Vulnerability['validation_status'] } : v))
+            addToast(feedbackIsTp ? t('scanDetails.confirmTruePositive') : t('scanDetails.reportFalsePositive'), 'completed')
+            setTimeout(() => setFeedbackVulnId(null), 1500)
+          } catch (err) { console.error('Feedback error:', err) }
+          finally { setFeedbackSubmitting(false) }
+        }}
+      >
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Text type="secondary">{feedbackIsTp ? t('scanDetails.optionalExplain') : t('scanDetails.requiredExplain')}</Text>
+          <TextArea
+            rows={4}
+            value={feedbackText}
+            onChange={event => setFeedbackText(event.target.value)}
+            placeholder={feedbackIsTp ? t('scanDetails.optionalExplain') : t('scanDetails.requiredExplain')}
+          />
+          {learningPatternCount !== null && <Alert type="info" showIcon message={t('scanDetails.patternsLearned', { count: learningPatternCount })} />}
+        </Space>
+      </Modal>
+    </PageContainer>
   )
 }

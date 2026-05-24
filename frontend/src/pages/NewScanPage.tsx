@@ -1,19 +1,48 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { PageContainer, ProCard } from '@ant-design/pro-components'
 import {
-  Upload, Link as LinkIcon, FileText, Play, AlertTriangle,
-  Bot, Search, Target, Brain, BookOpen, ChevronDown, Key, Settings, X
-} from 'lucide-react'
-import Card from '../components/common/Card'
-import Button from '../components/common/Button'
-import Input from '../components/common/Input'
-import Textarea from '../components/common/Textarea'
+  Alert,
+  App as AntApp,
+  Button,
+  Card,
+  Checkbox,
+  Collapse,
+  Empty,
+  Flex,
+  Input,
+  List,
+  Radio,
+  Segmented,
+  Slider,
+  Space,
+  Spin,
+  Tag,
+  Typography,
+  Upload,
+} from 'antd'
+import {
+  BookOutlined,
+  CheckCircleOutlined,
+  CloudUploadOutlined,
+  CodeOutlined,
+  ExperimentOutlined,
+  FileTextOutlined,
+  KeyOutlined,
+  PlayCircleOutlined,
+  RobotOutlined,
+  SearchOutlined,
+  SettingOutlined,
+  ThunderboltOutlined,
+} from '@ant-design/icons'
 import { agentApi, targetsApi } from '../services/api'
 import type { AgentTask, AgentMode, AgentRequest } from '../types'
 
-type TargetInputMode = 'single' | 'multiple' | 'file'
+const { Text, Title, Paragraph } = Typography
+const { TextArea } = Input
 
+type TargetInputMode = 'single' | 'multiple' | 'file'
 type AuthTypeOption = 'none' | 'cookie' | 'bearer' | 'basic' | 'header'
 
 interface OperationModeInfo {
@@ -25,151 +54,95 @@ interface OperationModeInfo {
   color: string
 }
 
-interface Toast {
-  id: number
-  message: string
-  severity: 'info' | 'success' | 'warning' | 'error'
-}
-
-let _toastId = 0
-
-function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: number) => void }) {
-  if (toasts.length === 0) return null
-  const border: Record<string, string> = {
-    info: 'border-blue-500',
-    success: 'border-green-500',
-    warning: 'border-yellow-500',
-    error: 'border-red-500'
-  }
-  return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm">
-      {toasts.map(t => (
-        <div
-          key={t.id}
-          className={`bg-dark-800 border-l-4 ${border[t.severity]} rounded-lg px-4 py-3 shadow-xl flex items-start gap-3`}
-          style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
-        >
-          <span className="text-sm text-dark-200 flex-1">{t.message}</span>
-          <button onClick={() => onDismiss(t.id)} className="text-dark-500 hover:text-white">
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-const getOperationModes = (t: any): OperationModeInfo[] => [
+const getOperationModes = (t: (key: string) => string): OperationModeInfo[] => [
   {
     id: 'full_auto',
     name: t('newScan.fullAuto'),
-    icon: <Bot className="w-5 h-5" />,
+    icon: <RobotOutlined />,
     description: t('newScan.fullAutoDesc'),
-    color: 'primary'
+    color: '#1677ff',
   },
   {
     id: 'recon_only',
     name: t('newScan.reconOnly'),
-    icon: <Search className="w-5 h-5" />,
+    icon: <SearchOutlined />,
     description: t('newScan.reconOnlyDesc'),
-    color: 'blue'
+    color: '#13c2c2',
   },
   {
     id: 'prompt_only',
     name: t('newScan.promptOnly'),
-    icon: <Brain className="w-5 h-5" />,
+    icon: <CodeOutlined />,
     description: t('newScan.promptOnlyDesc'),
     warning: t('newScan.promptOnlyWarning'),
-    color: 'purple'
+    color: '#722ed1',
   },
   {
     id: 'analyze_only',
     name: t('newScan.analyzeOnly'),
-    icon: <Target className="w-5 h-5" />,
+    icon: <ExperimentOutlined />,
     description: t('newScan.analyzeOnlyDesc'),
-    color: 'green'
-  }
+    color: '#52c41a',
+  },
 ]
 
-const getTaskCategories = (t: any) => [
+const getTaskCategories = (t: (key: string) => string) => [
   { id: 'all', name: t('newScan.allTasks') },
   { id: 'full_auto', name: t('newScan.fullAuto') },
   { id: 'recon', name: t('newScan.reconTasks') },
   { id: 'vulnerability', name: t('newScan.vulnTasks') },
   { id: 'custom', name: t('newScan.customTasks') },
-  { id: 'reporting', name: t('newScan.reportingTasks') }
+  { id: 'reporting', name: t('newScan.reportingTasks') },
 ]
 
-const getAuthTypeOptions = (t: any): { id: AuthTypeOption; label: string }[] => [
+const getAuthTypeOptions = (t: (key: string) => string): { id: AuthTypeOption; label: string }[] => [
   { id: 'none', label: t('newScan.authNone') },
   { id: 'cookie', label: t('newScan.authCookie') },
   { id: 'bearer', label: t('newScan.authBearer') },
   { id: 'basic', label: t('newScan.authBasic') },
-  { id: 'header', label: t('newScan.authHeader') }
+  { id: 'header', label: t('newScan.authHeader') },
 ]
+
+function authPlaceholder(authType: AuthTypeOption) {
+  if (authType === 'cookie') return 'session=abc123; token=xyz789'
+  if (authType === 'bearer') return 'eyJhbGciOiJIUzI1NiIs...'
+  if (authType === 'basic') return 'username:password'
+  return 'X-API-Key: your-api-key'
+}
 
 export default function NewScanPage() {
   const navigate = useNavigate()
   const { t } = useTranslation()
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const { notification } = AntApp.useApp()
 
-  const OPERATION_MODES = useMemo(() => getOperationModes(t), [t])
-  const TASK_CATEGORIES = useMemo(() => getTaskCategories(t), [t])
-  const AUTH_TYPE_OPTIONS = useMemo(() => getAuthTypeOptions(t), [t])
+  const operationModes = useMemo(() => getOperationModes(t), [t])
+  const taskCategories = useMemo(() => getTaskCategories(t), [t])
+  const authTypeOptions = useMemo(() => getAuthTypeOptions(t), [t])
 
-  // Target state
   const [targetMode, setTargetMode] = useState<TargetInputMode>('single')
   const [singleUrl, setSingleUrl] = useState('')
   const [multipleUrls, setMultipleUrls] = useState('')
   const [uploadedUrls, setUploadedUrls] = useState<string[]>([])
   const [urlError, setUrlError] = useState('')
-
-  // Operation mode
   const [operationMode, setOperationMode] = useState<AgentMode>('full_auto')
-
-  // Task library
   const [tasks, setTasks] = useState<AgentTask[]>([])
   const [selectedTask, setSelectedTask] = useState<AgentTask | null>(null)
   const [taskCategory, setTaskCategory] = useState('all')
   const [showTaskLibrary, setShowTaskLibrary] = useState(false)
   const [loadingTasks, setLoadingTasks] = useState(false)
-
-  // Custom prompt
   const [useCustomPrompt, setUseCustomPrompt] = useState(false)
   const [customPrompt, setCustomPrompt] = useState('')
-
-  // Auth options
-  const [showAuthOptions, setShowAuthOptions] = useState(false)
   const [authType, setAuthType] = useState<AuthTypeOption>('none')
   const [authValue, setAuthValue] = useState('')
-
-  // Advanced options
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false)
   const [maxDepth, setMaxDepth] = useState(5)
-
-  // UI state
   const [isLoading, setIsLoading] = useState(false)
 
-  // Toast state
-  const [toasts, setToasts] = useState<Toast[]>([])
+  const notify = useCallback((message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
+    notification[type]({ message })
+  }, [notification])
 
-  const addToast = useCallback((message: string, severity: Toast['severity'] = 'info') => {
-    const id = ++_toastId
-    setToasts(prev => [...prev, { id, message, severity }])
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id))
-    }, 4000)
-  }, [])
-
-  const dismissToast = useCallback((id: number) => {
-    setToasts(prev => prev.filter(t => t.id !== id))
-  }, [])
-
-  // Load tasks on mount
-  useEffect(() => {
-    loadTasks()
-  }, [])
-
-  const loadTasks = async (category?: string) => {
+  const loadTasks = useCallback(async (category?: string) => {
     setLoadingTasks(true)
     try {
       const taskList = await agentApi.tasks.list(category === 'all' ? undefined : category)
@@ -179,543 +152,341 @@ export default function NewScanPage() {
     } finally {
       setLoadingTasks(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    loadTasks()
+  }, [loadTasks])
+
+  const getTargetUrl = useCallback((): string => {
+    if (targetMode === 'single') return singleUrl.trim()
+    if (targetMode === 'multiple') return multipleUrls.split(/[,\n]/)[0]?.trim() || ''
+    return uploadedUrls[0] || ''
+  }, [targetMode, singleUrl, multipleUrls, uploadedUrls])
+
+  const handleFileUpload = useCallback(async (file: File) => {
+    try {
+      const result = await targetsApi.upload(file)
+      const validUrls = result
+        .filter((item: { valid: boolean; normalized_url: string }) => item.valid)
+        .map((item: { valid: boolean; normalized_url: string }) => item.normalized_url)
+      setUploadedUrls(validUrls)
+      setUrlError('')
+      notify(t('newScan.validUrlsLoaded', { count: validUrls.length }), 'success')
+    } catch (error) {
+      setUrlError(t('newScan.failedToParseFile'))
+      notify(t('newScan.failedToParseFile'), 'error')
+    }
+    return false
+  }, [notify, t])
 
   const handleCategoryChange = useCallback((category: string) => {
     setTaskCategory(category)
     loadTasks(category)
-  }, [])
-
-  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    try {
-      const result = await targetsApi.upload(file)
-      const validUrls = result.filter((r: { valid: boolean; normalized_url: string }) => r.valid).map((r: { valid: boolean; normalized_url: string }) => r.normalized_url)
-      setUploadedUrls(validUrls)
-      setUrlError('')
-    } catch (error) {
-      setUrlError(t('newScan.failedToParseFile'))
-    }
-  }, [])
-
-  const getTargetUrl = useCallback((): string => {
-    switch (targetMode) {
-      case 'single':
-        return singleUrl.trim()
-      case 'multiple':
-        return multipleUrls.split(/[,\n]/)[0]?.trim() || ''
-      case 'file':
-        return uploadedUrls[0] || ''
-      default:
-        return ''
-    }
-  }, [targetMode, singleUrl, multipleUrls, uploadedUrls])
+  }, [loadTasks])
 
   const handleStartAgent = useCallback(async () => {
     const target = getTargetUrl()
     if (!target) {
       setUrlError(t('newScan.pleaseEnterTarget'))
-      addToast(t('newScan.pleaseEnterTargetBeforeDeploy'), 'warning')
+      notify(t('newScan.pleaseEnterTargetBeforeDeploy'), 'warning')
       return
     }
 
     setIsLoading(true)
     try {
-      // Validate URL
       const validation = await targetsApi.validateBulk([target])
       if (!validation[0]?.valid) {
         setUrlError(t('newScan.invalidUrl'))
-        addToast(t('newScan.invalidUrlCheck'), 'error')
-        setIsLoading(false)
+        notify(t('newScan.invalidUrlCheck'), 'error')
         return
       }
 
-      // Build request
       const request: AgentRequest = {
         target: validation[0].normalized_url,
         mode: operationMode,
-        max_depth: maxDepth
+        max_depth: maxDepth,
       }
 
-      // Add task or custom prompt
       if (selectedTask && !useCustomPrompt) {
         request.task_id = selectedTask.id
       } else if (useCustomPrompt && customPrompt.trim()) {
         request.prompt = customPrompt
       }
 
-      // Add auth if specified
       if (authType !== 'none' && authValue.trim()) {
         request.auth_type = authType as AgentRequest['auth_type']
         request.auth_value = authValue
       }
 
-      // Start agent
       const response = await agentApi.run(request)
-
-      addToast(t('newScan.agentDeployed'), 'success')
-
-      // Navigate to agent status page
-      setTimeout(() => {
-        navigate(`/agent/${response.agent_id}`)
-      }, 300)
+      notify(t('newScan.agentDeployed'), 'success')
+      setTimeout(() => navigate(`/agent/${response.agent_id}`), 300)
     } catch (error) {
       console.error('Failed to start agent:', error)
       setUrlError(t('newScan.failedToStartAgent'))
-      addToast(t('newScan.failedToStartAgentRetry'), 'error')
+      notify(t('newScan.failedToStartAgentRetry'), 'error')
     } finally {
       setIsLoading(false)
     }
-  }, [getTargetUrl, operationMode, maxDepth, selectedTask, useCustomPrompt, customPrompt, authType, authValue, addToast, navigate])
+  }, [getTargetUrl, t, notify, operationMode, maxDepth, selectedTask, useCustomPrompt, customPrompt, authType, authValue, navigate])
 
-  const handleSelectTask = useCallback((task: AgentTask) => {
-    setSelectedTask(task)
-    addToast(t('newScan.taskSelected', { name: task.name }), 'info')
-  }, [addToast])
-
-  const handleClearTask = useCallback(() => {
-    setSelectedTask(null)
-  }, [])
-
-  const handleSetAuthType = useCallback((id: AuthTypeOption) => {
-    setAuthType(id)
-  }, [])
-
-  const handleToggleTaskLibrary = useCallback(() => {
-    setShowTaskLibrary(prev => !prev)
-  }, [])
-
-  const handleToggleAuthOptions = useCallback(() => {
-    setShowAuthOptions(prev => !prev)
-  }, [])
-
-  const handleToggleCustomPrompt = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setUseCustomPrompt(e.target.checked)
-  }, [])
-
-  const handleSingleUrlChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSingleUrl(e.target.value)
-    setUrlError('')
-  }, [])
-
-  const handleMultipleUrlsChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setMultipleUrls(e.target.value)
-    setUrlError('')
-  }, [])
-
-  const handleCustomPromptChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setCustomPrompt(e.target.value)
-  }, [])
-
-  const handleMaxDepthChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setMaxDepth(parseInt(e.target.value))
-  }, [])
-
-  const handleAuthValueChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setAuthValue(e.target.value)
-  }, [])
-
-  const handleNavigateHome = useCallback(() => {
-    navigate('/')
-  }, [navigate])
-
-  // Memoized filtered task list
   const filteredTasks = useMemo(() => {
     if (showTaskLibrary) return tasks
     return tasks.slice(0, 4)
   }, [tasks, showTaskLibrary])
 
-  const currentModeInfo = OPERATION_MODES.find(m => m.id === operationMode)!
+  const currentModeInfo = operationModes.find(mode => mode.id === operationMode) ?? operationModes[0]
 
   return (
-    <div
-      className="max-w-5xl mx-auto space-y-6"
-      style={{ animation: 'fadeSlideIn 0.4s ease-out' }}
+    <PageContainer
+      title={t('newScan.title')}
+      subTitle={t('newScan.subtitle')}
+      extra={[
+        <Button key="cancel" onClick={() => navigate('/')}>{t('common.cancel')}</Button>,
+        <Button key="start" type="primary" icon={<PlayCircleOutlined />} loading={isLoading} onClick={handleStartAgent}>
+          {t('newScan.deployAgent', { mode: currentModeInfo.name })}
+        </Button>,
+      ]}
     >
-      <style>{`
-        @keyframes fadeSlideIn {
-          from { opacity: 0; transform: translateY(-8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <ProCard title={t('newScan.operationMode')} subTitle={t('newScan.operationModeDesc')} bordered>
+          <Radio.Group value={operationMode} onChange={event => setOperationMode(event.target.value)} style={{ width: '100%' }}>
+            <Flex gap={16} wrap="wrap">
+              {operationModes.map(mode => (
+                <Radio.Button key={mode.id} value={mode.id} style={{ height: 'auto', padding: 0, borderRadius: 8 }}>
+                  <Card
+                    hoverable
+                    style={{
+                      width: 220,
+                      borderColor: operationMode === mode.id ? mode.color : undefined,
+                      background: operationMode === mode.id ? `${mode.color}12` : undefined,
+                    }}
+                    bodyStyle={{ padding: 16 }}
+                  >
+                    <Space direction="vertical" size={8}>
+                      <Space>
+                        <span style={{ color: mode.color, fontSize: 20 }}>{mode.icon}</span>
+                        <Text strong>{mode.name}</Text>
+                      </Space>
+                      <Text type="secondary">{mode.description}</Text>
+                      {mode.warning && operationMode === mode.id && (
+                        <Alert type="warning" showIcon message={mode.warning} />
+                      )}
+                    </Space>
+                  </Card>
+                </Radio.Button>
+              ))}
+            </Flex>
+          </Radio.Group>
+        </ProCard>
 
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+        <ProCard title={t('newScan.target')} subTitle={t('newScan.targetDesc')} bordered>
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Segmented<TargetInputMode>
+              value={targetMode}
+              onChange={value => {
+                setTargetMode(value)
+                setUrlError('')
+              }}
+              options={[
+                { label: t('newScan.singleUrl'), value: 'single', icon: <ThunderboltOutlined /> },
+                { label: t('newScan.multipleUrls'), value: 'multiple', icon: <FileTextOutlined /> },
+                { label: t('newScan.uploadFile'), value: 'file', icon: <CloudUploadOutlined /> },
+              ]}
+            />
 
-      {/* Header */}
-      <div
-        className="flex items-center justify-between"
-        style={{ animation: 'fadeSlideIn 0.3s ease-out 0s both' }}
-      >
-        <div>
-          <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            <Bot className="w-8 h-8 text-primary-500" />
-            {t('newScan.title')}
-          </h1>
-          <p className="text-dark-400 mt-1">{t('newScan.subtitle')}</p>
-        </div>
-      </div>
-
-      {/* Operation Mode Selector */}
-      <div style={{ animation: 'fadeSlideIn 0.3s ease-out 0.05s both' }}>
-        <Card title={t('newScan.operationMode')} subtitle={t('newScan.operationModeDesc')}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {OPERATION_MODES.map((mode, idx) => (
-              <div
-                key={mode.id}
-                onClick={() => setOperationMode(mode.id)}
-                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                  operationMode === mode.id
-                    ? `border-${mode.color}-500 bg-${mode.color}-500/10`
-                    : 'border-dark-700 hover:border-dark-500 bg-dark-900/50'
-                }`}
-                style={{ animation: `fadeSlideIn 0.3s ease-out ${idx * 0.05}s both` }}
-              >
-                <div className={`flex items-center gap-2 mb-2 ${
-                  operationMode === mode.id ? `text-${mode.color}-400` : 'text-dark-300'
-                }`}>
-                  {mode.icon}
-                  <span className="font-semibold">{mode.name}</span>
-                </div>
-                <p className="text-sm text-dark-400">{mode.description}</p>
-                {mode.warning && operationMode === mode.id && (
-                  <div className="mt-2 flex items-start gap-2 text-yellow-400 text-xs">
-                    <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                    <span>{mode.warning}</span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-
-      {/* Target Input */}
-      <div style={{ animation: 'fadeSlideIn 0.3s ease-out 0.1s both' }}>
-        <Card title={t('newScan.target')} subtitle={t('newScan.targetDesc')}>
-          <div className="space-y-4">
-            {/* Mode Selector */}
-            <div className="flex gap-2 flex-wrap">
-              <Button
-                variant={targetMode === 'single' ? 'primary' : 'secondary'}
-                onClick={() => setTargetMode('single')}
-              >
-                <LinkIcon className="w-4 h-4 mr-2" />
-                {t('newScan.singleUrl')}
-              </Button>
-              <Button
-                variant={targetMode === 'multiple' ? 'primary' : 'secondary'}
-                onClick={() => setTargetMode('multiple')}
-              >
-                <FileText className="w-4 h-4 mr-2" />
-                {t('newScan.multipleUrls')}
-              </Button>
-              <Button
-                variant={targetMode === 'file' ? 'primary' : 'secondary'}
-                onClick={() => setTargetMode('file')}
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                {t('newScan.uploadFile')}
-              </Button>
-            </div>
-
-            {/* Input Fields */}
             {targetMode === 'single' && (
               <Input
+                size="large"
+                status={urlError ? 'error' : undefined}
                 placeholder="https://example.com"
                 value={singleUrl}
-                onChange={handleSingleUrlChange}
-                error={urlError}
+                onChange={event => {
+                  setSingleUrl(event.target.value)
+                  setUrlError('')
+                }}
               />
             )}
 
             {targetMode === 'multiple' && (
-              <div>
-                <Textarea
-                  placeholder="Enter URLs separated by commas or new lines:&#10;https://example1.com&#10;https://example2.com"
+              <Space direction="vertical" size={6} style={{ width: '100%' }}>
+                <TextArea
                   rows={5}
+                  status={urlError ? 'error' : undefined}
+                  placeholder={'Enter URLs separated by commas or new lines:\nhttps://example1.com\nhttps://example2.com'}
                   value={multipleUrls}
-                  onChange={handleMultipleUrlsChange}
+                  onChange={event => {
+                    setMultipleUrls(event.target.value)
+                    setUrlError('')
+                  }}
                 />
-                <p className="text-xs text-dark-500 mt-1">{t('newScan.multipleUrlsNote')}</p>
-                {urlError && <p className="mt-1 text-sm text-red-400">{urlError}</p>}
-              </div>
+                <Text type="secondary">{t('newScan.multipleUrlsNote')}</Text>
+              </Space>
             )}
 
             {targetMode === 'file' && (
-              <div>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                  accept=".txt,.csv,.lst"
-                  className="hidden"
-                />
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-dark-700 rounded-lg p-8 text-center cursor-pointer hover:border-primary-500 transition-colors"
-                >
-                  <Upload className="w-10 h-10 mx-auto text-dark-400 mb-3" />
-                  <p className="text-dark-300">{t('newScan.clickToUpload')}</p>
-                  <p className="text-sm text-dark-500 mt-1">{t('newScan.supportedFormats')}</p>
-                </div>
-                {uploadedUrls.length > 0 && (
-                  <p className="mt-2 text-sm text-green-400">
-                    {t('newScan.validUrlsLoaded', { count: uploadedUrls.length })}
-                  </p>
-                )}
-                {urlError && <p className="mt-2 text-sm text-red-400">{urlError}</p>}
-              </div>
+              <Upload.Dragger accept=".txt,.csv,.lst" maxCount={1} beforeUpload={handleFileUpload} showUploadList={false}>
+                <p className="ant-upload-drag-icon"><CloudUploadOutlined /></p>
+                <p className="ant-upload-text">{t('newScan.clickToUpload')}</p>
+                <p className="ant-upload-hint">{t('newScan.supportedFormats')}</p>
+                {uploadedUrls.length > 0 && <Tag color="green">{t('newScan.validUrlsLoaded', { count: uploadedUrls.length })}</Tag>}
+              </Upload.Dragger>
             )}
-          </div>
-        </Card>
-      </div>
 
-      {/* Task Library */}
-      <div style={{ animation: 'fadeSlideIn 0.3s ease-out 0.15s both' }}>
-        <Card
-          title={
-            <div className="flex items-center justify-between w-full">
-              <div className="flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-primary-500" />
-                <span>{t('newScan.taskLibrary')}</span>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleToggleTaskLibrary}
-              >
-                <ChevronDown className={`w-4 h-4 transition-transform ${showTaskLibrary ? 'rotate-180' : ''}`} />
-              </Button>
-            </div>
-          }
-          subtitle={t('newScan.taskLibraryDesc')}
+            {urlError && <Alert type="error" showIcon message={urlError} />}
+          </Space>
+        </ProCard>
+
+        <ProCard
+          title={<Space><BookOutlined />{t('newScan.taskLibrary')}</Space>}
+          subTitle={t('newScan.taskLibraryDesc')}
+          extra={(
+            <Button type="link" onClick={() => setShowTaskLibrary(prev => !prev)}>
+              {showTaskLibrary ? t('common.collapse', 'Collapse') : t('newScan.showAllTasks', { count: tasks.length })}
+            </Button>
+          )}
+          bordered
         >
-          {/* Custom Prompt Toggle */}
-          <div className="flex items-center justify-between mb-4 pb-4 border-b border-dark-700">
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="customPrompt"
-                checked={useCustomPrompt}
-                onChange={handleToggleCustomPrompt}
-                className="w-4 h-4 rounded border-dark-600 bg-dark-800 text-primary-500 focus:ring-primary-500"
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Checkbox checked={useCustomPrompt} onChange={event => setUseCustomPrompt(event.target.checked)}>
+              {t('newScan.useCustomPrompt')}
+            </Checkbox>
+
+            {useCustomPrompt ? (
+              <TextArea
+                rows={6}
+                value={customPrompt}
+                onChange={event => setCustomPrompt(event.target.value)}
+                placeholder={'Enter your custom prompt for the AI agent...\n\nExample: Test for SQL injection on all form inputs, check for authentication bypass on the login endpoint, and look for IDOR vulnerabilities in user profile APIs.'}
               />
-              <label htmlFor="customPrompt" className="text-white">{t('newScan.useCustomPrompt')}</label>
-            </div>
-          </div>
-
-          {useCustomPrompt ? (
-            <Textarea
-              placeholder="Enter your custom prompt for the AI agent...&#10;&#10;Example: Test for SQL injection on all form inputs, check for authentication bypass on the login endpoint, and look for IDOR vulnerabilities in user profile APIs."
-              rows={6}
-              value={customPrompt}
-              onChange={handleCustomPromptChange}
-            />
-          ) : (
-            <>
-              {showTaskLibrary && (
-                <>
-                  {/* Category Filter */}
-                  <div className="flex gap-2 mb-4 flex-wrap">
-                    {TASK_CATEGORIES.map((cat) => (
-                      <Button
-                        key={cat.id}
-                        variant={taskCategory === cat.id ? 'primary' : 'secondary'}
-                        size="sm"
-                        onClick={() => handleCategoryChange(cat.id)}
-                      >
-                        {cat.name}
-                      </Button>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {/* Tasks Grid */}
-              <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 ${showTaskLibrary ? 'max-h-80 overflow-auto' : ''}`}>
-                {loadingTasks ? (
-                  <p className="text-dark-400 col-span-2 text-center py-4">{t('common.loading')}</p>
-                ) : (
-                  filteredTasks.map((task, idx) => (
-                    <div
-                      key={task.id}
-                      onClick={() => handleSelectTask(task)}
-                      className={`p-4 rounded-lg border cursor-pointer transition-all ${
-                        selectedTask?.id === task.id
-                          ? 'border-primary-500 bg-primary-500/10'
-                          : 'border-dark-700 hover:border-dark-500 bg-dark-900/50'
-                      }`}
-                      style={{ animation: `fadeSlideIn 0.3s ease-out ${idx * 0.05}s both` }}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-medium text-white">{task.name}</span>
-                        {task.is_preset && (
-                          <span className="text-xs bg-primary-500/20 text-primary-400 px-2 py-0.5 rounded">{t('taskLibrary.preset')}</span>
-                        )}
-                      </div>
-                      <p className="text-sm text-dark-400 line-clamp-2">{task.description}</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="text-xs text-dark-500">{task.category}</span>
-                        {task.estimated_tokens > 0 && (
-                          <span className="text-xs text-dark-500">~{task.estimated_tokens} {t('taskLibrary.tokens')}</span>
-                        )}
-                      </div>
-                      {task.tags?.length > 0 && (
-                        <div className="flex gap-1 mt-2 flex-wrap">
-                          {task.tags.slice(0, 3).map((tag) => (
-                            <span key={tag} className="text-xs bg-dark-700 text-dark-300 px-2 py-0.5 rounded">
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))
+            ) : (
+              <>
+                {showTaskLibrary && (
+                  <Segmented
+                    value={taskCategory}
+                    onChange={value => handleCategoryChange(String(value))}
+                    options={taskCategories.map(category => ({ label: category.name, value: category.id }))}
+                    style={{ maxWidth: '100%', overflowX: 'auto' }}
+                  />
                 )}
-              </div>
 
-              {!showTaskLibrary && tasks.length > 4 && (
-                <Button
-                  variant="ghost"
-                  className="w-full mt-3"
-                  onClick={() => setShowTaskLibrary(true)}
-                >
-                  {t('newScan.showAllTasks', { count: tasks.length })}
-                </Button>
-              )}
-            </>
-          )}
+                <Spin spinning={loadingTasks}>
+                  {filteredTasks.length === 0 ? (
+                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('taskLibrary.noTasks', 'No tasks')} />
+                  ) : (
+                    <List
+                      grid={{ gutter: 12, xs: 1, sm: 2, md: 2, lg: 2, xl: 2, xxl: 2 }}
+                      dataSource={filteredTasks}
+                      renderItem={task => (
+                        <List.Item>
+                          <Card
+                            hoverable
+                            onClick={() => {
+                              setSelectedTask(task)
+                              notify(t('newScan.taskSelected', { name: task.name }), 'info')
+                            }}
+                            style={{ borderColor: selectedTask?.id === task.id ? '#1677ff' : undefined }}
+                          >
+                            <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                              <Flex justify="space-between" gap={8}>
+                                <Text strong ellipsis>{task.name}</Text>
+                                {task.is_preset && <Tag color="blue">{t('taskLibrary.preset')}</Tag>}
+                              </Flex>
+                              <Paragraph type="secondary" ellipsis={{ rows: 2 }} style={{ marginBottom: 0 }}>
+                                {task.description}
+                              </Paragraph>
+                              <Space wrap>
+                                <Tag>{task.category}</Tag>
+                                {task.estimated_tokens > 0 && <Tag>~{task.estimated_tokens} {t('taskLibrary.tokens')}</Tag>}
+                                {task.tags?.slice(0, 3).map(tag => <Tag key={tag}>{tag}</Tag>)}
+                              </Space>
+                            </Space>
+                          </Card>
+                        </List.Item>
+                      )}
+                    />
+                  )}
+                </Spin>
 
-          {/* Selected Task Preview */}
-          {selectedTask && !useCustomPrompt && (
-            <div className="mt-4 p-4 bg-dark-800 rounded-lg border border-dark-700">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-medium text-white">{t('newScan.selected')}: {selectedTask.name}</span>
-                <Button variant="ghost" size="sm" onClick={handleClearTask}>
-                  {t('common.clear')}
-                </Button>
-              </div>
-              <p className="text-sm text-dark-400 whitespace-pre-wrap line-clamp-4">
-                {selectedTask.prompt}
-              </p>
-            </div>
-          )}
-        </Card>
-      </div>
+                {!showTaskLibrary && tasks.length > 4 && (
+                  <Button block onClick={() => setShowTaskLibrary(true)}>
+                    {t('newScan.showAllTasks', { count: tasks.length })}
+                  </Button>
+                )}
+              </>
+            )}
 
-      {/* Authentication Options */}
-      <div style={{ animation: 'fadeSlideIn 0.3s ease-out 0.2s both' }}>
-        <Card
-          title={
-            <div className="flex items-center gap-2">
-              <Key className="w-5 h-5 text-primary-500" />
-              <span>{t('newScan.authentication')}</span>
-              <span className="text-xs text-dark-500">({t('newScan.optional')})</span>
-            </div>
-          }
-        >
-          <div className="space-y-4">
-            <div className="flex gap-2 flex-wrap">
-              {AUTH_TYPE_OPTIONS.map((type) => (
-                <Button
-                  key={type.id}
-                  variant={authType === type.id ? 'primary' : 'secondary'}
-                  size="sm"
-                  onClick={() => handleSetAuthType(type.id)}
-                >
-                  {type.label}
-                </Button>
-              ))}
-            </div>
+            {selectedTask && !useCustomPrompt && (
+              <Alert
+                type="info"
+                showIcon
+                message={`${t('newScan.selected')}: ${selectedTask.name}`}
+                description={<Paragraph ellipsis={{ rows: 4 }} style={{ marginBottom: 0 }}>{selectedTask.prompt}</Paragraph>}
+                action={<Button size="small" onClick={() => setSelectedTask(null)}>{t('common.clear')}</Button>}
+              />
+            )}
+          </Space>
+        </ProCard>
 
+        <ProCard title={<Space><KeyOutlined />{t('newScan.authentication')} <Tag>{t('newScan.optional')}</Tag></Space>} bordered>
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Segmented
+              value={authType}
+              onChange={value => setAuthType(value as AuthTypeOption)}
+              options={authTypeOptions.map(option => ({ label: option.label, value: option.id }))}
+            />
             {authType !== 'none' && (
               <Input
-                placeholder={
-                  authType === 'cookie' ? 'session=abc123; token=xyz789' :
-                  authType === 'bearer' ? 'eyJhbGciOiJIUzI1NiIs...' :
-                  authType === 'basic' ? 'username:password' :
-                  'X-API-Key: your-api-key'
-                }
                 value={authValue}
-                onChange={handleAuthValueChange}
-                label={
-                  authType === 'cookie' ? t('newScan.cookie') :
-                  authType === 'bearer' ? t('newScan.bearerToken') :
-                  authType === 'basic' ? t('newScan.basicAuth') :
-                  t('newScan.customHeader')
-                }
+                onChange={event => setAuthValue(event.target.value)}
+                placeholder={authPlaceholder(authType)}
               />
             )}
-          </div>
-        </Card>
-      </div>
+          </Space>
+        </ProCard>
 
-      {/* Advanced Options */}
-      <div style={{ animation: 'fadeSlideIn 0.3s ease-out 0.25s both' }}>
-        <Card
-          title={
-            <div className="flex items-center gap-2 cursor-pointer" onClick={handleToggleAuthOptions}>
-              <Settings className="w-5 h-5 text-primary-500" />
-              <span>{t('newScan.advancedOptions')}</span>
-              <ChevronDown className={`w-4 h-4 transition-transform ${showAuthOptions ? 'rotate-180' : ''}`} />
-            </div>
-          }
-        >
-          {showAuthOptions && (
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm text-dark-300 mb-1 block">{t('newScan.maxCrawlDepth')}</label>
-                <div className="flex items-center gap-4">
-                  <input
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={maxDepth}
-                    onChange={handleMaxDepthChange}
-                    className="flex-1"
-                  />
-                  <span className="text-white font-medium w-8">{maxDepth}</span>
-                </div>
-              </div>
-            </div>
-          )}
-          {!showAuthOptions && (
-            <p className="text-dark-500 text-sm">{t('newScan.clickToExpand')}</p>
-          )}
-        </Card>
-      </div>
+        <Collapse
+          activeKey={showAdvancedOptions ? ['advanced'] : []}
+          onChange={keys => setShowAdvancedOptions(keys.includes('advanced'))}
+          items={[
+            {
+              key: 'advanced',
+              label: <Space><SettingOutlined />{t('newScan.advancedOptions')}</Space>,
+              children: (
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <Text>{t('newScan.maxCrawlDepth')}</Text>
+                  <Slider min={1} max={10} value={maxDepth} onChange={setMaxDepth} marks={{ 1: '1', 5: '5', 10: '10' }} />
+                </Space>
+              ),
+            },
+          ]}
+        />
 
-      {/* Warning for Prompt Only Mode */}
-      {operationMode === 'prompt_only' && (
-        <div
-          className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 flex items-start gap-3"
-          style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
-        >
-          <AlertTriangle className="w-6 h-6 text-yellow-500 flex-shrink-0" />
-          <div>
-            <p className="font-medium text-yellow-400">{t('newScan.highTokenWarning')}</p>
-            <p className="text-sm text-yellow-300/80 mt-1">
-              {t('newScan.highTokenWarningDesc')}
-            </p>
-          </div>
-        </div>
-      )}
+        {operationMode === 'prompt_only' && (
+          <Alert
+            type="warning"
+            showIcon
+            message={t('newScan.highTokenWarning')}
+            description={t('newScan.highTokenWarningDesc')}
+          />
+        )}
 
-      {/* Start Button */}
-      <div
-        className="flex justify-end gap-3 sticky bottom-4 bg-dark-950/90 backdrop-blur p-4 -mx-4 rounded-lg"
-        style={{ animation: 'fadeSlideIn 0.3s ease-out 0.3s both' }}
-      >
-        <Button variant="secondary" onClick={handleNavigateHome}>
-          {t('common.cancel')}
-        </Button>
-        <Button onClick={handleStartAgent} isLoading={isLoading} size="lg">
-          <Play className="w-5 h-5 mr-2" />
-          {t('newScan.deployAgent', { mode: currentModeInfo.name })}
-        </Button>
-      </div>
-    </div>
+        <ProCard bordered>
+          <Flex justify="space-between" align="center" gap={16} wrap="wrap">
+            <Space direction="vertical" size={2}>
+              <Title level={5} style={{ margin: 0 }}>{currentModeInfo.name}</Title>
+              <Text type="secondary">{currentModeInfo.description}</Text>
+            </Space>
+            <Space>
+              <Button onClick={() => navigate('/')}>{t('common.cancel')}</Button>
+              <Button type="primary" size="large" icon={<CheckCircleOutlined />} loading={isLoading} onClick={handleStartAgent}>
+                {t('newScan.deployAgent', { mode: currentModeInfo.name })}
+              </Button>
+            </Space>
+          </Flex>
+        </ProCard>
+      </Space>
+    </PageContainer>
   )
 }

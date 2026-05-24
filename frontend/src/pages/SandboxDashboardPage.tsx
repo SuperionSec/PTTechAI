@@ -1,21 +1,43 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { relativeTime } from '../utils/time'
+import { PageContainer, ProCard, ProTable, StatisticCard } from '@ant-design/pro-components'
+import type { ProColumns } from '@ant-design/pro-components'
 import {
-  Box, RefreshCw, Trash2, Heart, Clock, Cpu,
-  HardDrive, Timer, CheckCircle2,
-  XCircle, Wrench, Container, X, WifiOff
-} from 'lucide-react'
-import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
-import Card from '../components/common/Card'
-import Button from '../components/common/Button'
+  Alert,
+  App as AntApp,
+  Button,
+  Empty,
+  Progress,
+  Space,
+  Spin,
+  Tag,
+  Typography,
+} from 'antd'
+import {
+  ApiOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  CloudServerOutlined,
+  CodeSandboxOutlined,
+  DeleteOutlined,
+  ExclamationCircleOutlined,
+  HeartOutlined,
+  HddOutlined,
+  ReloadOutlined,
+  ToolOutlined,
+  WarningOutlined,
+} from '@ant-design/icons'
+import { relativeTime } from '../utils/time'
 import { sandboxApi } from '../services/api'
 import type { SandboxPoolStatus, SandboxContainer } from '../types'
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                           */
-/* ------------------------------------------------------------------ */
+const { Text } = Typography
+
+interface HealthResult {
+  status: string
+  tools: string[]
+}
 
 function formatUptime(seconds: number): string {
   if (seconds < 60) return `${Math.floor(seconds)}s`
@@ -29,80 +51,32 @@ function formatUptime(seconds: number): string {
   return `${h}h ${m}m`
 }
 
-/* ------------------------------------------------------------------ */
-/*  Toast System                                                      */
-/* ------------------------------------------------------------------ */
-
-interface Toast {
-  id: number
-  message: string
-  severity: 'info' | 'success' | 'warning' | 'error'
+function utilizationColor(percent: number) {
+  if (percent >= 100) return '#ff4d4f'
+  if (percent >= 80) return '#faad14'
+  return '#52c41a'
 }
 
-let _toastId = 0
-
-function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: number) => void }) {
-  if (toasts.length === 0) return null
-  const border: Record<string, string> = {
-    info: 'border-blue-500',
-    success: 'border-green-500',
-    warning: 'border-yellow-500',
-    error: 'border-red-500',
-  }
-  return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm">
-      {toasts.map(t => (
-        <div
-          key={t.id}
-          className={`bg-dark-800 border-l-4 ${border[t.severity]} rounded-lg px-4 py-3 shadow-xl flex items-start gap-3`}
-          style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
-        >
-          <span className="text-sm text-dark-200 flex-1">{t.message}</span>
-          <button onClick={() => onDismiss(t.id)} className="text-dark-500 hover:text-white">
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      ))}
-    </div>
-  )
+function healthAlertType(status: string): 'success' | 'warning' | 'error' | 'info' {
+  if (status === 'healthy') return 'success'
+  if (status === 'degraded') return 'warning'
+  if (status === 'error') return 'error'
+  return 'info'
 }
-
-/* ------------------------------------------------------------------ */
-/*  Donut Chart Colors                                                */
-/* ------------------------------------------------------------------ */
-
-const DONUT_COLORS = ['#3b82f6', '#1e293b']
-
-/* ------------------------------------------------------------------ */
-/*  Page Component                                                    */
-/* ------------------------------------------------------------------ */
 
 export default function SandboxDashboardPage() {
   const { t } = useTranslation()
+  const { notification } = AntApp.useApp()
   const [data, setData] = useState<SandboxPoolStatus | null>(null)
   const [loading, setLoading] = useState(true)
-  const [toasts, setToasts] = useState<Toast[]>([])
   const [destroyConfirm, setDestroyConfirm] = useState<string | null>(null)
-  const [healthResults, setHealthResults] = useState<Record<string, { status: string; tools: string[] } | null>>({})
+  const [healthResults, setHealthResults] = useState<Record<string, HealthResult | null>>({})
   const [healthLoading, setHealthLoading] = useState<Record<string, boolean>>({})
   const [actionLoading, setActionLoading] = useState(false)
   const [refreshSpinning, setRefreshSpinning] = useState(false)
   const [pollFailures, setPollFailures] = useState(0)
   const dataRef = useRef(data)
   dataRef.current = data
-
-  /* Toast helpers */
-  const addToast = useCallback((message: string, severity: Toast['severity'] = 'info') => {
-    const id = ++_toastId
-    setToasts(prev => [...prev, { id, message, severity }])
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id))
-    }, 4000)
-  }, [])
-
-  const dismissToast = useCallback((id: number) => {
-    setToasts(prev => prev.filter(t => t.id !== id))
-  }, [])
 
   const fetchData = useCallback(async (showSpinner = false) => {
     if (showSpinner) setLoading(true)
@@ -125,7 +99,6 @@ export default function SandboxDashboardPage() {
     }
   }, [t])
 
-  /* Initial fetch + 15-second polling */
   useEffect(() => {
     fetchData(true)
     const interval = setInterval(() => fetchData(false), 15000)
@@ -144,14 +117,15 @@ export default function SandboxDashboardPage() {
       setTimeout(() => setDestroyConfirm(null), 5000)
       return
     }
+
     setDestroyConfirm(null)
     setActionLoading(true)
     try {
       await sandboxApi.destroy(scanId)
-      addToast(`Container for scan ${scanId.slice(0, 8)}... destroyed`, 'success')
-      fetchData(false)
+      notification.success({ message: `Container for scan ${scanId.slice(0, 8)}... destroyed` })
+      await fetchData(false)
     } catch (error: any) {
-      addToast(error?.response?.data?.detail || t('sandbox.failedToDestroyContainer'), 'error')
+      notification.error({ message: error?.response?.data?.detail || t('sandbox.failedToDestroyContainer') })
     } finally {
       setActionLoading(false)
     }
@@ -180,10 +154,10 @@ export default function SandboxDashboardPage() {
       } else {
         await sandboxApi.cleanupOrphans()
       }
-      addToast(type === 'expired' ? t('sandbox.expiredContainersCleaned') : t('sandbox.orphanContainersCleaned'), 'success')
-      fetchData(false)
+      notification.success({ message: type === 'expired' ? t('sandbox.expiredContainersCleaned') : t('sandbox.orphanContainersCleaned') })
+      await fetchData(false)
     } catch (error: any) {
-      addToast(error?.response?.data?.detail || t('sandbox.cleanupFailed'), 'error')
+      notification.error({ message: error?.response?.data?.detail || t('sandbox.cleanupFailed') })
     } finally {
       setActionLoading(false)
     }
@@ -192,412 +166,189 @@ export default function SandboxDashboardPage() {
   const pool = data?.pool
   const containers = data?.containers || []
   const utilizationPct = pool ? (pool.max_concurrent > 0 ? (pool.active / pool.max_concurrent) * 100 : 0) : 0
-
-  const donutData = useMemo(() => {
-    if (!pool || pool.max_concurrent === 0) return []
-    return [
-      { name: t('sandbox.active'), value: pool.active },
-      { name: t('sandbox.available'), value: Math.max(0, pool.max_concurrent - pool.active) },
-    ]
-  }, [pool, t])
-
   const connectionLost = pollFailures >= 3
+  const imageName = pool?.image?.split(':')[0]?.split('/').pop() || 'N/A'
+  const imageTag = pool?.image?.includes(':') ? pool.image.split(':')[1] : 'latest'
+
+  const containerColumns: ProColumns<SandboxContainer>[] = useMemo(() => [
+    {
+      title: t('sandbox.runningContainers'),
+      dataIndex: 'container_name',
+      render: (_, container) => {
+        const health = healthResults[container.scan_id]
+        return (
+          <Space direction="vertical" size={6} style={{ width: '100%' }}>
+            <Space wrap>
+              <Text strong code>{container.container_name}</Text>
+              <Tag color={container.available ? 'green' : 'red'} icon={container.available ? <CheckCircleOutlined /> : <ExclamationCircleOutlined />}>
+                {container.available ? t('sandbox.running') : t('sandbox.stopped')}
+              </Tag>
+            </Space>
+            <Space wrap size="small">
+              <Text type="secondary">{t('sandbox.scan')}:</Text>
+              <Link to={`/scan/${container.scan_id}`}><Text code>{container.scan_id.slice(0, 12)}...</Text></Link>
+            </Space>
+            {health && (
+              <Alert
+                type={healthAlertType(health.status)}
+                showIcon
+                message={
+                  <Space wrap>
+                    <Text>{t('sandbox.health')}: {health.status}</Text>
+                    {health.tools.length > 0 && <Text type="secondary">Verified: {health.tools.join(', ')}</Text>}
+                  </Space>
+                }
+              />
+            )}
+          </Space>
+        )
+      },
+    },
+    {
+      title: t('sandbox.uptime'),
+      dataIndex: 'uptime_seconds',
+      width: 130,
+      render: (_, container) => <Text>{formatUptime(container.uptime_seconds)}</Text>,
+    },
+    {
+      title: t('sandbox.created'),
+      dataIndex: 'created_at',
+      width: 170,
+      render: (_, container) => <Text title={container.created_at || undefined}>{relativeTime(container.created_at, t)}</Text>,
+    },
+    {
+      title: t('sandbox.tools'),
+      dataIndex: 'installed_tools',
+      render: (_, container) => container.installed_tools.length > 0 ? (
+        <Space size={[0, 4]} wrap>
+          {container.installed_tools.map(tool => <Tag key={tool} icon={<ToolOutlined />}>{tool}</Tag>)}
+        </Space>
+      ) : <Text type="secondary">-</Text>,
+    },
+    {
+      title: t('common.actions'),
+      valueType: 'option',
+      width: 230,
+      render: (_, container) => {
+        const isConfirming = destroyConfirm === container.scan_id
+        return [
+          <Button
+            key="health"
+            size="small"
+            icon={<HeartOutlined />}
+            loading={healthLoading[container.scan_id]}
+            onClick={() => handleHealthCheck(container.scan_id)}
+          >
+            {t('sandbox.healthCheck')}
+          </Button>,
+          <Button
+            key="destroy"
+            size="small"
+            danger
+            type={isConfirming ? 'primary' : 'default'}
+            icon={<DeleteOutlined />}
+            loading={actionLoading}
+            onClick={() => handleDestroy(container.scan_id)}
+          >
+            {isConfirming ? t('sandbox.confirmDestroy') : t('sandbox.destroy')}
+          </Button>,
+        ]
+      },
+    },
+  ], [actionLoading, destroyConfirm, healthLoading, healthResults, t])
 
   if (loading && !data) {
     return (
-      <div className="animate-pulse space-y-6">
-        <div className="h-8 bg-dark-800 rounded w-64" />
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="h-24 bg-dark-800 rounded-lg" />
-          ))}
-        </div>
-        <div className="space-y-4">
-          {[1, 2].map(i => (
-            <div key={i} className="h-40 bg-dark-800 rounded-lg" />
-          ))}
-        </div>
-      </div>
+      <PageContainer title={t('sandbox.title')} subTitle={t('sandbox.subtitle')}>
+        <ProCard bordered><Spin style={{ display: 'block', margin: '64px auto' }} /></ProCard>
+      </PageContainer>
     )
   }
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      {/* Inline keyframes */}
-      <style>{`
-        @keyframes fadeSlideIn {
-          from { opacity: 0; transform: translateY(-8px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes spinOnce {
-          from { transform: rotate(0deg); }
-          to   { transform: rotate(360deg); }
-        }
-      `}</style>
+    <PageContainer
+      title={t('sandbox.title')}
+      subTitle={t('sandbox.subtitle')}
+      extra={[
+        <Button key="cleanup-expired" icon={<ClockCircleOutlined />} loading={actionLoading} onClick={() => handleCleanup('expired')}>
+          {t('sandbox.cleanupExpired')}
+        </Button>,
+        <Button key="cleanup-orphans" danger icon={<DeleteOutlined />} loading={actionLoading} onClick={() => handleCleanup('orphans')}>
+          {t('sandbox.cleanupOrphans')}
+        </Button>,
+        <Button key="refresh" icon={<ReloadOutlined spin={refreshSpinning} />} onClick={handleRefreshClick}>
+          {t('common.refresh')}
+        </Button>,
+      ]}
+    >
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        {connectionLost && (
+          <Alert type="warning" showIcon icon={<WarningOutlined />} message={`Connection lost -- ${t('sandbox.dataStaleRetrying')}`} />
+        )}
 
-      {/* Toast Notifications */}
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+        {data?.error && <Alert type="error" showIcon message={data.error} />}
 
-      {/* Connection Lost Banner */}
-      {connectionLost && (
-        <div
-          className="flex items-center gap-3 px-4 py-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 text-sm"
-          style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
-        >
-          <WifiOff className="w-4 h-4 flex-shrink-0" />
-          <span>Connection lost -- {t('sandbox.dataStaleRetrying')}</span>
-        </div>
-      )}
+        <StatisticCard.Group direction="row">
+          <StatisticCard
+            statistic={{
+              title: t('sandbox.activeContainers'),
+              value: `${pool?.active || 0}/${pool?.max_concurrent || 0}`,
+              icon: <CloudServerOutlined />,
+              valueStyle: { color: utilizationColor(utilizationPct) },
+            }}
+          />
+          <StatisticCard
+            statistic={{
+              title: t('sandbox.dockerEngine'),
+              value: pool?.docker_available ? t('sandbox.online') : t('sandbox.offline'),
+              icon: <HddOutlined />,
+              valueStyle: { color: pool?.docker_available ? '#52c41a' : '#ff4d4f' },
+            }}
+          />
+          <StatisticCard
+            statistic={{
+              title: imageName,
+              value: imageTag,
+              icon: <CodeSandboxOutlined />,
+            }}
+          />
+          <StatisticCard
+            statistic={{
+              title: t('sandbox.containerTTL'),
+              value: pool?.container_ttl_minutes || 0,
+              suffix: 'min',
+              icon: <ClockCircleOutlined />,
+            }}
+          />
+        </StatisticCard.Group>
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-              <Container className="w-6 h-6 text-blue-400" />
-            </div>
-            <Box className="w-5 h-5 text-dark-400 -ml-1" />
-            {t('sandbox.title')}
-          </h1>
-          <p className="text-dark-400 mt-1">{t('sandbox.subtitle')}</p>
-        </div>
+        {pool && pool.max_concurrent > 0 && (
+          <ProCard bordered title={t('sandbox.poolCapacity')} extra={<Text strong style={{ color: utilizationColor(utilizationPct) }}>{Math.round(utilizationPct)}%</Text>}>
+            <Progress percent={Math.round(utilizationPct)} strokeColor={utilizationColor(utilizationPct)} status={utilizationPct >= 100 ? 'exception' : 'active'} />
+          </ProCard>
+        )}
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleCleanup('expired')}
-            isLoading={actionLoading}
-          >
-            <Timer className="w-4 h-4 mr-1" />
-            {t('sandbox.cleanupExpired')}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleCleanup('orphans')}
-            isLoading={actionLoading}
-          >
-            <Trash2 className="w-4 h-4 mr-1" />
-            {t('sandbox.cleanupOrphans')}
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={handleRefreshClick}
-          >
-            <RefreshCw
-              className="w-4 h-4 mr-1"
-              style={refreshSpinning ? { animation: 'spinOnce 0.6s ease-in-out' } : undefined}
+        <ProCard bordered title={`${t('sandbox.runningContainers')} (${containers.length})`} extra={<Space><ApiOutlined /><Text type="secondary">{t('sandbox.autoRefresh')}</Text></Space>}>
+          {containers.length === 0 ? (
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={
+              <Space direction="vertical" size={2}>
+                <Text>{t('sandbox.noContainersRunning')}</Text>
+                <Text type="secondary">{t('sandbox.noContainersDesc')}</Text>
+              </Space>
+            } />
+          ) : (
+            <ProTable<SandboxContainer>
+              rowKey="scan_id"
+              search={false}
+              options={false}
+              columns={containerColumns}
+              dataSource={containers}
+              pagination={{ pageSize: 10, showSizeChanger: true }}
+              toolBarRender={false}
             />
-            {t('common.refresh')}
-          </Button>
-        </div>
-      </div>
-
-      {/* Pool Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {/* Active Containers */}
-        <div style={{ animation: 'fadeSlideIn 0.3s ease-out 0.05s both' }}>
-          <Card>
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                utilizationPct >= 100 ? 'bg-red-500/20' :
-                utilizationPct >= 80 ? 'bg-yellow-500/20' :
-                'bg-green-500/20'
-              }`}>
-                <Box className={`w-5 h-5 ${
-                  utilizationPct >= 100 ? 'text-red-400' :
-                  utilizationPct >= 80 ? 'text-yellow-400' :
-                  'text-green-400'
-                }`} />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-white">
-                  {pool?.active || 0}<span className="text-dark-400 text-lg">/{pool?.max_concurrent || 0}</span>
-                </p>
-                <p className="text-xs text-dark-400">{t('sandbox.activeContainers')}</p>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* Docker Status */}
-        <div style={{ animation: 'fadeSlideIn 0.3s ease-out 0.1s both' }}>
-          <Card>
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                pool?.docker_available ? 'bg-green-500/20' : 'bg-red-500/20'
-              }`}>
-                <HardDrive className={`w-5 h-5 ${
-                  pool?.docker_available ? 'text-green-400' : 'text-red-400'
-                }`} />
-              </div>
-              <div>
-                <p className="text-lg font-bold text-white">
-                  {pool?.docker_available ? t('sandbox.online') : t('sandbox.offline')}
-                </p>
-                <p className="text-xs text-dark-400">{t('sandbox.dockerEngine')}</p>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* Container Image */}
-        <div style={{ animation: 'fadeSlideIn 0.3s ease-out 0.15s both' }}>
-          <Card>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                <Cpu className="w-5 h-5 text-purple-400" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-white truncate max-w-[140px]" title={pool?.image}>
-                  {pool?.image?.split(':')[0]?.split('/').pop() || 'N/A'}
-                </p>
-                <p className="text-xs text-dark-400">
-                  {pool?.image?.includes(':') ? pool.image.split(':')[1] : 'latest'}
-                </p>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* TTL */}
-        <div style={{ animation: 'fadeSlideIn 0.3s ease-out 0.2s both' }}>
-          <Card>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-orange-500/20 rounded-lg flex items-center justify-center">
-                <Clock className="w-5 h-5 text-orange-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-white">
-                  {pool?.container_ttl_minutes || 0}<span className="text-dark-400 text-lg"> min</span>
-                </p>
-                <p className="text-xs text-dark-400">{t('sandbox.containerTTL')}</p>
-              </div>
-            </div>
-          </Card>
-        </div>
-      </div>
-
-      {/* Capacity Bar + Donut Chart */}
-      {pool && pool.max_concurrent > 0 && (
-        <div className="bg-dark-800 rounded-lg p-4 border border-dark-700">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-            {/* Bar section */}
-            <div className="flex-1 w-full">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-dark-300">{t('sandbox.poolCapacity')}</span>
-                <span className={`text-sm font-medium ${
-                  utilizationPct >= 100 ? 'text-red-400' :
-                  utilizationPct >= 80 ? 'text-yellow-400' :
-                  'text-green-400'
-                }`}>
-                  {Math.round(utilizationPct)}%
-                </span>
-              </div>
-              <div className="w-full bg-dark-900 rounded-full h-2.5">
-                <div
-                  className={`h-2.5 rounded-full transition-all duration-500 ${
-                    utilizationPct >= 100 ? 'bg-red-500' :
-                    utilizationPct >= 80 ? 'bg-yellow-500' :
-                    'bg-green-500'
-                  }`}
-                  style={{ width: `${Math.min(utilizationPct, 100)}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Donut chart */}
-            {donutData.length > 0 && (
-              <div className="w-24 h-24 flex-shrink-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={donutData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={25}
-                      outerRadius={38}
-                      paddingAngle={2}
-                      dataKey="value"
-                      stroke="none"
-                    >
-                      {donutData.map((_entry, index) => (
-                        <Cell key={`cell-${index}`} fill={DONUT_COLORS[index % DONUT_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <RechartsTooltip
-                      contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', fontSize: '12px' }}
-                      itemStyle={{ color: '#e2e8f0' }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Container List */}
-      {containers.length === 0 ? (
-        <div className="bg-dark-800 rounded-lg border border-dark-700 p-12 text-center">
-          <Box className="w-16 h-16 text-dark-600 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-dark-300 mb-2">{t('sandbox.noContainersRunning')}</h3>
-          <p className="text-dark-400 text-sm max-w-md mx-auto">
-            {t('sandbox.noContainersDesc')}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-white">
-            {t('sandbox.runningContainers')} ({containers.length})
-          </h2>
-
-          {containers.map((container: SandboxContainer, idx: number) => {
-            const health = healthResults[container.scan_id]
-            const isHealthLoading = healthLoading[container.scan_id]
-            const isConfirming = destroyConfirm === container.scan_id
-
-            return (
-              <div
-                key={container.scan_id}
-                className="bg-dark-800 rounded-lg border border-dark-700 p-5 hover:border-dark-600 transition-colors"
-                style={{ animation: `fadeSlideIn 0.3s ease-out ${0.05 * (idx + 1)}s both` }}
-              >
-                {/* Container Header */}
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-3 h-3 rounded-full ${
-                      container.available ? 'bg-green-500 animate-pulse' : 'bg-red-500'
-                    }`} />
-                    <div>
-                      <h3 className="text-white font-medium font-mono text-sm">
-                        {container.container_name}
-                      </h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-dark-400">{t('sandbox.scan')}:</span>
-                        <Link
-                          to={`/scan/${container.scan_id}`}
-                          className="text-xs text-primary-400 hover:text-primary-300 font-mono"
-                        >
-                          {container.scan_id.slice(0, 12)}...
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {/* Status badge */}
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
-                      container.available
-                        ? 'bg-green-500/10 text-green-400 border border-green-500/30'
-                        : 'bg-red-500/10 text-red-400 border border-red-500/30'
-                    }`}>
-                      {container.available ? (
-                        <><CheckCircle2 className="w-3 h-3" /> {t('sandbox.running')}</>
-                      ) : (
-                        <><XCircle className="w-3 h-3" /> {t('sandbox.stopped')}</>
-                      )}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Container Info Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
-                  {/* Uptime */}
-                  <div>
-                    <p className="text-xs text-dark-400 mb-1">{t('sandbox.uptime')}</p>
-                    <p className="text-sm text-white font-medium">
-                      {formatUptime(container.uptime_seconds)}
-                    </p>
-                  </div>
-
-                  {/* Created */}
-                  <div>
-                    <p className="text-xs text-dark-400 mb-1">{t('sandbox.created')}</p>
-                    <p className="text-sm text-dark-300" title={container.created_at || undefined}>
-                      {relativeTime(container.created_at, t)}
-                    </p>
-                  </div>
-
-                  {/* Tools count */}
-                  <div>
-                    <p className="text-xs text-dark-400 mb-1">{t('sandbox.installedTools')}</p>
-                    <p className="text-sm text-white font-medium">
-                      {container.installed_tools.length}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Installed Tools */}
-                {container.installed_tools.length > 0 && (
-                  <div className="mb-4">
-                    <p className="text-xs text-dark-400 mb-2">{t('sandbox.tools')}</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {container.installed_tools.map(tool => (
-                        <span
-                          key={tool}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-dark-900 border border-dark-600 rounded text-xs text-dark-300"
-                        >
-                          <Wrench className="w-3 h-3 text-dark-500" />
-                          {tool}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Health Check Result */}
-                {health && (
-                  <div className={`mb-4 px-3 py-2 rounded-lg text-xs ${
-                    health.status === 'healthy'
-                      ? 'bg-green-500/10 border border-green-500/20 text-green-400'
-                      : health.status === 'degraded'
-                      ? 'bg-yellow-500/10 border border-yellow-500/20 text-yellow-400'
-                      : 'bg-red-500/10 border border-red-500/20 text-red-400'
-                  }`} style={{ animation: 'fadeSlideIn 0.3s ease-out' }}>
-                    <span className="font-medium">{t('sandbox.health')}: {health.status}</span>
-                    {health.tools.length > 0 && (
-                      <span className="ml-2">
-                        -- Verified: {health.tools.join(', ')}
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {/* Actions */}
-                <div className="flex items-center gap-2 pt-3 border-t border-dark-700 flex-wrap">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleHealthCheck(container.scan_id)}
-                    isLoading={isHealthLoading}
-                  >
-                    <Heart className="w-4 h-4 mr-1" />
-                    {t('sandbox.healthCheck')}
-                  </Button>
-
-                  <Button
-                    variant={isConfirming ? 'danger' : 'ghost'}
-                    size="sm"
-                    onClick={() => handleDestroy(container.scan_id)}
-                    isLoading={actionLoading}
-                  >
-                    <Trash2 className="w-4 h-4 mr-1" />
-                    {isConfirming ? t('sandbox.confirmDestroy') : t('sandbox.destroy')}
-                  </Button>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Auto-refresh indicator */}
-      <div className="text-center text-xs text-dark-500">
-        {t('sandbox.autoRefresh')}
-      </div>
-    </div>
+          )}
+        </ProCard>
+      </Space>
+    </PageContainer>
   )
 }

@@ -1,12 +1,41 @@
-import { useState, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
-import {
-  Shield, Eye, Plus, Pencil, Trash2, X, Check, Users, Lock,
-  AlertTriangle, Loader2, Globe, Server
-} from 'lucide-react'
-import { useAuth } from '../contexts/AuthContext'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import { PageContainer, ProCard, ProTable, StatisticCard } from '@ant-design/pro-components'
+import type { ProColumns } from '@ant-design/pro-components'
+import {
+  Alert,
+  App as AntApp,
+  Button,
+  Checkbox,
+  Empty,
+  Form,
+  Input,
+  Modal,
+  Popconfirm,
+  Space,
+  Spin,
+  Tabs,
+  Tag,
+  Tooltip,
+  Typography,
+} from 'antd'
+import {
+  ApiOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  EyeOutlined,
+  GlobalOutlined,
+  LockOutlined,
+  PlusOutlined,
+  SafetyCertificateOutlined,
+  TeamOutlined,
+} from '@ant-design/icons'
+import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
+
+const { Text } = Typography
+const SYSTEM_ROLES = ['admin', 'user', 'viewer', 'service']
 
 interface RoleSummary {
   role: string
@@ -18,6 +47,9 @@ interface Permission {
   id: string
   name: string
   description?: string
+  scope?: string
+  action?: string
+  is_active?: boolean
 }
 
 interface RolePermissionItem {
@@ -42,53 +74,69 @@ interface ResourceMapping {
   resource_path: string
 }
 
-const SYSTEM_ROLES = ['admin', 'user', 'viewer', 'service']
+interface RoleFormValues {
+  role: string
+}
 
 export default function RoleManagementPage() {
   const { t } = useTranslation()
   const { user: currentUser } = useAuth()
   const navigate = useNavigate()
+  const { notification } = AntApp.useApp()
 
   const [roles, setRoles] = useState<RoleSummary[]>([])
   const [permissions, setPermissions] = useState<Permission[]>([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
-
-  // Modals state
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [showViewModal, setShowViewModal] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [selectedRole, setSelectedRole] = useState<string | null>(null)
-
-  // Form state
-  const [roleName, setRoleName] = useState('')
+  const [createOpen, setCreateOpen] = useState(false)
+  const [editRole, setEditRole] = useState<string | null>(null)
+  const [viewRole, setViewRole] = useState<string | null>(null)
   const [selectedPermissions, setSelectedPermissions] = useState<Set<string>>(new Set())
-  const [roleNameError, setRoleNameError] = useState<string | null>(null)
-  const [formError, setFormError] = useState<string | null>(null)
-
-  // View modal state
   const [viewRolePermissions, setViewRolePermissions] = useState<RolePermissionItem[]>([])
-  const [viewLoading, setViewLoading] = useState(false)
   const [viewResourceMappings, setViewResourceMappings] = useState<ResourceMapping[]>([])
-  const [activeViewTab, setActiveViewTab] = useState<'permissions' | 'resources'>('permissions')
+  const [viewLoading, setViewLoading] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [form] = Form.useForm<RoleFormValues>()
 
-  // Delete modal state
-  const [roleToDelete, setRoleToDelete] = useState<RoleSummary | null>(null)
-
-  const roleLabels: Record<string, string> = {
+  const roleLabels: Record<string, string> = useMemo(() => ({
     admin: t('roleManagement.admin'),
     user: t('roleManagement.user'),
     viewer: t('roleManagement.viewer'),
     service: t('roleManagement.service'),
-  }
+  }), [t])
 
   const roleColors: Record<string, string> = {
-    admin: 'bg-red-100 text-red-800 border-red-200',
-    user: 'bg-blue-100 text-blue-800 border-blue-200',
-    viewer: 'bg-gray-100 text-gray-800 border-gray-200',
-    service: 'bg-purple-100 text-purple-800 border-purple-200',
+    admin: 'red',
+    user: 'blue',
+    viewer: 'default',
+    service: 'purple',
   }
+
+  const notify = useCallback((message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
+    notification[type]({ message })
+  }, [notification])
+
+  const fetchRoles = useCallback(async () => {
+    try {
+      setLoading(true)
+      const res = await api.get('/permissions/roles')
+      setRoles(res.data)
+    } catch (error) {
+      console.error('Failed to fetch roles:', error)
+      notify(t('roleManagement.fetchFailed') || 'Failed to fetch roles', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }, [notify, t])
+
+  const fetchPermissions = useCallback(async () => {
+    try {
+      const res = await api.get('/permissions')
+      setPermissions(res.data)
+    } catch (error) {
+      console.error('Failed to fetch permissions:', error)
+    }
+  }, [])
 
   useEffect(() => {
     if (currentUser?.role !== 'admin') {
@@ -97,143 +145,70 @@ export default function RoleManagementPage() {
     }
     fetchRoles()
     fetchPermissions()
-  }, [currentUser, navigate])
-
-  const fetchRoles = async () => {
-    try {
-      setLoading(true)
-      const res = await api.get('/permissions/roles')
-      setRoles(res.data)
-    } catch (error) {
-      console.error('Failed to fetch roles:', error)
-      alert(t('roleManagement.fetchFailed') || 'Failed to fetch roles')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchPermissions = async () => {
-    try {
-      const res = await api.get('/permissions')
-      setPermissions(res.data)
-    } catch (error) {
-      console.error('Failed to fetch permissions:', error)
-    }
-  }
+  }, [currentUser, navigate, fetchRoles, fetchPermissions])
 
   const isSystemRole = (role: string) => SYSTEM_ROLES.includes(role)
 
-  const validateRoleName = (name: string): boolean => {
-    if (!name) {
-      setRoleNameError(t('roleManagement.roleNameRequired') || 'Role name is required')
-      return false
-    }
-    if (!/^[a-zA-Z0-9_]+$/.test(name)) {
-      setRoleNameError(t('roleManagement.roleNameInvalid') || 'Only alphanumeric and underscore allowed')
-      return false
-    }
-    setRoleNameError(null)
-    return true
-  }
-
   const resetForm = () => {
-    setRoleName('')
+    form.resetFields()
     setSelectedPermissions(new Set())
-    setRoleNameError(null)
     setFormError(null)
-    setSelectedRole(null)
+    setEditRole(null)
   }
 
-  const handleCreateRole = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!validateRoleName(roleName)) return
+  const groupedPermissions = useMemo(() => {
+    return permissions.reduce<Record<string, Permission[]>>((groups, permission) => {
+      const scope = permission.scope || permission.name.split(':')[0] || 'other'
+      groups[scope] = groups[scope] || []
+      groups[scope].push(permission)
+      return groups
+    }, {})
+  }, [permissions])
 
-    setActionLoading(true)
-    setFormError(null)
-    try {
-      await api.post('/permissions/roles', {
-        role: roleName,
-        permission_ids: Array.from(selectedPermissions),
-      })
-      setShowCreateModal(false)
-      resetForm()
-      fetchRoles()
-      alert(t('roleManagement.createSuccess') || 'Role created successfully')
-    } catch (error: any) {
-      const detail = error.response?.data?.detail
-      if (typeof detail === 'string') {
-        setFormError(detail)
-      } else {
-        setFormError(t('roleManagement.createFailed') || 'Failed to create role')
-      }
-    } finally {
-      setActionLoading(false)
-    }
+  const togglePermission = (permissionId: string, checked: boolean) => {
+    setSelectedPermissions(prev => {
+      const next = new Set(prev)
+      if (checked) next.add(permissionId)
+      else next.delete(permissionId)
+      return next
+    })
+  }
+
+  const openCreateModal = () => {
+    resetForm()
+    setCreateOpen(true)
   }
 
   const openEditModal = async (role: string) => {
-    setSelectedRole(role)
-    setRoleName(role)
+    setEditRole(role)
     setFormError(null)
-    setRoleNameError(null)
     setActionLoading(true)
     try {
       const res = await api.get(`/permissions/roles/${role}`)
       const data: RolePermissions = res.data
-      setSelectedPermissions(new Set(data.permissions.map(p => p.id) || []))
-      setShowEditModal(true)
+      setSelectedPermissions(new Set(data.permissions.map(permission => permission.id) || []))
     } catch (error) {
       console.error('Failed to fetch role permissions:', error)
-      alert(t('roleManagement.fetchRoleFailed') || 'Failed to fetch role permissions')
-      resetForm()
-    } finally {
-      setActionLoading(false)
-    }
-  }
-
-  const handleEditRole = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedRole) return
-
-    setActionLoading(true)
-    setFormError(null)
-    try {
-      await api.put(`/permissions/roles/${selectedRole}`, {
-        permission_ids: Array.from(selectedPermissions),
-      })
-      setShowEditModal(false)
-      resetForm()
-      fetchRoles()
-      alert(t('roleManagement.updateSuccess') || 'Role updated successfully')
-    } catch (error: any) {
-      const detail = error.response?.data?.detail
-      if (typeof detail === 'string') {
-        setFormError(detail)
-      } else {
-        setFormError(t('roleManagement.updateFailed') || 'Failed to update role')
-      }
+      notify(t('roleManagement.fetchRoleFailed') || 'Failed to fetch role permissions', 'error')
+      setEditRole(null)
     } finally {
       setActionLoading(false)
     }
   }
 
   const openViewModal = async (role: string) => {
-    setSelectedRole(role)
+    setViewRole(role)
     setViewLoading(true)
-    setShowViewModal(true)
-    setActiveViewTab('permissions')
     try {
       const [roleRes, mappingRes] = await Promise.all([
         api.get(`/permissions/roles/${role}`),
-        api.get('/permissions/resource-mappings')
+        api.get('/permissions/resource-mappings'),
       ])
       const data: RolePermissions = roleRes.data
       setViewRolePermissions(data.permissions || [])
-      
-      // Filter resource mappings for this role's permissions
-      const rolePermIds = new Set(data.permissions.map(p => p.id))
+      const rolePermissionIds = new Set(data.permissions.map(permission => permission.id))
       const allMappings: ResourceMapping[] = mappingRes.data
-      setViewResourceMappings(allMappings.filter(m => rolePermIds.has(m.permission_id)))
+      setViewResourceMappings(allMappings.filter(mapping => rolePermissionIds.has(mapping.permission_id)))
     } catch (error) {
       console.error('Failed to fetch role permissions:', error)
       setViewRolePermissions([])
@@ -243,450 +218,284 @@ export default function RoleManagementPage() {
     }
   }
 
-  const openDeleteModal = (role: RoleSummary) => {
-    setRoleToDelete(role)
-    setShowDeleteModal(true)
-  }
-
-  const handleDeleteRole = async () => {
-    if (!roleToDelete) return
-    if (roleToDelete.user_count > 0) {
+  const handleCreateRole = async () => {
+    const values = await form.validateFields()
+    if (!/^[a-zA-Z0-9_]+$/.test(values.role)) {
+      setFormError(t('roleManagement.roleNameInvalid') || 'Only alphanumeric and underscore allowed')
       return
     }
 
     setActionLoading(true)
+    setFormError(null)
     try {
-      await api.delete(`/permissions/roles/${roleToDelete.role}`)
-      setShowDeleteModal(false)
-      setRoleToDelete(null)
-      fetchRoles()
-      alert(t('roleManagement.deleteSuccess') || 'Role deleted successfully')
+      await api.post('/permissions/roles', {
+        role: values.role,
+        permission_ids: Array.from(selectedPermissions),
+      })
+      setCreateOpen(false)
+      resetForm()
+      await fetchRoles()
+      notify(t('roleManagement.createSuccess') || 'Role created successfully', 'success')
     } catch (error: any) {
-      const detail = error.response?.data?.detail
-      alert(detail || (t('roleManagement.deleteFailed') || 'Failed to delete role'))
+      setFormError(error.response?.data?.detail || (t('roleManagement.createFailed') || 'Failed to create role'))
     } finally {
       setActionLoading(false)
     }
   }
 
-  const togglePermission = (permId: string) => {
-    setSelectedPermissions(prev => {
-      const next = new Set(prev)
-      if (next.has(permId)) {
-        next.delete(permId)
-      } else {
-        next.add(permId)
-      }
-      return next
-    })
+  const handleEditRole = async () => {
+    if (!editRole) return
+    setActionLoading(true)
+    setFormError(null)
+    try {
+      await api.put(`/permissions/roles/${editRole}`, {
+        permission_ids: Array.from(selectedPermissions),
+      })
+      setEditRole(null)
+      resetForm()
+      await fetchRoles()
+      notify(t('roleManagement.updateSuccess') || 'Role updated successfully', 'success')
+    } catch (error: any) {
+      setFormError(error.response?.data?.detail || (t('roleManagement.updateFailed') || 'Failed to update role'))
+    } finally {
+      setActionLoading(false)
+    }
   }
+
+  const handleDeleteRole = async (role: RoleSummary) => {
+    if (role.user_count > 0) return
+    setActionLoading(true)
+    try {
+      await api.delete(`/permissions/roles/${role.role}`)
+      await fetchRoles()
+      notify(t('roleManagement.deleteSuccess') || 'Role deleted successfully', 'success')
+    } catch (error: any) {
+      notify(error.response?.data?.detail || (t('roleManagement.deleteFailed') || 'Failed to delete role'), 'error')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const permissionSelector = (
+    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      {formError && <Alert type="error" showIcon message={formError} />}
+      <Text type="secondary">{t('roleManagement.permissions')} ({selectedPermissions.size})</Text>
+      {Object.keys(groupedPermissions).length === 0 ? (
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('roleManagement.noPermissions')} />
+      ) : (
+        <Tabs
+          tabPosition="left"
+          items={Object.entries(groupedPermissions).map(([scope, scopePermissions]) => ({
+            key: scope,
+            label: `${scope} (${scopePermissions.length})`,
+            children: (
+              <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                {scopePermissions.map(permission => (
+                  <ProCard key={permission.id} bordered size="small">
+                    <Checkbox
+                      checked={selectedPermissions.has(permission.id)}
+                      onChange={event => togglePermission(permission.id, event.target.checked)}
+                    >
+                      <Space direction="vertical" size={0}>
+                        <Text strong>{permission.name}</Text>
+                        {permission.description && <Text type="secondary">{permission.description}</Text>}
+                      </Space>
+                    </Checkbox>
+                  </ProCard>
+                ))}
+              </Space>
+            ),
+          }))}
+        />
+      )}
+    </Space>
+  )
+
+  const viewFrontendMappings = viewResourceMappings.filter(mapping => mapping.resource_type === 'frontend_page')
+  const viewBackendMappings = viewResourceMappings.filter(mapping => mapping.resource_type === 'backend_api')
+
+  const columns: ProColumns<RoleSummary>[] = [
+    {
+      title: t('roleManagement.roleName'),
+      dataIndex: 'role',
+      render: (_, role) => (
+        <Space>
+          <Tag color={roleColors[role.role]}>{roleLabels[role.role] || role.role}</Tag>
+          {isSystemRole(role.role) && <Tag>{t('roleManagement.system')}</Tag>}
+        </Space>
+      ),
+    },
+    {
+      title: t('roleManagement.userCount'),
+      dataIndex: 'user_count',
+      width: 160,
+      render: (_, role) => <Space><TeamOutlined />{role.user_count}</Space>,
+    },
+    {
+      title: t('roleManagement.permissionCount'),
+      dataIndex: 'permission_count',
+      width: 180,
+      render: (_, role) => <Space><LockOutlined />{role.permission_count}</Space>,
+    },
+    {
+      title: t('roleManagement.actions'),
+      valueType: 'option',
+      width: 180,
+      render: (_, role) => [
+        <Tooltip key="view" title={t('roleManagement.view')}>
+          <Button size="small" icon={<EyeOutlined />} onClick={() => openViewModal(role.role)} />
+        </Tooltip>,
+        <Tooltip key="edit" title={t('roleManagement.edit')}>
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(role.role)} />
+        </Tooltip>,
+        <Popconfirm
+          key="delete"
+          title={t('roleManagement.deleteRole')}
+          description={role.user_count > 0 ? t('roleManagement.cannotDeleteUsersAssigned', { count: role.user_count }) : t('roleManagement.deleteConfirm', { role: role.role })}
+          okText={t('common.delete')}
+          cancelText={t('common.cancel')}
+          okButtonProps={{ danger: true, disabled: role.user_count > 0 }}
+          onConfirm={() => handleDeleteRole(role)}
+          disabled={isSystemRole(role.role)}
+        >
+          <Button size="small" danger disabled={isSystemRole(role.role)} icon={<DeleteOutlined />} />
+        </Popconfirm>,
+      ],
+    },
+  ]
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
-      </div>
+      <PageContainer title={t('roleManagement.title')} subTitle={t('roleManagement.subtitle')}>
+        <ProCard bordered><Spin style={{ display: 'block', margin: '64px auto' }} /></ProCard>
+      </PageContainer>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">{t('roleManagement.title')}</h1>
-          <p className="text-dark-400 mt-1">{t('roleManagement.subtitle')}</p>
-        </div>
-        <button
-          onClick={() => { resetForm(); setShowCreateModal(true) }}
-          className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" /> {t('roleManagement.createRole')}
-        </button>
-      </div>
+    <PageContainer
+      title={t('roleManagement.title')}
+      subTitle={t('roleManagement.subtitle')}
+      extra={[
+        <Button key="create" type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+          {t('roleManagement.createRole')}
+        </Button>,
+      ]}
+    >
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <StatisticCard.Group direction="row">
+          <StatisticCard statistic={{ title: t('roleManagement.roles'), value: roles.length, icon: <SafetyCertificateOutlined /> }} />
+          <StatisticCard statistic={{ title: t('roleManagement.permissions'), value: permissions.length, icon: <LockOutlined /> }} />
+          <StatisticCard statistic={{ title: t('roleManagement.system'), value: roles.filter(role => isSystemRole(role.role)).length, icon: <TeamOutlined /> }} />
+        </StatisticCard.Group>
 
-      <div className="bg-dark-800 rounded-lg shadow-sm border border-dark-700">
-        <div className="p-4 border-b border-dark-700 flex items-center gap-2">
-          <Shield className="w-5 h-5 text-dark-400" />
-          <span className="font-medium text-white">{t('roleManagement.roles')} ({roles.length})</span>
-        </div>
-        <table className="min-w-full divide-y divide-dark-700">
-          <thead className="bg-dark-900/50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-dark-400 uppercase tracking-wider">{t('roleManagement.roleName')}</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-dark-400 uppercase tracking-wider">{t('roleManagement.userCount')}</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-dark-400 uppercase tracking-wider">{t('roleManagement.permissionCount')}</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-dark-400 uppercase tracking-wider">{t('roleManagement.actions')}</th>
-            </tr>
-          </thead>
-          <tbody className="bg-dark-800 divide-y divide-dark-700">
-            {roles.map(role => (
-              <tr key={role.role} className="hover:bg-dark-700/50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center gap-3">
-                    <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full border ${roleColors[role.role] || 'bg-gray-100 text-gray-800 border-gray-200'}`}>
-                      {roleLabels[role.role] || role.role}
-                    </span>
-                    {isSystemRole(role.role) && (
-                      <span className="text-xs text-dark-500 bg-dark-700 px-2 py-0.5 rounded">
-                        {t('roleManagement.system')}
-                      </span>
+        <ProCard bordered title={<Space><SafetyCertificateOutlined />{t('roleManagement.roles')} ({roles.length})</Space>}>
+          <ProTable<RoleSummary>
+            rowKey="role"
+            search={false}
+            options={false}
+            columns={columns}
+            dataSource={roles}
+            pagination={{ pageSize: 10, showSizeChanger: true }}
+            toolBarRender={false}
+          />
+        </ProCard>
+      </Space>
+
+      <Modal
+        title={t('roleManagement.createRole')}
+        open={createOpen}
+        width={820}
+        confirmLoading={actionLoading}
+        onOk={handleCreateRole}
+        onCancel={() => {
+          setCreateOpen(false)
+          resetForm()
+        }}
+        okText={t('common.create')}
+        cancelText={t('common.cancel')}
+      >
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <Form form={form} layout="vertical">
+            <Form.Item
+              name="role"
+              label={t('roleManagement.roleName')}
+              rules={[{ required: true, message: t('roleManagement.roleNameRequired') || 'Role name is required' }]}
+            >
+              <Input placeholder={t('roleManagement.roleNamePlaceholder') || 'e.g. auditor'} />
+            </Form.Item>
+          </Form>
+          {permissionSelector}
+        </Space>
+      </Modal>
+
+      <Modal
+        title={`${t('roleManagement.editRole')} - ${editRole ?? ''}`}
+        open={Boolean(editRole)}
+        width={820}
+        confirmLoading={actionLoading}
+        onOk={handleEditRole}
+        onCancel={() => resetForm()}
+        okText={t('common.save')}
+        cancelText={t('common.cancel')}
+      >
+        {actionLoading && selectedPermissions.size === 0 ? <Spin style={{ display: 'block', margin: '32px auto' }} /> : permissionSelector}
+      </Modal>
+
+      <Modal
+        title={`${t('roleManagement.rolePermissions')} - ${viewRole ?? ''}`}
+        open={Boolean(viewRole)}
+        width={840}
+        footer={<Button onClick={() => setViewRole(null)}>{t('common.close')}</Button>}
+        onCancel={() => setViewRole(null)}
+      >
+        {viewLoading ? (
+          <Spin style={{ display: 'block', margin: '48px auto' }} />
+        ) : (
+          <Tabs
+            items={[
+              {
+                key: 'permissions',
+                label: `${t('roleManagement.permissions')} (${viewRolePermissions.length})`,
+                children: viewRolePermissions.length === 0 ? (
+                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('roleManagement.noPermissionsAssigned')} />
+                ) : (
+                  <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                    {viewRolePermissions.map(permission => (
+                      <ProCard key={permission.id} bordered size="small">
+                        <Space direction="vertical" size={0}>
+                          <Text strong>{permission.name}</Text>
+                          {permission.description && <Text type="secondary">{permission.description}</Text>}
+                        </Space>
+                      </ProCard>
+                    ))}
+                  </Space>
+                ),
+              },
+              {
+                key: 'resources',
+                label: `${t('roleManagement.resources')} (${viewResourceMappings.length})`,
+                children: viewResourceMappings.length === 0 ? (
+                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('roleManagement.noResourcesAssigned') || 'No resources assigned'} />
+                ) : (
+                  <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                    {viewFrontendMappings.length > 0 && (
+                      <ProCard title={<Space><GlobalOutlined />{t('roleManagement.frontendPages') || 'Frontend Pages'}</Space>} bordered>
+                        <Space wrap>{viewFrontendMappings.map(mapping => <Tag key={mapping.id} color="blue">{mapping.resource_path}</Tag>)}</Space>
+                      </ProCard>
                     )}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="inline-flex items-center gap-1 text-sm text-dark-300">
-                    <Users className="w-3.5 h-3.5" />
-                    {role.user_count}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="inline-flex items-center gap-1 text-sm text-dark-300">
-                    <Lock className="w-3.5 h-3.5" />
-                    {role.permission_count}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button
-                    onClick={() => openViewModal(role.role)}
-                    className="text-emerald-400 hover:text-emerald-300 mr-3"
-                    title={t('roleManagement.view')}
-                  >
-                    <Eye className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => openEditModal(role.role)}
-                    className="mr-3 text-blue-400 hover:text-blue-300"
-                    title={t('roleManagement.edit')}
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => openDeleteModal(role)}
-                    disabled={isSystemRole(role.role)}
-                    className={isSystemRole(role.role) ? 'text-dark-600 cursor-not-allowed' : 'text-red-400 hover:text-red-300'}
-                    title={isSystemRole(role.role) ? t('roleManagement.systemRoleDeleteDisabled') : t('roleManagement.delete')}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Create Role Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-dark-800 rounded-lg p-6 w-[32rem] max-h-[90vh] overflow-y-auto border border-dark-700">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-white">{t('roleManagement.createRole')}</h3>
-              <button onClick={() => { setShowCreateModal(false); resetForm() }} className="text-dark-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleCreateRole} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-dark-300 mb-1">{t('roleManagement.roleName')}</label>
-                <input
-                  value={roleName}
-                  onChange={e => { setRoleName(e.target.value); if (roleNameError) validateRoleName(e.target.value) }}
-                  placeholder={t('roleManagement.roleNamePlaceholder') || 'e.g. auditor'}
-                  className="w-full px-3 py-2 bg-dark-900 border border-dark-600 rounded-md text-white placeholder-dark-500"
-                  required
-                />
-                {roleNameError && (
-                  <p className="text-red-400 text-xs mt-1">{roleNameError}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-dark-300 mb-2">
-                  {t('roleManagement.permissions')} ({selectedPermissions.size})
-                </label>
-                <div className="max-h-64 overflow-y-auto border border-dark-700 rounded-md p-3 space-y-2">
-                  {permissions.length === 0 ? (
-                    <p className="text-dark-500 text-sm">{t('roleManagement.noPermissions')}</p>
-                  ) : (
-                    permissions.map(perm => (
-                      <label key={perm.id} className="flex items-start gap-2 cursor-pointer hover:bg-dark-700/50 p-1.5 rounded">
-                        <input
-                          type="checkbox"
-                          checked={selectedPermissions.has(perm.id)}
-                          onChange={() => togglePermission(perm.id)}
-                          className="mt-0.5 accent-emerald-500"
-                        />
-                        <div>
-                          <div className="text-sm text-white">{perm.name}</div>
-                          {perm.description && (
-                            <div className="text-xs text-dark-500">{perm.description}</div>
-                          )}
-                        </div>
-                      </label>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {formError && (
-                <div className="text-red-400 text-sm bg-red-900/20 border border-red-800 rounded-md px-3 py-2">
-                  {formError}
-                </div>
-              )}
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => { setShowCreateModal(false); resetForm() }}
-                  className="px-4 py-2 text-dark-300 bg-dark-700 rounded-md hover:bg-dark-600"
-                >
-                  {t('common.cancel')}
-                </button>
-                <button
-                  type="submit"
-                  disabled={actionLoading}
-                  className="px-4 py-2 bg-emerald-500 text-white rounded-md hover:bg-emerald-600 flex items-center gap-2 disabled:opacity-50"
-                >
-                  {actionLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {t('common.create')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Role Modal */}
-      {showEditModal && selectedRole && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-dark-800 rounded-lg p-6 w-[32rem] max-h-[90vh] overflow-y-auto border border-dark-700">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-white">{t('roleManagement.editRole')} - {selectedRole}</h3>
-              <button onClick={() => { setShowEditModal(false); resetForm() }} className="text-dark-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleEditRole} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-dark-300 mb-2">
-                  {t('roleManagement.permissions')} ({selectedPermissions.size})
-                </label>
-                <div className="max-h-64 overflow-y-auto border border-dark-700 rounded-md p-3 space-y-2">
-                  {permissions.length === 0 ? (
-                    <p className="text-dark-500 text-sm">{t('roleManagement.noPermissions')}</p>
-                  ) : (
-                    permissions.map(perm => (
-                      <label key={perm.id} className="flex items-start gap-2 cursor-pointer hover:bg-dark-700/50 p-1.5 rounded">
-                        <input
-                          type="checkbox"
-                          checked={selectedPermissions.has(perm.id)}
-                          onChange={() => togglePermission(perm.id)}
-                          className="mt-0.5 accent-emerald-500"
-                        />
-                        <div>
-                          <div className="text-sm text-white">{perm.name}</div>
-                          {perm.description && (
-                            <div className="text-xs text-dark-500">{perm.description}</div>
-                          )}
-                        </div>
-                      </label>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {formError && (
-                <div className="text-red-400 text-sm bg-red-900/20 border border-red-800 rounded-md px-3 py-2">
-                  {formError}
-                </div>
-              )}
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => { setShowEditModal(false); resetForm() }}
-                  className="px-4 py-2 text-dark-300 bg-dark-700 rounded-md hover:bg-dark-600"
-                >
-                  {t('common.cancel')}
-                </button>
-                <button
-                  type="submit"
-                  disabled={actionLoading}
-                  className="px-4 py-2 bg-emerald-500 text-white rounded-md hover:bg-emerald-600 flex items-center gap-2 disabled:opacity-50"
-                >
-                  {actionLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {t('common.save')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* View Role Permissions Modal */}
-      {showViewModal && selectedRole && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-dark-800 rounded-lg p-6 w-[32rem] max-h-[90vh] overflow-y-auto border border-dark-700">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-white">{t('roleManagement.rolePermissions')} - {selectedRole}</h3>
-              <button onClick={() => { setShowViewModal(false); setSelectedRole(null) }} className="text-dark-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            {/* Tabs */}
-            <div className="flex gap-1 mb-4 bg-dark-900 rounded-lg p-1">
-              <button
-                onClick={() => setActiveViewTab('permissions')}
-                className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeViewTab === 'permissions' 
-                    ? 'bg-dark-700 text-white' 
-                    : 'text-dark-400 hover:text-white'
-                }`}
-              >
-                <Lock className="w-4 h-4 inline mr-1" />
-                {t('roleManagement.permissions')} ({viewRolePermissions.length})
-              </button>
-              <button
-                onClick={() => setActiveViewTab('resources')}
-                className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeViewTab === 'resources' 
-                    ? 'bg-dark-700 text-white' 
-                    : 'text-dark-400 hover:text-white'
-                }`}
-              >
-                <Globe className="w-4 h-4 inline mr-1" />
-                {t('roleManagement.resources')} ({viewResourceMappings.length})
-              </button>
-            </div>
-            
-            {viewLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
-              </div>
-            ) : activeViewTab === 'permissions' ? (
-              viewRolePermissions.length === 0 ? (
-                <div className="text-center py-8 text-dark-500">
-                  <Lock className="w-8 h-8 mx-auto mb-2" />
-                  <p>{t('roleManagement.noPermissionsAssigned')}</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {viewRolePermissions.map(perm => (
-                    <div key={perm.id} className="flex items-center gap-2 px-3 py-2 bg-dark-900 rounded-md border border-dark-700">
-                      <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <span className="text-sm text-white">{perm.name}</span>
-                        {perm.description && (
-                          <span className="text-xs text-dark-500 ml-2">{perm.description}</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )
-            ) : (
-              viewResourceMappings.length === 0 ? (
-                <div className="text-center py-8 text-dark-500">
-                  <Globe className="w-8 h-8 mx-auto mb-2" />
-                  <p>{t('roleManagement.noResourcesAssigned') || 'No resources assigned'}</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Frontend Pages */}
-                  {viewResourceMappings.filter(m => m.resource_type === 'frontend_page').length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-medium text-dark-300 mb-2 flex items-center gap-2">
-                        <Globe className="w-4 h-4 text-blue-400" />
-                        {t('roleManagement.frontendPages') || 'Frontend Pages'}
-                      </h4>
-                      <div className="space-y-1">
-                        {viewResourceMappings
-                          .filter(m => m.resource_type === 'frontend_page')
-                          .map(m => (
-                            <div key={m.id} className="flex items-center gap-2 px-3 py-1.5 bg-dark-900 rounded-md border border-dark-700">
-                              <span className="text-xs text-blue-400 font-mono">{m.resource_path}</span>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Backend APIs */}
-                  {viewResourceMappings.filter(m => m.resource_type === 'backend_api').length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-medium text-dark-300 mb-2 flex items-center gap-2">
-                        <Server className="w-4 h-4 text-emerald-400" />
-                        {t('roleManagement.backendApis') || 'Backend APIs'}
-                      </h4>
-                      <div className="space-y-1 max-h-48 overflow-y-auto">
-                        {viewResourceMappings
-                          .filter(m => m.resource_type === 'backend_api')
-                          .map(m => (
-                            <div key={m.id} className="flex items-center gap-2 px-3 py-1.5 bg-dark-900 rounded-md border border-dark-700">
-                              <span className="text-xs text-emerald-400 font-mono">{m.resource_path}</span>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )
-            )}
-            <div className="flex justify-end mt-4">
-              <button
-                onClick={() => { setShowViewModal(false); setSelectedRole(null) }}
-                className="px-4 py-2 bg-dark-700 text-white rounded-md hover:bg-dark-600"
-              >
-                {t('common.close')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && roleToDelete && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-dark-800 rounded-lg p-6 w-[24rem] border border-dark-700">
-            <div className="flex items-center gap-3 mb-4">
-              <AlertTriangle className="w-6 h-6 text-red-400" />
-              <h3 className="text-lg font-medium text-white">{t('roleManagement.deleteRole')}</h3>
-            </div>
-            <p className="text-dark-300 mb-4">
-              {t('roleManagement.deleteConfirm', { role: roleToDelete.role })}
-            </p>
-            {roleToDelete.user_count > 0 ? (
-              <div className="bg-red-900/20 border border-red-800 rounded-md px-3 py-2 mb-4">
-                <p className="text-red-400 text-sm font-medium">
-                  {t('roleManagement.cannotDeleteUsersAssigned', { count: roleToDelete.user_count })}
-                </p>
-                <p className="text-red-300/70 text-xs mt-1">
-                  {t('roleManagement.pleaseReassignUsersFirst') || 'Please reassign these users to another role before deleting.'}
-                </p>
-              </div>
-            ) : (
-              <p className="text-dark-500 text-sm mb-4">{t('roleManagement.noUsersAssigned')}</p>
-            )}
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => { setShowDeleteModal(false); setRoleToDelete(null) }}
-                className="px-4 py-2 text-dark-300 bg-dark-700 rounded-md hover:bg-dark-600"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                onClick={handleDeleteRole}
-                disabled={roleToDelete.user_count > 0 || actionLoading}
-                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {actionLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                {t('common.delete')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+                    {viewBackendMappings.length > 0 && (
+                      <ProCard title={<Space><ApiOutlined />{t('roleManagement.backendApis') || 'Backend APIs'}</Space>} bordered>
+                        <Space direction="vertical" size={4}>{viewBackendMappings.map(mapping => <Text key={mapping.id} code>{mapping.resource_path}</Text>)}</Space>
+                      </ProCard>
+                    )}
+                  </Space>
+                ),
+              },
+            ]}
+          />
+        )}
+      </Modal>
+    </PageContainer>
   )
 }

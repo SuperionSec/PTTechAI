@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useTranslation } from 'react-i18next'
-import { LogOut, User, Settings, Globe } from 'lucide-react'
+import { LogoutOutlined, UserOutlined, SettingOutlined, GlobalOutlined } from '@ant-design/icons'
 import { useState } from 'react'
 import i18n from '../../locales'
 
@@ -39,7 +39,7 @@ export default function Header() {
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-dark-300 hover:text-white hover:bg-dark-700 transition-colors"
           title={t('languageSwitcher.label')}
         >
-          <Globe className="w-4 h-4" />
+          <GlobalOutlined className="w-4 h-4" />
           <span>{i18n.language === 'zh-CN' ? '中文' : 'EN'}</span>
         </button>
         <span className="text-sm text-dark-400">
@@ -57,7 +57,7 @@ export default function Header() {
               className="flex items-center gap-2 pl-4 border-l border-dark-700 hover:bg-dark-700 rounded-lg p-1 transition-colors"
             >
               <div className="w-8 h-8 bg-primary-500/20 rounded-full flex items-center justify-center">
-                <User className="w-4 h-4 text-primary-400" />
+                <UserOutlined className="w-4 h-4 text-primary-400" />
               </div>
               <div className="text-sm text-left">
                 <p className="text-white font-medium">{user.full_name || user.email}</p>
@@ -76,10 +76,10 @@ export default function Header() {
                 </div>
                 <div className="py-1">
                   <button onClick={() => { navigate('/profile'); setShowMenu(false) }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-dark-300 hover:text-white hover:bg-dark-700">
-                    <Settings className="w-4 h-4" /> {t('profile.title')}
+                    <SettingOutlined className="w-4 h-4" /> {t('profile.title')}
                   </button>
                   <button onClick={() => { logout(); setShowMenu(false); navigate('/login') }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 border-t border-dark-700">
-                    <LogOut className="w-4 h-4" /> {t('auth.logout')}
+                    <LogoutOutlined className="w-4 h-4" /> {t('auth.logout')}
                   </button>
                 </div>
               </div>

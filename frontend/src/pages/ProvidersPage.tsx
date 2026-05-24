@@ -1,49 +1,42 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { relativeTime } from '../utils/time'
+import { PageContainer, ProCard, StatisticCard } from '@ant-design/pro-components'
 import {
-  Plug,
-  RefreshCw,
-  Search,
-  CheckCircle,
-  XCircle,
-  Trash2,
-  TestTube,
-  Key,
-  Wifi,
-  Loader2,
-  X,
-  Plus,
-  AlertCircle,
-  Activity,
-  Zap,
-  Clock,
-  Shield,
-} from 'lucide-react'
+  Alert,
+  App as AntApp,
+  Avatar,
+  Button,
+  Drawer,
+  Empty,
+  Form,
+  Input,
+  List,
+  Popconfirm,
+  Space,
+  Spin,
+  Switch,
+  Tag,
+  Typography,
+} from 'antd'
+import {
+  ApiOutlined,
+  CheckCircleOutlined,
+  CloudSyncOutlined,
+  DeleteOutlined,
+  ExperimentOutlined,
+  KeyOutlined,
+  PlusOutlined,
+  ReloadOutlined,
 
-/* ---------- inline keyframes ---------- */
-const styleTag = `
-@keyframes fadeSlideIn {
-  from { opacity: 0; transform: translateY(-8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes refreshSpin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
-`
+  SearchOutlined,
+  SettingOutlined,
+  ThunderboltOutlined,
+} from '@ant-design/icons'
+import type { TFunction } from 'i18next'
+import { relativeTime } from '../utils/time'
+import { providersApi } from '../services/api'
 
-const API = '/api/v1/providers'
-
-function authHeaders(): HeadersInit {
-  const token = localStorage.getItem('access_token')
-  return {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  }
-}
-
-/* ---------- Types ---------- */
+const { Text } = Typography
 
 interface Account {
   id: string
@@ -76,67 +69,35 @@ interface ProviderStatus {
   total_tokens: number
 }
 
-/* ---------- Toast notification system ---------- */
-
-interface Toast {
-  id: number
-  message: string
-  type: 'success' | 'error' | 'info'
+interface ConnectFormValues {
+  label?: string
+  credential: string
 }
 
-let _toastId = 0
-
-function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: number) => void }) {
-  if (toasts.length === 0) return null
-  const borderColor: Record<string, string> = {
-    info: 'border-blue-500',
-    success: 'border-green-500',
-    error: 'border-red-500',
-  }
-  return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm">
-      {toasts.map(t => (
-        <div
-          key={t.id}
-          className={`bg-dark-800 border-l-4 ${borderColor[t.type]} rounded-lg px-4 py-3 shadow-xl flex items-start gap-3`}
-          style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
-        >
-          <span className="text-sm text-dark-200 flex-1">{t.message}</span>
-          <button onClick={() => onDismiss(t.id)} className="text-dark-500 hover:text-white">
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      ))}
-    </div>
-  )
+const providerColors: Record<string, string> = {
+  claude_code: '#f97316',
+  codex_cli: '#22c55e',
+  gemini_cli: '#60a5fa',
+  cursor: '#a855f7',
+  copilot: '#6b7280',
+  iflow: '#22d3ee',
+  qwen_code: '#6366f1',
+  kiro: '#eab308',
+  bailian: '#dc2626',
+  anthropic: '#ea580c',
+  openai: '#059669',
+  gemini: '#3b82f6',
+  openrouter: '#8b5cf6',
+  glm: '#ef4444',
+  kimi: '#ec4899',
+  minimax: '#f59e0b',
+  together: '#14b8a6',
+  fireworks: '#f43f5e',
+  ollama: '#4b5563',
+  lmstudio: '#64748b',
 }
 
-/* ---------- Provider visual config ---------- */
-
-const PROVIDER_COLORS: Record<string, string> = {
-  claude_code: 'bg-orange-500',
-  codex_cli: 'bg-green-500',
-  gemini_cli: 'bg-blue-400',
-  cursor: 'bg-purple-500',
-  copilot: 'bg-gray-500',
-  iflow: 'bg-cyan-400',
-  qwen_code: 'bg-indigo-500',
-  kiro: 'bg-yellow-500',
-  bailian: 'bg-red-600',
-  anthropic: 'bg-orange-600',
-  openai: 'bg-emerald-600',
-  gemini: 'bg-blue-500',
-  openrouter: 'bg-violet-500',
-  glm: 'bg-red-500',
-  kimi: 'bg-pink-500',
-  minimax: 'bg-amber-500',
-  together: 'bg-teal-500',
-  fireworks: 'bg-rose-500',
-  ollama: 'bg-gray-600',
-  lmstudio: 'bg-slate-500',
-}
-
-const PROVIDER_INITIALS: Record<string, string> = {
+const providerInitials: Record<string, string> = {
   claude_code: 'CC',
   codex_cli: 'CX',
   gemini_cli: 'GC',
@@ -159,35 +120,35 @@ const PROVIDER_INITIALS: Record<string, string> = {
   lmstudio: 'LS',
 }
 
-const TIER_LABELS: Record<number, string> = {
+const tierLabels: Record<number, string> = {
   1: 'tier1',
   2: 'tier2',
   3: 'tier3',
 }
 
-const TIER_COLORS: Record<number, string> = {
-  1: 'text-yellow-400 bg-yellow-400/10',
-  2: 'text-blue-400 bg-blue-400/10',
-  3: 'text-green-400 bg-green-400/10',
-}
-
-function formatExpiryTime(expiresAt: number | null, t: (key: string, options?: any) => string): { label: string; isExpired: boolean; urgency: string } {
-  if (!expiresAt) return { label: '', isExpired: false, urgency: '' }
-  const nowSec = Date.now() / 1000
-  const diff = expiresAt - nowSec
-  if (diff <= 0) return { label: t('providers.expired'), isExpired: true, urgency: 'text-red-400' }
+function formatExpiryTime(expiresAt: number | null, t: TFunction): { label: string; color?: string } {
+  if (!expiresAt) return { label: '' }
+  const diff = expiresAt - Date.now() / 1000
+  if (diff <= 0) return { label: t('providers.expired'), color: 'red' }
   const minutes = Math.floor(diff / 60)
-  if (minutes < 60) return { label: t('providers.minutesLeft', { minutes }), isExpired: false, urgency: 'text-yellow-400' }
+  if (minutes < 60) return { label: t('providers.minutesLeft', { minutes }), color: 'gold' }
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return { label: t('providers.hoursLeft', { hours }), isExpired: false, urgency: hours < 2 ? 'text-yellow-400' : 'text-green-400' }
+  if (hours < 24) return { label: t('providers.hoursLeft', { hours }), color: hours < 2 ? 'gold' : 'green' }
   const days = Math.floor(hours / 24)
-  return { label: t('providers.daysLeft', { days }), isExpired: false, urgency: 'text-green-400' }
+  return { label: t('providers.daysLeft', { days }), color: 'green' }
 }
 
-/* ---------- Main Component ---------- */
+function providerInitial(provider: Provider) {
+  return providerInitials[provider.id] || provider.id.substring(0, 2).toUpperCase()
+}
+
+function providerColor(provider: Provider) {
+  return providerColors[provider.id] || '#64748b'
+}
 
 export default function ProvidersPage() {
   const { t } = useTranslation()
+  const { notification } = AntApp.useApp()
   const [providers, setProviders] = useState<Provider[]>([])
   const [enabled, setEnabled] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -201,27 +162,18 @@ export default function ProvidersPage() {
   const [envEditing, setEnvEditing] = useState<Record<string, string>>({})
   const [envSaving, setEnvSaving] = useState<string | null>(null)
   const [envSearch, setEnvSearch] = useState('')
-  const [toasts, setToasts] = useState<Toast[]>([])
 
-  /* ---------- Toast helpers ---------- */
-  const addToast = useCallback((message: string, type: Toast['type']) => {
-    const id = ++_toastId
-    setToasts(prev => [...prev, { id, message, type }])
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000)
-  }, [])
+  const notify = useCallback((message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
+    notification[type]({ message })
+  }, [notification])
 
-  const dismissToast = useCallback((id: number) => {
-    setToasts(prev => prev.filter(t => t.id !== id))
-  }, [])
-
-  /* ---------- Data fetching ---------- */
   const fetchProviders = useCallback(async () => {
     try {
-      const res = await fetch(API, { headers: authHeaders() })
-      const data = await res.json()
+      const data = await providersApi.list()
       setEnabled(data.enabled)
       setProviders(data.providers || [])
-    } catch {
+    } catch (error) {
+      console.error('Failed to fetch providers:', error)
       setEnabled(false)
     } finally {
       setLoading(false)
@@ -230,11 +182,10 @@ export default function ProvidersPage() {
 
   const fetchStatus = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/status`, { headers: authHeaders() })
-      const data: ProviderStatus = await res.json()
+      const data = await providersApi.getStatus()
       setStatus(data)
     } catch {
-      // ignore
+      setStatus(null)
     }
   }, [])
 
@@ -249,105 +200,68 @@ export default function ProvidersPage() {
     fetchStatus()
   }, [fetchProviders, fetchStatus])
 
-  /* ---------- Derived data ---------- */
-  const oauthProviders = useMemo(
-    () => providers.filter((p) => p.auth_type === 'oauth'),
-    [providers]
-  )
-
-  const apiKeyProviders = useMemo(
-    () => providers.filter((p) => p.auth_type === 'api_key'),
-    [providers]
-  )
-
-  const connectedCount = useMemo(
-    () => providers.filter((p) => p.connected).length,
-    [providers]
-  )
-
-  const totalTokensUsed = useMemo(
-    () => providers.reduce((sum, p) => sum + p.accounts.reduce((s, a) => s + a.tokens_used, 0), 0),
-    [providers]
-  )
-
-  const totalAccounts = useMemo(
-    () => providers.reduce((sum, p) => sum + p.accounts.length, 0),
-    [providers]
-  )
-
+  const oauthProviders = useMemo(() => providers.filter(provider => provider.auth_type === 'oauth'), [providers])
+  const apiKeyProviders = useMemo(() => providers.filter(provider => provider.auth_type === 'api_key'), [providers])
+  const connectedCount = useMemo(() => providers.filter(provider => provider.connected).length, [providers])
+  const totalTokensUsed = useMemo(() => providers.reduce((sum, provider) => sum + provider.accounts.reduce((accountSum, account) => accountSum + account.tokens_used, 0), 0), [providers])
+  const totalAccounts = useMemo(() => providers.reduce((sum, provider) => sum + provider.accounts.length, 0), [providers])
   const filteredEnvKeys = useMemo(() => {
     if (!envSearch.trim()) return envAllowedKeys
     const q = envSearch.toLowerCase()
-    return envAllowedKeys.filter(k => k.toLowerCase().includes(q))
+    return envAllowedKeys.filter(key => key.toLowerCase().includes(q))
   }, [envAllowedKeys, envSearch])
 
-  /* ---------- Handlers ---------- */
   const handleDetectAll = useCallback(async () => {
     setDetecting(true)
     try {
-      const res = await fetch(`${API}/detect-all`, { method: 'POST', headers: authHeaders() })
-      const data = await res.json()
+      const data = await providersApi.detectAll()
       if (data.detected_count > 0) {
         await fetchProviders()
-        addToast(t('providers.detectedTokens', { count: data.detected_count }), 'success')
+        notify(t('providers.detectedTokens', { count: data.detected_count }), 'success')
       } else {
-        addToast(t('providers.noNewTokens'), 'info')
+        notify(t('providers.noNewTokens'), 'info')
       }
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : t('common.error')
-      addToast(`${t('providers.detectionFailed')}: ${msg}`, 'error')
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : t('common.error')
+      notify(`${t('providers.detectionFailed')}: ${msg}`, 'error')
     } finally {
       setDetecting(false)
     }
-  }, [fetchProviders, addToast, t])
+  }, [fetchProviders, notify, t])
 
   const handleToggleProvider = useCallback(async (providerId: string, currentEnabled: boolean) => {
     try {
-      const res = await fetch(`${API}/${providerId}/toggle`, {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({ enabled: !currentEnabled }),
-      })
-      if (res.ok) {
-        setProviders(prev => prev.map(p =>
-          p.id === providerId ? { ...p, enabled: !currentEnabled } : p
-        ))
-        addToast(t(`providers.${!currentEnabled ? 'enabled' : 'disabled'}`), 'success')
-      }
+      await providersApi.toggle(providerId, !currentEnabled)
+      setProviders(prev => prev.map(provider => provider.id === providerId ? { ...provider, enabled: !currentEnabled } : provider))
+      notify(t(`providers.${!currentEnabled ? 'enabled' : 'disabled'}`), 'success')
     } catch {
-      addToast(t('providers.failedToToggle'), 'error')
+      notify(t('providers.failedToToggle'), 'error')
     }
-  }, [addToast, t])
+  }, [notify, t])
 
   const fetchEnvVars = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/env`, { headers: authHeaders() })
-      const data = await res.json()
+      const data = await providersApi.getEnv()
       setEnvVars(data.env || {})
       setEnvAllowedKeys(data.allowed_keys || [])
-      setEnvEditing({ ...data.env })
+      setEnvEditing({ ...(data.env || {}) })
     } catch {
-      addToast(t('providers.loadEnvFailed'), 'error')
+      notify(t('providers.loadEnvFailed'), 'error')
     }
-  }, [addToast, t])
+  }, [notify, t])
 
   const handleSaveEnvVar = useCallback(async (key: string) => {
     setEnvSaving(key)
     try {
-      const res = await fetch(`${API}/env`, {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({ key, value: envEditing[key] || '' }),
-      })
-      if (res.ok) {
-        setEnvVars(prev => ({ ...prev, [key]: envEditing[key] || '' }))
-        addToast(`Saved ${key}`, 'success')
-      }
+      await providersApi.updateEnv(key, envEditing[key] || '')
+      setEnvVars(prev => ({ ...prev, [key]: envEditing[key] || '' }))
+      notify(`Saved ${key}`, 'success')
     } catch {
-      addToast(`Failed to save ${key}`, 'error')
+      notify(`Failed to save ${key}`, 'error')
+    } finally {
+      setEnvSaving(null)
     }
-    setEnvSaving(null)
-  }, [envEditing, addToast])
+  }, [envEditing, notify])
 
   const handleEnvEditorToggle = useCallback(() => {
     setShowEnvEditor(prev => {
@@ -356,466 +270,251 @@ export default function ProvidersPage() {
     })
   }, [fetchEnvVars])
 
-  const handleEnvEditingChange = useCallback((key: string, value: string) => {
-    setEnvEditing(prev => ({ ...prev, [key]: value }))
-  }, [])
-
-  const handleSelectProvider = useCallback((p: Provider) => {
-    setSelectedProvider(p)
-  }, [])
-
-  const handleCloseModal = useCallback(() => {
-    setSelectedProvider(null)
-    fetchProviders()
-  }, [fetchProviders])
-
-  /* ---------- Render ---------- */
-
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
-        <span className="text-dark-400 text-sm">{t('providers.loadingProviders')}</span>
-      </div>
+      <PageContainer title={t('providers.title')}>
+        <ProCard bordered><Spin style={{ display: 'block', margin: '64px auto' }} tip={t('providers.loadingProviders')} /></ProCard>
+      </PageContainer>
     )
   }
 
   return (
-    <>
-      {/* Inline keyframes */}
-      <style>{styleTag}</style>
-
-      {/* Toast notifications */}
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-
-      <div className="space-y-6">
-        {/* Header */}
-        <div
-          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-          style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
-        >
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-3">
-              <div className="p-2 bg-primary-500/20 rounded-lg">
-                <Plug className="w-6 h-6 text-primary-400" />
-              </div>
-              {t('providers.title')}
-            </h1>
-            <p className="text-dark-400 mt-1 ml-14">
-                {enabled
-                  ? t('providers.smartRouterActive', { connected: connectedCount, total: providers.length })
-                  : t('providers.smartRouterDisabled')}
-              </p>
-          </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            {status?.enabled && (
-              <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5">
-                <Activity className="w-3.5 h-3.5 text-primary-400" />
-                <span className="text-primary-400">{status.total_requests || 0}</span>
-                <span className="text-dark-500">{t('providers.requests')}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Zap className="w-3.5 h-3.5 text-primary-400" />
-                <span className="text-primary-400">{(status.total_tokens || 0).toLocaleString()}</span>
-                <span className="text-dark-500">{t('providers.tokens')}</span>
-              </div>
-            </div>
-            )}
-            <button
-              onClick={handleDetectAll}
-              disabled={detecting}
-              className="btn-secondary flex items-center gap-2"
-            >
-              {detecting ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Search className="w-4 h-4" />
-              )}
-              {t('providers.detectAllClis')}
-            </button>
-            <button
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="btn-secondary flex items-center gap-2"
-            >
-              <RefreshCw
-                className="w-4 h-4"
-                style={refreshing ? { animation: 'refreshSpin 0.8s linear infinite' } : undefined}
-              />
-              {t('common.refresh')}
-            </button>
-          </div>
-        </div>
-
-        {/* Disabled Banner */}
+    <PageContainer
+      title={t('providers.title')}
+      subTitle={enabled ? t('providers.smartRouterActive', { connected: connectedCount, total: providers.length }) : t('providers.smartRouterDisabled')}
+      extra={[
+        <Button key="detect" type="primary" icon={<SearchOutlined />} loading={detecting} onClick={handleDetectAll}>
+          {t('providers.detectAllClis')}
+        </Button>,
+        <Button key="refresh" icon={<ReloadOutlined spin={refreshing} />} onClick={handleRefresh}>
+          {t('common.refresh')}
+        </Button>,
+      ]}
+    >
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
         {!enabled && (
-          <div
-            className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 flex items-center gap-3"
-            style={{ animation: 'fadeSlideIn 0.35s ease-out' }}
-          >
-            <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0" />
-            <div>
-              <p className="text-yellow-400 font-medium">{t('providers.smartRouterDisabledTitle')}</p>
-              <p className="text-dark-400 text-sm">
-                {t('providers.smartRouterDisabledDesc')}
-              </p>
-            </div>
-          </div>
+          <Alert
+            type="warning"
+            showIcon
+            message={t('providers.smartRouterDisabledTitle')}
+            description={t('providers.smartRouterDisabledDesc')}
+          />
         )}
 
-        {/* Summary Stats */}
         {providers.length > 0 && (
-          <div
-            className="grid grid-cols-1 sm:grid-cols-4 gap-4"
-            style={{ animation: 'fadeSlideIn 0.4s ease-out' }}
-          >
-            <div className="bg-dark-800/50 border border-dark-700/50 rounded-lg p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-500/15 rounded-lg">
-                  <Plug className="w-5 h-5 text-blue-400" />
-                </div>
-                <div>
-                  <p className="text-dark-400 text-sm">{t('providers.providersCount')}</p>
-                  <p className="text-2xl font-bold text-white">{providers.length}</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-dark-800/50 border border-dark-700/50 rounded-lg p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-500/15 rounded-lg">
-                  <CheckCircle className="w-5 h-5 text-green-400" />
-                </div>
-                <div>
-                  <p className="text-dark-400 text-sm">{t('providers.connected')}</p>
-                  <p className="text-2xl font-bold text-green-400">{connectedCount}</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-dark-800/50 border border-dark-700/50 rounded-lg p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-500/15 rounded-lg">
-                  <Shield className="w-5 h-5 text-purple-400" />
-                </div>
-                <div>
-                  <p className="text-dark-400 text-sm">{t('providers.accountsCount')}</p>
-                  <p className="text-2xl font-bold text-white">{totalAccounts}</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-dark-800/50 border border-dark-700/50 rounded-lg p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary-500/15 rounded-lg">
-                  <Zap className="w-5 h-5 text-primary-400" />
-                </div>
-                <div>
-                  <p className="text-dark-400 text-sm">{t('providers.totalTokensCount')}</p>
-                  <p className="text-2xl font-bold text-primary-400">{totalTokensUsed.toLocaleString()}</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <StatisticCard.Group direction="row">
+            <StatisticCard statistic={{ title: t('providers.providersCount'), value: providers.length, icon: <ApiOutlined /> }} />
+            <StatisticCard statistic={{ title: t('providers.connected'), value: connectedCount, icon: <CheckCircleOutlined />, status: 'success' }} />
+            <StatisticCard statistic={{ title: t('providers.accountsCount'), value: totalAccounts, icon: <KeyOutlined /> }} />
+            <StatisticCard statistic={{ title: t('providers.totalTokensCount'), value: totalTokensUsed, icon: <ThunderboltOutlined /> }} />
+            {status?.enabled && <StatisticCard statistic={{ title: t('providers.requests'), value: status.total_requests || 0, icon: <CloudSyncOutlined /> }} />}
+          </StatisticCard.Group>
         )}
 
-        {/* OAuth Providers Grid */}
         {oauthProviders.length > 0 && (
-          <div style={{ animation: 'fadeSlideIn 0.45s ease-out' }}>
-            <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-              <Wifi className="w-5 h-5 text-blue-400" />
-              {t('providers.oauthProviders')}
-              <span className="text-xs text-dark-500 font-normal ml-1">{t('providers.cliTokenDetection')}</span>
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {oauthProviders.map((p, idx) => (
-                <ProviderCard
-                  key={p.id}
-                  provider={p}
-                  onClick={() => handleSelectProvider(p)}
-                  enabled={enabled}
-                  onToggle={() => handleToggleProvider(p.id, p.enabled)}
-                  animationDelay={0.1 + idx * 0.05}
-                  t={t}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* API Key Providers Grid */}
-        {apiKeyProviders.length > 0 && (
-          <div style={{ animation: 'fadeSlideIn 0.5s ease-out' }}>
-            <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-              <Key className="w-5 h-5 text-amber-400" />
-              {t('providers.apiKeyProviders')}
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {apiKeyProviders.map((p, idx) => (
-                <ProviderCard
-                  key={p.id}
-                  provider={p}
-                  onClick={() => handleSelectProvider(p)}
-                  enabled={enabled}
-                  onToggle={() => handleToggleProvider(p.id, p.enabled)}
-                  animationDelay={0.1 + idx * 0.05}
-                  t={t}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Empty state */}
-        {providers.length === 0 && !loading && (
-          <div
-            className="bg-dark-800 border border-dark-700/50 rounded-xl p-16 text-center"
-            style={{ animation: 'fadeSlideIn 0.4s ease-out' }}
-          >
-            <div className="w-20 h-20 bg-dark-700/30 rounded-full flex items-center justify-center mx-auto mb-5">
-              <Plug className="w-10 h-10 text-dark-500" />
-            </div>
-            <p className="text-dark-300 font-semibold text-lg">{t('providers.noProviders')}</p>
-            <p className="text-dark-500 text-sm mt-2 max-w-md mx-auto">
-              {t('providers.addFirstProvider')}
-            </p>
-          </div>
-        )}
-
-        {/* Environment Variables Editor */}
-        <div className="mt-2" style={{ animation: 'fadeSlideIn 0.55s ease-out' }}>
-          <button
-            onClick={handleEnvEditorToggle}
-            className="flex items-center gap-2 text-sm text-dark-400 hover:text-white transition-colors group"
-          >
-            <div className="p-1.5 bg-dark-700/50 rounded-lg group-hover:bg-dark-700 transition-colors">
-              <Key className="w-4 h-4" />
-            </div>
-            {showEnvEditor ? t('providers.hide') : t('providers.show')} {t('providers.apiKeyConfigManager')}
-          </button>
-
-          {showEnvEditor && (
-            <div
-              className="mt-4 bg-dark-800 border border-dark-700 rounded-xl p-5 space-y-4"
-              style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
-            >
-              <div className="flex items-center justify-between">
-                <h3 className="text-white font-semibold text-sm">{t('providers.envVariables')}</h3>
-                {envAllowedKeys.length > 0 && (
-                  <div className="relative">
-                    <Search className="w-3.5 h-3.5 text-dark-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      placeholder={t('providers.filterVariables')}
-                      value={envSearch}
-                      onChange={(e) => setEnvSearch(e.target.value)}
-                      className="pl-8 pr-3 py-1.5 bg-dark-900 border border-dark-600 rounded-lg text-white text-xs placeholder-dark-500 focus:outline-none focus:border-primary-500 w-48"
-                    />
-                  </div>
-                )}
-              </div>
-              {envAllowedKeys.length === 0 ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-5 h-5 text-dark-400 animate-spin" />
-                  <span className="text-dark-500 text-sm ml-3">{t('providers.loading')}</span>
-                </div>
-              ) : filteredEnvKeys.length === 0 ? (
-                <div className="text-center py-8">
-                  <Search className="w-6 h-6 text-dark-500 mx-auto mb-2" />
-                  <p className="text-dark-500 text-sm">{t('providers.noVariablesMatch', { search: envSearch })}</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-2 max-h-96 overflow-y-auto pr-1">
-                  {filteredEnvKeys.map(key => {
-                    const isModified = envEditing[key] !== envVars[key]
-                    return (
-                      <div
-                        key={key}
-                        className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-colors ${
-                          isModified ? 'bg-primary-500/5 border border-primary-500/20' : 'bg-dark-900 border border-transparent'
-                        }`}
-                      >
-                        <span className="text-xs text-dark-400 font-mono w-48 flex-shrink-0 truncate" title={key}>
-                          {key}
-                        </span>
-                        <input
-                          type={key.includes('KEY') || key.includes('TOKEN') || key.includes('SECRET') ? 'password' : 'text'}
-                          value={envEditing[key] || ''}
-                          onChange={e => handleEnvEditingChange(key, e.target.value)}
-                          placeholder={t('providers.notSet')}
-                          className="flex-1 px-2 py-1 bg-dark-800 border border-dark-600 rounded text-white text-xs font-mono placeholder-dark-500 focus:outline-none focus:border-primary-500 transition-colors"
-                        />
-                        <button
-                          onClick={() => handleSaveEnvVar(key)}
-                          disabled={envSaving === key || !isModified}
-                          className={`px-2.5 py-1 text-xs rounded font-medium transition-all ${
-                            isModified
-                              ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
-                              : 'bg-dark-700 text-dark-500 cursor-not-allowed'
-                          }`}
-                        >
-                          {envSaving === key ? <Loader2 className="w-3 h-3 animate-spin" /> : t('providers.save')}
-                        </button>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Config Modal */}
-        {selectedProvider && (
-          <ConfigModal
-            provider={selectedProvider}
-            onClose={handleCloseModal}
+          <ProviderSection
+            title={t('providers.oauthProviders')}
+            subtitle={t('providers.cliTokenDetection')}
+            icon={<CloudSyncOutlined />}
+            providers={oauthProviders}
             enabled={enabled}
-            addToast={addToast}
+            onSelect={setSelectedProvider}
+            onToggle={handleToggleProvider}
             t={t}
           />
         )}
-      </div>
-    </>
-  )
-}
 
-/* ---------- ProviderCard ---------- */
+        {apiKeyProviders.length > 0 && (
+          <ProviderSection
+            title={t('providers.apiKeyProviders')}
+            icon={<KeyOutlined />}
+            providers={apiKeyProviders}
+            enabled={enabled}
+            onSelect={setSelectedProvider}
+            onToggle={handleToggleProvider}
+            t={t}
+          />
+        )}
 
-function ProviderCard({
-  provider,
-  onClick,
-  enabled,
-  onToggle,
-  animationDelay,
-  t,
-}: {
-  provider: Provider
-  onClick: () => void
-  enabled: boolean
-  onToggle: () => void
-  animationDelay: number
-  t: (key: string, options?: any) => string
-}) {
-  const color = PROVIDER_COLORS[provider.id] || 'bg-gray-500'
-  const initials = PROVIDER_INITIALS[provider.id] || provider.id.substring(0, 2).toUpperCase()
-  const tierColor = TIER_COLORS[provider.tier] || 'text-gray-400 bg-gray-400/10'
-  const totalTokens = provider.accounts.reduce((sum, a) => sum + a.tokens_used, 0)
-  const isProviderEnabled = provider.enabled !== false
-  const activeAccounts = provider.accounts.filter(a => a.is_active).length
+        {providers.length === 0 && (
+          <ProCard bordered>
+            <Empty
+              image={<ApiOutlined style={{ fontSize: 56 }} />}
+              description={(
+                <Space direction="vertical">
+                  <Text strong>{t('providers.noProviders')}</Text>
+                  <Text type="secondary">{t('providers.addFirstProvider')}</Text>
+                </Space>
+              )}
+            />
+          </ProCard>
+        )}
 
-  return (
-    <div
-      className={`bg-dark-800 border rounded-xl p-4 text-left transition-all hover:border-primary-500/50 hover:bg-dark-750 group ${
-        provider.connected && isProviderEnabled ? 'border-green-500/30' :
-        !isProviderEnabled ? 'border-red-500/20' : 'border-dark-700'
-      } ${!enabled || !isProviderEnabled ? 'opacity-60' : ''}`}
-      style={{ animation: `fadeSlideIn ${animationDelay}s ease-out` }}
-    >
-      <div className="flex items-start justify-between mb-3">
-        <div
-          className={`w-12 h-12 ${color} rounded-xl flex items-center justify-center cursor-pointer shadow-lg transition-transform group-hover:scale-105`}
-          onClick={enabled ? onClick : undefined}
+        <ProCard
+          bordered
+          title={<Space><SettingOutlined />{t('providers.apiKeyConfigManager')}</Space>}
+          extra={<Button type="link" onClick={handleEnvEditorToggle}>{showEnvEditor ? t('providers.hide') : t('providers.show')}</Button>}
         >
-          <span className="text-white font-bold text-sm">{initials}</span>
-        </div>
-        <div className="flex flex-col items-end gap-1.5">
-          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${tierColor}`}>
-            {t(`common.${TIER_LABELS[provider.tier]}`)}
-          </span>
-          {/* Enable/Disable Toggle */}
-          <label
-            className="flex items-center gap-1.5 cursor-pointer select-none"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <span className={`text-[10px] font-medium ${isProviderEnabled ? 'text-green-400' : 'text-red-400'}`}>
-              {isProviderEnabled ? t('common.on') : t('common.off')}
-            </span>
-            <button
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggle() }}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-offset-dark-900 ${
-                isProviderEnabled ? 'bg-green-500 focus:ring-green-500/50' : 'bg-dark-600 focus:ring-dark-500/50'
-              }`}
-              role="switch"
-              aria-checked={isProviderEnabled}
-              title={isProviderEnabled ? t('providers.disableProvider') : t('providers.enableProvider')}
-            >
-              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
-                isProviderEnabled ? 'translate-x-[18px]' : 'translate-x-[3px]'
-              }`} />
-            </button>
-          </label>
-        </div>
-      </div>
-      <div className="cursor-pointer" onClick={enabled ? onClick : undefined}>
-        <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-white">{provider.name}</h3>
-                      {provider.is_default && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary-500/20 text-primary-400 font-medium">
-                        {t('providers.default')}
-                      </span>
-                      )}
-                      {provider.connected && isProviderEnabled && (
-                        <CheckCircle className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
-                      )}
-                      {!isProviderEnabled && (
-                        <XCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
-                      )}
-                    </div>
-        <p className="text-xs text-dark-400 mt-1 font-mono">{provider.default_model}</p>
-        <div className="flex items-center justify-between mt-3 text-xs text-dark-500">
-          <span className={activeAccounts > 0 && isProviderEnabled ? 'text-green-400/70' : ''}>
-            {activeAccounts}/{provider.accounts.length} {t('providers.active')}
-          </span>
-          {totalTokens > 0 && (
-            <span className="flex items-center gap-1">
-              <Zap className="w-3 h-3" />
-              {totalTokens.toLocaleString()}
-            </span>
+          {showEnvEditor && (
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <Input
+                allowClear
+                prefix={<SearchOutlined />}
+                placeholder={t('providers.filterVariables')}
+                value={envSearch}
+                onChange={event => setEnvSearch(event.target.value)}
+                style={{ maxWidth: 360 }}
+              />
+              {envAllowedKeys.length === 0 ? (
+                <Spin tip={t('providers.loading')} />
+              ) : filteredEnvKeys.length === 0 ? (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('providers.noVariablesMatch', { search: envSearch })} />
+              ) : (
+                <List
+                  dataSource={filteredEnvKeys}
+                  renderItem={key => {
+                    const isModified = envEditing[key] !== envVars[key]
+                    return (
+                      <List.Item
+                        actions={[
+                          <Button key="save" size="small" type={isModified ? 'primary' : 'default'} disabled={!isModified} loading={envSaving === key} onClick={() => handleSaveEnvVar(key)}>
+                            {t('providers.save')}
+                          </Button>,
+                        ]}
+                      >
+                        <List.Item.Meta
+                          title={<Text code>{key}</Text>}
+                          description={(
+                            <Input.Password
+                              value={envEditing[key] || ''}
+                              placeholder={t('providers.notSet')}
+                              onChange={event => setEnvEditing(prev => ({ ...prev, [key]: event.target.value }))}
+                            />
+                          )}
+                        />
+                      </List.Item>
+                    )
+                  }}
+                />
+              )}
+            </Space>
           )}
-        </div>
-      </div>
-    </div>
+        </ProCard>
+      </Space>
+
+      {selectedProvider && (
+        <ConfigDrawer
+          provider={selectedProvider}
+          enabled={enabled}
+          open={Boolean(selectedProvider)}
+          onClose={() => {
+            setSelectedProvider(null)
+            fetchProviders()
+          }}
+          notify={notify}
+          t={t}
+        />
+      )}
+    </PageContainer>
   )
 }
 
-/* ---------- ConfigModal ---------- */
-
-function ConfigModal({
-  provider,
-  onClose,
+function ProviderSection({
+  title,
+  subtitle,
+  icon,
+  providers,
   enabled,
-  addToast,
+  onSelect,
+  onToggle,
+  t,
+}: {
+  title: string
+  subtitle?: string
+  icon: React.ReactNode
+  providers: Provider[]
+  enabled: boolean
+  onSelect: (provider: Provider) => void
+  onToggle: (providerId: string, enabled: boolean) => void
+  t: TFunction
+}) {
+  return (
+    <ProCard title={<Space>{icon}{title}</Space>} subTitle={subtitle} bordered>
+      <ProCard gutter={16} wrap ghost>
+        {providers.map(provider => {
+          const activeAccounts = provider.accounts.filter(account => account.is_active).length
+          const totalTokens = provider.accounts.reduce((sum, account) => sum + account.tokens_used, 0)
+          const isProviderEnabled = provider.enabled !== false
+          return (
+            <ProCard key={provider.id} colSpan={{ xs: 24, sm: 12, md: 8, xl: 6 }} bordered hoverable>
+              <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                <Space align="start" style={{ width: '100%', justifyContent: 'space-between' }}>
+                  <Space onClick={() => enabled && onSelect(provider)} style={{ cursor: enabled ? 'pointer' : 'default' }}>
+                    <Avatar style={{ backgroundColor: providerColor(provider) }}>{providerInitial(provider)}</Avatar>
+                    <Space direction="vertical" size={0}>
+                      <Space wrap>
+                        <Text strong>{provider.name}</Text>
+                        {provider.is_default && <Tag color="blue">{t('providers.default')}</Tag>}
+                        {provider.connected && isProviderEnabled && <CheckCircleOutlined style={{ color: '#52c41a' }} />}
+                      </Space>
+                      <Text type="secondary" code>{provider.default_model}</Text>
+                    </Space>
+                  </Space>
+                  <Switch
+                    size="small"
+                    checked={isProviderEnabled}
+                    checkedChildren={t('common.on')}
+                    unCheckedChildren={t('common.off')}
+                    onChange={() => onToggle(provider.id, isProviderEnabled)}
+                  />
+                </Space>
+                <Space wrap>
+                  <Tag color={provider.auth_type === 'oauth' ? 'cyan' : 'gold'}>{provider.auth_type}</Tag>
+                  <Tag>{t(`common.${tierLabels[provider.tier]}`)}</Tag>
+                  <Tag color={activeAccounts > 0 && isProviderEnabled ? 'green' : undefined}>{activeAccounts}/{provider.accounts.length} {t('providers.active')}</Tag>
+                  {totalTokens > 0 && <Tag icon={<ThunderboltOutlined />}>{totalTokens.toLocaleString()}</Tag>}
+                </Space>
+                <Button block disabled={!enabled} onClick={() => onSelect(provider)}>{t('providers.configure', 'Configure')}</Button>
+              </Space>
+            </ProCard>
+          )
+        })}
+      </ProCard>
+    </ProCard>
+  )
+}
+
+function ConfigDrawer({
+  provider,
+  enabled,
+  open,
+  onClose,
+  notify,
   t,
 }: {
   provider: Provider
-  onClose: () => void
   enabled: boolean
-  addToast: (message: string, type: Toast['type']) => void
-  t: any
+  open: boolean
+  onClose: () => void
+  notify: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void
+  t: TFunction
 }) {
   const [accounts, setAccounts] = useState<Account[]>(provider.accounts)
   const [detecting, setDetecting] = useState(false)
   const [testing, setTesting] = useState<string | null>(null)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
-  const [newKey, setNewKey] = useState('')
-  const [newLabel, setNewLabel] = useState('')
   const [adding, setAdding] = useState(false)
+  const [form] = Form.useForm<ConnectFormValues>()
 
-  const color = PROVIDER_COLORS[provider.id] || 'bg-gray-500'
-  const initials = PROVIDER_INITIALS[provider.id] || provider.id.substring(0, 2).toUpperCase()
-
-  const activeAccounts = useMemo(
-    () => accounts.filter(a => a.is_active).length,
-    [accounts]
-  )
+  const activeAccounts = useMemo(() => accounts.filter(account => account.is_active).length, [accounts])
 
   const handleDetect = useCallback(async () => {
     setDetecting(true)
     setTestResult(null)
     try {
-      const res = await fetch(`${API}/${provider.id}/detect`, { method: 'POST', headers: authHeaders() })
-      const data = await res.json()
+      const data = await providersApi.detect(provider.id)
       if (data.detected) {
-        setAccounts((prev) => [
+        setAccounts(prev => [
           ...prev,
           {
             id: data.account_id,
@@ -830,39 +529,30 @@ function ConfigModal({
           },
         ])
         setTestResult({ success: true, message: t('providers.detected', { label: data.label }) })
-        addToast(t('providers.detected', { label: data.label }), 'success')
+        notify(t('providers.detected', { label: data.label }), 'success')
       } else {
         setTestResult({ success: false, message: data.message || t('providers.noTokenFound') })
       }
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : t('providers.unknownError')
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : t('providers.unknownError')
       setTestResult({ success: false, message: msg })
     } finally {
       setDetecting(false)
     }
-  }, [provider.id, addToast, t])
+  }, [provider.id, notify, t])
 
   const handleConnect = useCallback(async () => {
-    if (!newKey.trim()) return
+    const values = await form.validateFields()
     setAdding(true)
     setTestResult(null)
     try {
-      const res = await fetch(`${API}/${provider.id}/connect`, {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({
-          label: newLabel || t('providers.apiKey'),
-          credential: newKey,
-          credential_type: 'api_key',
-        }),
-      })
-      const data = await res.json()
+      const data = await providersApi.connect(provider.id, values.credential, values.label || t('providers.apiKey'))
       if (data.success) {
-        setAccounts((prev) => [
+        setAccounts(prev => [
           ...prev,
           {
             id: data.account_id,
-            label: newLabel || t('providers.apiKey'),
+            label: values.label || t('providers.apiKey'),
             source: 'manual',
             credential_type: 'api_key',
             is_active: true,
@@ -872,246 +562,133 @@ function ConfigModal({
             model_override: null,
           },
         ])
-        setNewKey('')
-        setNewLabel('')
+        form.resetFields()
         setTestResult({ success: true, message: t('providers.connectedSuccessfully') })
-        addToast(t('providers.accountConnected'), 'success')
+        notify(t('providers.accountConnected'), 'success')
       }
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : t('providers.unknownError')
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : t('providers.unknownError')
       setTestResult({ success: false, message: msg })
     } finally {
       setAdding(false)
     }
-  }, [newKey, newLabel, provider.id, addToast, t])
+  }, [form, provider.id, notify, t])
 
   const handleTest = useCallback(async (accountId: string) => {
     setTesting(accountId)
     setTestResult(null)
     try {
-      const res = await fetch(`${API}/test/${provider.id}/${accountId}`, { method: 'POST', headers: authHeaders() })
-      const data = await res.json()
+      const data = await providersApi.testConnection(provider.id, accountId)
       setTestResult({ success: data.success, message: data.message })
-      if (data.success) {
-        addToast(t('providers.connectionTestPassed'), 'success')
-      }
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : t('providers.unknownError')
+      if (data.success) notify(t('providers.connectionTestPassed'), 'success')
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : t('providers.unknownError')
       setTestResult({ success: false, message: msg })
     } finally {
       setTesting(null)
     }
-  }, [provider.id, addToast, t])
+  }, [provider.id, notify, t])
 
   const handleRemove = useCallback(async (accountId: string) => {
     try {
-      await fetch(`${API}/${provider.id}/accounts/${accountId}`, { method: 'DELETE', headers: authHeaders() })
-      setAccounts((prev) => prev.filter((a) => a.id !== accountId))
+      await providersApi.removeAccount(provider.id, accountId)
+      setAccounts(prev => prev.filter(account => account.id !== accountId))
       setTestResult({ success: true, message: t('providers.accountRemoved') })
-      addToast(t('providers.accountRemoved'), 'success')
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : t('providers.unknownError')
+      notify(t('providers.accountRemoved'), 'success')
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : t('providers.unknownError')
       setTestResult({ success: false, message: msg })
     }
-  }, [provider.id, addToast, t])
+  }, [provider.id, notify, t])
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div
-        className="bg-dark-800 border border-dark-700 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl"
-        style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
-      >
-        {/* Header */}
-        <div className="p-5 border-b border-dark-700 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 ${color} rounded-xl flex items-center justify-center shadow-lg`}>
-              <span className="text-white font-bold text-sm">{initials}</span>
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-white">{provider.name}</h2>
-              <p className="text-xs text-dark-400 font-mono">{provider.api_format} / {provider.default_model}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-dark-500">
-              {activeAccounts}/{accounts.length} {t('providers.active')}
-            </span>
-            <button
-              onClick={onClose}
-              className="text-dark-400 hover:text-white p-1.5 rounded-lg hover:bg-dark-700 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
+    <Drawer
+      title={(
+        <Space>
+          <Avatar style={{ backgroundColor: providerColor(provider) }}>{providerInitial(provider)}</Avatar>
+          <Space direction="vertical" size={0}>
+            <Text strong>{provider.name}</Text>
+            <Text type="secondary">{provider.api_format} / {provider.default_model}</Text>
+          </Space>
+        </Space>
+      )}
+      open={open}
+      onClose={onClose}
+      width={620}
+      extra={<Tag color="green">{activeAccounts}/{accounts.length} {t('providers.active')}</Tag>}
+    >
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        {provider.auth_type === 'oauth' && (
+          <Button type="primary" block icon={<SearchOutlined />} loading={detecting} disabled={!enabled} onClick={handleDetect}>
+            {t('providers.detectCliToken')}
+          </Button>
+        )}
 
-        <div className="p-5 space-y-5">
-          {/* Actions */}
-          <div className="flex gap-3">
-            {provider.auth_type === 'oauth' && (
-              <button
-                onClick={handleDetect}
-                disabled={detecting || !enabled}
-                className="btn-primary flex-1 flex items-center justify-center gap-2"
-              >
-                {detecting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Search className="w-4 h-4" />
-                )}
-                {t('providers.detectCliToken')}
-              </button>
-            )}
-          </div>
+        <ProCard title={t('providers.addCredential')} bordered>
+          <Form form={form} layout="vertical">
+            <Form.Item name="label" label={t('providers.labelOptional')}>
+              <Input />
+            </Form.Item>
+            <Form.Item name="credential" label={provider.auth_type === 'oauth' ? t('providers.oauthToken') : t('providers.apiKey')} rules={[{ required: true }]}>
+              <Input.Password />
+            </Form.Item>
+            <Button type="primary" icon={<PlusOutlined />} loading={adding} disabled={!enabled} onClick={handleConnect}>
+              {t('common.add')}
+            </Button>
+          </Form>
+        </ProCard>
 
-          {/* Add API Key */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-dark-300">{t('providers.addCredential')}</label>
-            <input
-              type="text"
-              placeholder={t('providers.labelOptional')}
-              value={newLabel}
-              onChange={(e) => setNewLabel(e.target.value)}
-              className="input-field w-full"
+        {testResult && (
+          <Alert type={testResult.success ? 'success' : 'error'} showIcon message={testResult.message} />
+        )}
+
+        <ProCard title={`${t('providers.accounts')} (${accounts.length})`} bordered>
+          {accounts.length === 0 ? (
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description={provider.auth_type === 'oauth' ? t('providers.detectOrAdd') : t('providers.addApiKey')}
             />
-            <div className="flex gap-2">
-              <input
-                type="password"
-                placeholder={provider.auth_type === 'oauth' ? t('providers.oauthToken') : t('providers.apiKey')}
-                value={newKey}
-                onChange={(e) => setNewKey(e.target.value)}
-                className="input-field flex-1"
-              />
-              <button
-                onClick={handleConnect}
-                disabled={!newKey.trim() || adding || !enabled}
-                className="btn-primary flex items-center gap-1 px-4"
-              >
-                {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                {t('common.add')}
-              </button>
-            </div>
-          </div>
-
-          {/* Status Message */}
-          {testResult && (
-            <div
-              className={`flex items-center gap-2 p-3 rounded-lg text-sm ${
-                testResult.success
-                  ? 'bg-green-500/10 border border-green-500/30 text-green-400'
-                  : 'bg-red-500/10 border border-red-500/30 text-red-400'
-              }`}
-              style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
-            >
-              {testResult.success ? (
-                <CheckCircle className="w-4 h-4 flex-shrink-0" />
-              ) : (
-                <XCircle className="w-4 h-4 flex-shrink-0" />
-              )}
-              <span className="truncate">{testResult.message}</span>
-            </div>
+          ) : (
+            <List
+              dataSource={accounts}
+              renderItem={account => {
+                const expiry = formatExpiryTime(account.expires_at, t)
+                return (
+                  <List.Item
+                    actions={[
+                      <Button key="test" size="small" icon={<ExperimentOutlined />} loading={testing === account.id} disabled={!enabled} onClick={() => handleTest(account.id)}>
+                        {t('providers.testConnection')}
+                      </Button>,
+                      <Popconfirm key="remove" title={t('providers.removeAccount')} onConfirm={() => handleRemove(account.id)} okButtonProps={{ danger: true }}>
+                        <Button size="small" danger icon={<DeleteOutlined />} disabled={!enabled} />
+                      </Popconfirm>,
+                    ]}
+                  >
+                    <List.Item.Meta
+                      title={(
+                        <Space wrap>
+                          <Text strong>{account.label}</Text>
+                          <Tag color={account.source === 'cli_detect' ? 'blue' : account.source === 'env_var' ? 'green' : undefined}>
+                            {account.source === 'cli_detect' ? t('providers.cli') : account.source === 'env_var' ? t('providers.env') : t('providers.manual')}
+                          </Tag>
+                          {!account.is_active && <Tag color="red">{t('providers.inactive')}</Tag>}
+                        </Space>
+                      )}
+                      description={(
+                        <Space wrap>
+                          <Tag icon={<ThunderboltOutlined />}>{account.tokens_used.toLocaleString()} {t('providers.tokens')}</Tag>
+                          {account.last_used && <Tag>{relativeTime(account.last_used, t)}</Tag>}
+                          {expiry.label && <Tag color={expiry.color}>{expiry.label}</Tag>}
+                        </Space>
+                      )}
+                    />
+                  </List.Item>
+                )
+              }}
+            />
           )}
-
-          {/* Accounts List */}
-          <div>
-            <h3 className="text-sm font-medium text-dark-300 mb-2">
-              {t('providers.accounts')} ({accounts.length})
-            </h3>
-            {accounts.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="w-12 h-12 bg-dark-700/30 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <Shield className="w-6 h-6 text-dark-500" />
-                </div>
-                <p className="text-dark-500 text-sm">{t('providers.noAccounts')}</p>
-                <p className="text-dark-600 text-xs mt-1">
-                  {provider.auth_type === 'oauth' ? t('providers.detectOrAdd') : t('providers.addApiKey')}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {accounts.map((acct, idx) => {
-                  const expiry = formatExpiryTime(acct.expires_at, t)
-                  return (
-                    <div
-                      key={acct.id}
-                      className={`bg-dark-750 border rounded-lg p-3 flex items-center justify-between transition-all ${
-                        acct.is_active ? 'border-dark-700' : 'border-red-500/20 opacity-60'
-                      }`}
-                      style={{ animation: `fadeSlideIn ${0.15 + idx * 0.05}s ease-out` }}
-                    >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-medium truncate">{acct.label}</span>
-                          <span
-                            className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                              acct.source === 'cli_detect'
-                                ? 'bg-blue-500/20 text-blue-400'
-                                : acct.source === 'env_var'
-                                ? 'bg-green-500/20 text-green-400'
-                                : 'bg-dark-600 text-dark-400'
-                            }`}
-                          >
-                            {acct.source === 'cli_detect'
-                              ? t('providers.cli')
-                              : acct.source === 'env_var'
-                              ? t('providers.env')
-                              : t('providers.manual')}
-                          </span>
-                          {!acct.is_active && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 font-medium">
-                              {t('providers.inactive')}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-dark-500">
-                          <span className="flex items-center gap-1">
-                            <Zap className="w-3 h-3" />
-                            {acct.tokens_used.toLocaleString()} {t('providers.tokens')}
-                          </span>
-                          {acct.last_used && (
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {relativeTime(acct.last_used, t)}
-                            </span>
-                          )}
-                          {expiry.label && (
-                            <span className={`flex items-center gap-1 ${expiry.urgency}`}>
-                              {expiry.isExpired ? <XCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                              {expiry.label}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 ml-2 flex-shrink-0">
-                        <button
-                          onClick={() => handleTest(acct.id)}
-                          disabled={testing === acct.id || !enabled}
-                          className="p-1.5 text-dark-400 hover:text-primary-400 transition-colors rounded-lg hover:bg-primary-500/10"
-                          title={t('providers.testConnection')}
-                        >
-                          {testing === acct.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <TestTube className="w-4 h-4" />
-                          )}
-                        </button>
-                        <button
-                          onClick={() => handleRemove(acct.id)}
-                          disabled={!enabled}
-                          className="p-1.5 text-dark-400 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10"
-                          title={t('providers.removeAccount')}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+        </ProCard>
+      </Space>
+    </Drawer>
   )
 }

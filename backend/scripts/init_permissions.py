@@ -7,6 +7,7 @@ import asyncio
 from sqlalchemy import select, delete
 from backend.db.database import async_session_factory
 from backend.models.permission import Permission, RolePermission, ResourceMapping, PermissionScope, PermissionAction
+from backend.core.rbac.policies import should_reset_role_permissions_on_startup
 
 
 # Default permission definitions
@@ -241,9 +242,10 @@ async def init_permissions():
         await db.commit()
 
         # Create role-permission mappings
-        # Clear old permissions for each role before assigning new ones
-        for role_name in ROLE_PERMISSIONS.keys():
-            await db.execute(delete(RolePermission).where(RolePermission.role == role_name))
+        if should_reset_role_permissions_on_startup():
+            for role_name in ROLE_PERMISSIONS.keys():
+                await db.execute(delete(RolePermission).where(RolePermission.role == role_name))
+            print("[ROLE_PERMISSION] Reset default role permissions because RBAC_RESET_ON_STARTUP=true")
 
         for role, perm_names in ROLE_PERMISSIONS.items():
             for perm_name in perm_names:

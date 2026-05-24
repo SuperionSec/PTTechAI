@@ -10,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.models.permission import Permission, RolePermission, ResourceMapping
 from backend.models.user import User, Role
 from backend.core.auth import get_current_user
+from backend.core.rbac.matcher import find_best_api_matches
+from backend.core.rbac.policies import UnmappedApiPolicy, get_unmapped_api_policy
 from backend.db.database import get_db
 
 
@@ -48,18 +50,22 @@ async def check_api_permission(
     # Build API pattern from request
     method = request.method
     path = request.url.path
-    api_pattern = f"{method} {path}"
     
     # Check if there's a permission mapping for this API
     result = await db.execute(
-        select(ResourceMapping.permission_id)
+        select(ResourceMapping.resource_path, ResourceMapping.permission_id)
         .where(ResourceMapping.resource_type == "backend_api")
-        .where(ResourceMapping.resource_path == api_pattern)
     )
-    required_perm_ids = result.scalars().all()
-    
+    mapping_rows = result.all()
+    matched_patterns = find_best_api_matches([row[0] for row in mapping_rows], method, path)
+    required_perm_ids = [row[1] for row in mapping_rows if row[0] in matched_patterns]
+
     if not required_perm_ids:
-        # No mapping found - default allow for backward compatibility
+        policy = get_unmapped_api_policy()
+        if policy == UnmappedApiPolicy.DENY:
+            raise PermissionDenied(detail=f"No permission mapping found for {method} {path}")
+        if policy == UnmappedApiPolicy.WARN:
+            print(f"[RBAC] Unmapped API allowed: {method} {path}")
         return current_user
     
     # Check if user's role has any of the required permissions
@@ -92,19 +98,21 @@ class ResourceGuard:
         if user.role == Role.ADMIN:
             return True
 
-        # Build the API path pattern to match
-        api_pattern = f"{method} {path}"
-
         # Find permissions required for this API
         result = await db.execute(
-            select(ResourceMapping.permission_id)
+            select(ResourceMapping.resource_path, ResourceMapping.permission_id)
             .where(ResourceMapping.resource_type == "backend_api")
-            .where(ResourceMapping.resource_path == api_pattern)
         )
-        required_perm_ids = result.scalars().all()
+        mapping_rows = result.all()
+        matched_patterns = find_best_api_matches([row[0] for row in mapping_rows], method, path)
+        required_perm_ids = [row[1] for row in mapping_rows if row[0] in matched_patterns]
 
         if not required_perm_ids:
-            # No mapping found - default allow (safer to deny in production)
+            policy = get_unmapped_api_policy()
+            if policy == UnmappedApiPolicy.DENY:
+                return False
+            if policy == UnmappedApiPolicy.WARN:
+                print(f"[RBAC] Unmapped API allowed: {method} {path}")
             return True
 
         # Check if user's role has any of the required permissions

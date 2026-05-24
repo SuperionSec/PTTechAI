@@ -1,9 +1,19 @@
-import { useEffect, useState, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Download, ExternalLink, FileText, RefreshCw, Maximize2 } from 'lucide-react'
-import Button from '../components/common/Button'
+import { PageContainer, ProCard } from '@ant-design/pro-components'
+import { Button, Space, Spin, Typography } from 'antd'
+import {
+  ArrowsAltOutlined,
+  CloudDownloadOutlined,
+  ExportOutlined,
+  FileTextOutlined,
+  ReloadOutlined,
+  ShrinkOutlined,
+} from '@ant-design/icons'
 import { reportsApi } from '../services/api'
+
+const { Text } = Typography
 
 export default function ReportViewPage() {
   const { reportId } = useParams<{ reportId: string }>()
@@ -22,91 +32,74 @@ export default function ReportViewPage() {
   }, [reportId, navigate])
 
   const handleRefresh = useCallback(() => {
-    setIframeKey(k => k + 1)
+    setIframeKey(key => key + 1)
   }, [])
 
   const toggleFullscreen = useCallback(() => {
-    setIsFullscreen(f => !f)
+    setIsFullscreen(fullscreen => !fullscreen)
   }, [])
 
   if (isLoading || !reportId) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <div className="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full" />
-        <p className="text-dark-400 text-sm">{t('reportView.loadingReport')}</p>
+      <PageContainer title={t('reportView.loadingReport')}>
+        <ProCard bordered>
+          <Spin style={{ display: 'block', margin: '64px auto' }} />
+        </ProCard>
+      </PageContainer>
+    )
+  }
+
+  const actions = [
+    <Button key="refresh" icon={<ReloadOutlined />} onClick={handleRefresh} title={t('reportView.refreshReport')} />,
+    <Button
+      key="fullscreen"
+      icon={isFullscreen ? <ShrinkOutlined /> : <ArrowsAltOutlined />}
+      onClick={toggleFullscreen}
+      title={t('reportView.toggleFullscreen')}
+    />,
+    <Button key="html" icon={<CloudDownloadOutlined />} onClick={() => window.open(reportsApi.getDownloadUrl(reportId, 'html'), '_blank')}>
+      HTML
+    </Button>,
+    <Button key="json" icon={<CloudDownloadOutlined />} onClick={() => window.open(reportsApi.getDownloadUrl(reportId, 'json'), '_blank')}>
+      JSON
+    </Button>,
+    <Button key="new-tab" type="primary" icon={<ExportOutlined />} onClick={() => window.open(reportsApi.getViewUrl(reportId), '_blank')}>
+      {t('reportView.newTab')}
+    </Button>,
+  ]
+
+  if (isFullscreen) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: '#fff', padding: 16 }}>
+        <Space style={{ marginBottom: 12 }} wrap>
+          <Button onClick={() => navigate('/reports')}>{t('reportView.backToReports')}</Button>
+          {actions}
+        </Space>
+        <iframe
+          key={iframeKey}
+          src={reportsApi.getViewUrl(reportId)}
+          style={{ width: '100%', height: 'calc(100vh - 64px)', border: 0 }}
+          title="Report"
+        />
       </div>
     )
   }
 
   return (
-    <>
-      <style>{`
-        @keyframes fadeSlideIn {
-          from { opacity: 0; transform: translateY(-8px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
-
-      <div
-        className={`space-y-4 ${isFullscreen ? 'fixed inset-0 z-50 bg-dark-950 p-4' : ''}`}
-        style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" onClick={() => navigate('/reports')}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              {t('reportView.backToReports')}
-            </Button>
-            <div className="hidden sm:flex items-center gap-2 text-dark-400">
-              <FileText className="w-4 h-4" />
-              <span className="text-sm font-mono truncate max-w-[200px]">{reportId}</span>
-            </div>
-          </div>
-
-          <div className="flex gap-2 flex-wrap">
-            <Button variant="ghost" size="sm" onClick={handleRefresh} title={t('reportView.refreshReport')}>
-              <RefreshCw className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="sm" onClick={toggleFullscreen} title={t('reportView.toggleFullscreen')}>
-              <Maximize2 className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => window.open(reportsApi.getDownloadUrl(reportId, 'html'), '_blank')}
-            >
-              <Download className="w-4 h-4 mr-1.5" />
-              <span className="hidden sm:inline">HTML</span>
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => window.open(reportsApi.getDownloadUrl(reportId, 'json'), '_blank')}
-            >
-              <Download className="w-4 h-4 mr-1.5" />
-              <span className="hidden sm:inline">JSON</span>
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => window.open(reportsApi.getViewUrl(reportId), '_blank')}
-            >
-              <ExternalLink className="w-4 h-4 mr-1.5" />
-              <span className="hidden sm:inline">{t('reportView.newTab')}</span>
-            </Button>
-          </div>
-        </div>
-
-        {/* Report iframe */}
-        <div className="bg-dark-800 rounded-xl overflow-hidden border border-dark-900/50">
-          <iframe
-            key={iframeKey}
-            src={reportsApi.getViewUrl(reportId)}
-            className={`w-full ${isFullscreen ? 'h-[calc(100vh-80px)]' : 'h-[calc(100vh-200px)]'}`}
-            title="Report"
-          />
-        </div>
-      </div>
-    </>
+    <PageContainer
+      title={t('reportView.title', 'Report View')}
+      subTitle={<Space><FileTextOutlined /><Text code>{reportId}</Text></Space>}
+      onBack={() => navigate('/reports')}
+      extra={actions}
+    >
+      <ProCard bordered bodyStyle={{ padding: 0, overflow: 'hidden' }}>
+        <iframe
+          key={iframeKey}
+          src={reportsApi.getViewUrl(reportId)}
+          style={{ width: '100%', height: 'calc(100vh - 260px)', minHeight: 560, border: 0 }}
+          title="Report"
+        />
+      </ProCard>
+    </PageContainer>
   )
 }

@@ -1,12 +1,32 @@
-import { useState, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
-import {
-  AlertTriangle, Globe, Server, Link2, ArrowLeft,
-  Loader2, Plus, CheckCircle
-} from 'lucide-react'
-import { useAuth } from '../contexts/AuthContext'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import { PageContainer, ProCard, ProTable, StatisticCard } from '@ant-design/pro-components'
+import type { ProColumns } from '@ant-design/pro-components'
+import {
+  Alert,
+  App as AntApp,
+  Button,
+  Empty,
+  Modal,
+  Select,
+  Space,
+  Spin,
+  Tag,
+  Typography,
+} from 'antd'
+import {
+  ApiOutlined,
+  CheckCircleOutlined,
+  GlobalOutlined,
+  LinkOutlined,
+  ReloadOutlined,
+  WarningOutlined,
+} from '@ant-design/icons'
+import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
+
+const { Text } = Typography
 
 interface UnmappedResource {
   resource_type: string
@@ -26,25 +46,18 @@ export default function UnmappedResourcesPage() {
   const { t } = useTranslation()
   const { user: currentUser } = useAuth()
   const navigate = useNavigate()
+  const { notification } = AntApp.useApp()
 
   const [unmappedResources, setUnmappedResources] = useState<UnmappedResource[]>([])
   const [permissions, setPermissions] = useState<Permission[]>([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
-
-  // Mapping form state
+  const [mappingTarget, setMappingTarget] = useState<UnmappedResource | null>(null)
   const [selectedPermission, setSelectedPermission] = useState<string>('')
-  const [showMappingForm, setShowMappingForm] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (currentUser?.role !== 'admin') {
-      navigate('/')
-      return
-    }
-    fetchUnmappedResources()
-    fetchPermissions()
-  }, [currentUser, navigate])
+  const notify = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
+    notification[type]({ message })
+  }
 
   const fetchUnmappedResources = async () => {
     try {
@@ -53,6 +66,7 @@ export default function UnmappedResourcesPage() {
       setUnmappedResources(res.data)
     } catch (error) {
       console.error('Failed to fetch unmapped resources:', error)
+      notify(t('unmappedResources.fetchFailed', 'Failed to fetch unmapped resources'), 'error')
     } finally {
       setLoading(false)
     }
@@ -67,272 +81,195 @@ export default function UnmappedResourcesPage() {
     }
   }
 
-  const handleCreateMapping = async (resourcePath: string, resourceType: string) => {
-    if (!selectedPermission) return
-
-    setActionLoading(resourcePath)
-    setSuccessMessage(null)
-    try {
-      await api.post('/permissions/resource-mappings', {
-        permission_id: selectedPermission,
-        resource_type: resourceType,
-        resource_path: resourcePath,
-      })
-      setSuccessMessage(`Mapped ${resourcePath} to permission`)
-      setShowMappingForm(null)
-      setSelectedPermission('')
-      fetchUnmappedResources()
-    } catch (error: any) {
-      console.error('Failed to create mapping:', error)
-      alert(error.response?.data?.detail || 'Failed to create mapping')
-    } finally {
-      setActionLoading(null)
+  useEffect(() => {
+    if (currentUser?.role !== 'admin') {
+      navigate('/')
+      return
     }
-  }
+    fetchUnmappedResources()
+    fetchPermissions()
+  }, [currentUser, navigate])
 
   const getRecommendedPermission = (resourcePath: string, resourceType: string): string => {
-    // Simple recommendation logic
     if (resourceType === 'frontend_page') {
-      if (resourcePath.includes('scan')) return permissions.find(p => p.name === 'scan:read')?.id || ''
-      if (resourcePath.includes('report')) return permissions.find(p => p.name === 'report:read')?.id || ''
-      if (resourcePath.includes('user') || resourcePath.includes('role')) return permissions.find(p => p.name === 'user:manage')?.id || ''
-      if (resourcePath.includes('settings')) return permissions.find(p => p.name === 'settings:read')?.id || ''
-      if (resourcePath.includes('agent')) return permissions.find(p => p.name === 'agent:read')?.id || ''
-      if (resourcePath.includes('scheduler')) return permissions.find(p => p.name === 'scheduler:read')?.id || ''
-      if (resourcePath.includes('knowledge')) return permissions.find(p => p.name === 'knowledge:read')?.id || ''
-      if (resourcePath === '/') return permissions.find(p => p.name === 'dashboard:read')?.id || ''
+      if (resourcePath.includes('scan')) return permissions.find(permission => permission.name === 'scan:read')?.id || ''
+      if (resourcePath.includes('report')) return permissions.find(permission => permission.name === 'report:read')?.id || ''
+      if (resourcePath.includes('user') || resourcePath.includes('role')) return permissions.find(permission => permission.name === 'user:manage')?.id || ''
+      if (resourcePath.includes('settings')) return permissions.find(permission => permission.name === 'settings:read')?.id || ''
+      if (resourcePath.includes('agent')) return permissions.find(permission => permission.name === 'agent:read')?.id || ''
+      if (resourcePath.includes('scheduler')) return permissions.find(permission => permission.name === 'scheduler:read')?.id || ''
+      if (resourcePath.includes('knowledge')) return permissions.find(permission => permission.name === 'knowledge:read')?.id || ''
+      if (resourcePath === '/') return permissions.find(permission => permission.name === 'dashboard:read')?.id || ''
     } else {
-      // Backend API
       const parts = resourcePath.split(' ')
       if (parts.length >= 2) {
         const path = parts[1]
-        if (path.includes('scan')) return permissions.find(p => p.name === 'scan:read')?.id || ''
-        if (path.includes('report')) return permissions.find(p => p.name === 'report:read')?.id || ''
-        if (path.includes('user')) return permissions.find(p => p.name === 'user:read')?.id || ''
-        if (path.includes('settings')) return permissions.find(p => p.name === 'settings:read')?.id || ''
+        if (path.includes('scan')) return permissions.find(permission => permission.name === 'scan:read')?.id || ''
+        if (path.includes('report')) return permissions.find(permission => permission.name === 'report:read')?.id || ''
+        if (path.includes('user')) return permissions.find(permission => permission.name === 'user:read')?.id || ''
+        if (path.includes('settings')) return permissions.find(permission => permission.name === 'settings:read')?.id || ''
       }
     }
     return ''
   }
 
-  const frontendResources = unmappedResources.filter(r => r.resource_type === 'frontend_page')
-  const backendResources = unmappedResources.filter(r => r.resource_type === 'backend_api')
+  const openMappingModal = (resource: UnmappedResource) => {
+    setMappingTarget(resource)
+    setSelectedPermission(getRecommendedPermission(resource.resource_path, resource.resource_type))
+  }
+
+  const handleCreateMapping = async () => {
+    if (!mappingTarget || !selectedPermission) return
+
+    setActionLoading(mappingTarget.resource_path)
+    try {
+      await api.post('/permissions/resource-mappings', {
+        permission_id: selectedPermission,
+        resource_type: mappingTarget.resource_type,
+        resource_path: mappingTarget.resource_path,
+      })
+      notify(`Mapped ${mappingTarget.resource_path} to permission`, 'success')
+      setMappingTarget(null)
+      setSelectedPermission('')
+      await fetchUnmappedResources()
+    } catch (error: any) {
+      console.error('Failed to create mapping:', error)
+      notify(error.response?.data?.detail || 'Failed to create mapping', 'error')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const frontendResources = useMemo(() => unmappedResources.filter(resource => resource.resource_type === 'frontend_page'), [unmappedResources])
+  const backendResources = useMemo(() => unmappedResources.filter(resource => resource.resource_type === 'backend_api'), [unmappedResources])
+
+  const columns: ProColumns<UnmappedResource>[] = [
+    {
+      title: t('unmappedResources.resourceType', 'Type'),
+      dataIndex: 'resource_type',
+      width: 150,
+      filters: [
+        { text: 'Frontend Page', value: 'frontend_page' },
+        { text: 'Backend API', value: 'backend_api' },
+      ],
+      onFilter: (value, record) => record.resource_type === value,
+      render: (_, resource) => resource.resource_type === 'frontend_page'
+        ? <Tag color="blue" icon={<GlobalOutlined />}>Frontend</Tag>
+        : <Tag color="green" icon={<ApiOutlined />}>API</Tag>,
+    },
+    {
+      title: t('unmappedResources.resourcePath', 'Resource'),
+      dataIndex: 'resource_path',
+      render: (_, resource) => <Text code>{resource.resource_path}</Text>,
+    },
+    {
+      title: t('unmappedResources.reason', 'Reason'),
+      dataIndex: 'reason',
+      render: (_, resource) => <Text type="secondary">{resource.reason}</Text>,
+    },
+    {
+      title: t('common.actions', 'Actions'),
+      valueType: 'option',
+      width: 160,
+      render: (_, resource) => [
+        <Button key="map" size="small" type="primary" icon={<LinkOutlined />} onClick={() => openMappingModal(resource)}>
+          Map
+        </Button>,
+      ],
+    },
+  ]
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-      </div>
+      <PageContainer title={t('unmappedResources.title') || 'Unmapped Resources'}>
+        <ProCard bordered><Spin style={{ display: 'block', margin: '64px auto' }} /></ProCard>
+      </PageContainer>
     )
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <button
-          onClick={() => navigate('/roles')}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          {t('common.back') || 'Back to Roles'}
-        </button>
-        <div className="flex items-center gap-3">
-          <AlertTriangle className="w-8 h-8 text-amber-500" />
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {t('unmappedResources.title') || 'Unmapped Resources'}
-            </h1>
-            <p className="text-gray-600 mt-1">
-              {t('unmappedResources.subtitle') || 'Resources not bound to any permission. Map them to ensure proper access control.'}
-            </p>
-          </div>
-        </div>
-      </div>
+    <PageContainer
+      title={t('unmappedResources.title') || 'Unmapped Resources'}
+      subTitle={t('unmappedResources.subtitle') || 'Resources not bound to any permission. Map them to ensure proper access control.'}
+      onBack={() => navigate('/roles')}
+      extra={<Button icon={<ReloadOutlined />} onClick={fetchUnmappedResources}>{t('common.refresh')}</Button>}
+    >
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        {unmappedResources.length === 0 ? (
+          <ProCard bordered>
+            <Empty
+              image={<CheckCircleOutlined style={{ fontSize: 56, color: '#52c41a' }} />}
+              description={(
+                <Space direction="vertical">
+                  <Text strong>All Resources Mapped</Text>
+                  <Text type="secondary">All frontend pages and backend APIs are properly bound to permissions.</Text>
+                </Space>
+              )}
+            />
+          </ProCard>
+        ) : (
+          <>
+            <Alert
+              type="warning"
+              showIcon
+              icon={<WarningOutlined />}
+              message={t('unmappedResources.warning', 'Unmapped resources are currently governed by the server-side fallback policy.')}
+            />
+            <StatisticCard.Group direction="row">
+              <StatisticCard statistic={{ title: 'Frontend Pages', value: frontendResources.length, icon: <GlobalOutlined /> }} />
+              <StatisticCard statistic={{ title: 'Backend APIs', value: backendResources.length, icon: <ApiOutlined /> }} />
+              <StatisticCard statistic={{ title: 'Total Unmapped', value: unmappedResources.length, icon: <WarningOutlined />, status: 'warning' }} />
+            </StatisticCard.Group>
+            <ProCard bordered>
+              <ProTable<UnmappedResource>
+                rowKey={record => `${record.resource_type}:${record.resource_path}`}
+                search={false}
+                options={false}
+                columns={columns}
+                dataSource={unmappedResources}
+                pagination={{ pageSize: 10, showSizeChanger: true }}
+                toolBarRender={false}
+              />
+            </ProCard>
+          </>
+        )}
+      </Space>
 
-      {/* Success Message */}
-      {successMessage && (
-        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
-          <CheckCircle className="w-5 h-5 text-green-600" />
-          <span className="text-green-800">{successMessage}</span>
-        </div>
-      )}
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-4 border border-gray-200">
-          <div className="flex items-center gap-2 mb-2">
-            <Globe className="w-5 h-5 text-blue-600" />
-            <span className="font-medium text-gray-700">Frontend Pages</span>
-          </div>
-          <span className="text-2xl font-bold text-gray-900">{frontendResources.length}</span>
-          <span className="text-gray-500 text-sm ml-2">unmapped</span>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4 border border-gray-200">
-          <div className="flex items-center gap-2 mb-2">
-            <Server className="w-5 h-5 text-green-600" />
-            <span className="font-medium text-gray-700">Backend APIs</span>
-          </div>
-          <span className="text-2xl font-bold text-gray-900">{backendResources.length}</span>
-          <span className="text-gray-500 text-sm ml-2">unmapped</span>
-        </div>
-      </div>
-
-      {/* Frontend Pages Section */}
-      {frontendResources.length > 0 && (
-        <div className="bg-white rounded-lg shadow border border-gray-200 mb-6">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Globe className="w-5 h-5 text-blue-600" />
-              Frontend Pages ({frontendResources.length})
-            </h2>
-          </div>
-          <div className="divide-y divide-gray-200">
-            {frontendResources.map((resource) => (
-              <div key={resource.resource_path} className="px-6 py-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <code className="text-sm bg-gray-100 px-2 py-1 rounded">{resource.resource_path}</code>
-                    <span className="text-gray-500 text-sm ml-2">{resource.reason}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {showMappingForm === resource.resource_path ? (
-                      <div className="flex items-center gap-2">
-                        <select
-                          value={selectedPermission}
-                          onChange={(e) => setSelectedPermission(e.target.value)}
-                          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
-                        >
-                          <option value="">Select permission...</option>
-                          {permissions.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name} ({p.scope}:{p.action})
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => handleCreateMapping(resource.resource_path, 'frontend_page')}
-                          disabled={!selectedPermission || actionLoading === resource.resource_path}
-                          className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
-                        >
-                          {actionLoading === resource.resource_path ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Link2 className="w-4 h-4" />
-                          )}
-                        </button>
-                        <button
-                          onClick={() => {
-                            setShowMappingForm(null)
-                            setSelectedPermission('')
-                          }}
-                          className="text-gray-500 hover:text-gray-700"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setShowMappingForm(resource.resource_path)
-                          const recommended = getRecommendedPermission(resource.resource_path, 'frontend_page')
-                          setSelectedPermission(recommended)
-                        }}
-                        className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Map Permission
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Backend APIs Section */}
-      {backendResources.length > 0 && (
-        <div className="bg-white rounded-lg shadow border border-gray-200">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Server className="w-5 h-5 text-green-600" />
-              Backend APIs ({backendResources.length})
-            </h2>
-          </div>
-          <div className="divide-y divide-gray-200 max-h-96 overflow-y-auto">
-            {backendResources.map((resource) => (
-              <div key={resource.resource_path} className="px-6 py-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <code className="text-sm bg-gray-100 px-2 py-1 rounded">{resource.resource_path}</code>
-                    <span className="text-gray-500 text-sm ml-2">{resource.reason}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {showMappingForm === resource.resource_path ? (
-                      <div className="flex items-center gap-2">
-                        <select
-                          value={selectedPermission}
-                          onChange={(e) => setSelectedPermission(e.target.value)}
-                          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
-                        >
-                          <option value="">Select permission...</option>
-                          {permissions.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name} ({p.scope}:{p.action})
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => handleCreateMapping(resource.resource_path, 'backend_api')}
-                          disabled={!selectedPermission || actionLoading === resource.resource_path}
-                          className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
-                        >
-                          {actionLoading === resource.resource_path ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Link2 className="w-4 h-4" />
-                          )}
-                        </button>
-                        <button
-                          onClick={() => {
-                            setShowMappingForm(null)
-                            setSelectedPermission('')
-                          }}
-                          className="text-gray-500 hover:text-gray-700"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setShowMappingForm(resource.resource_path)
-                          const recommended = getRecommendedPermission(resource.resource_path, 'backend_api')
-                          setSelectedPermission(recommended)
-                        }}
-                        className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Map Permission
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {unmappedResources.length === 0 && (
-        <div className="text-center py-12 bg-white rounded-lg shadow border border-gray-200">
-          <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900">All Resources Mapped</h3>
-          <p className="text-gray-500 mt-1">All frontend pages and backend APIs are properly bound to permissions.</p>
-        </div>
-      )}
-    </div>
+      <Modal
+        title="Map Permission"
+        open={Boolean(mappingTarget)}
+        confirmLoading={Boolean(actionLoading)}
+        onOk={handleCreateMapping}
+        onCancel={() => {
+          setMappingTarget(null)
+          setSelectedPermission('')
+        }}
+        okText="Map"
+        okButtonProps={{ disabled: !selectedPermission }}
+      >
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          {mappingTarget && (
+            <Alert
+              type="info"
+              showIcon
+              message={<Text code>{mappingTarget.resource_path}</Text>}
+              description={mappingTarget.reason}
+            />
+          )}
+          <Select
+            showSearch
+            value={selectedPermission || undefined}
+            placeholder="Select permission..."
+            onChange={setSelectedPermission}
+            style={{ width: '100%' }}
+            optionFilterProp="label"
+            options={permissions.map(permission => ({
+              value: permission.id,
+              label: `${permission.name} (${permission.scope}:${permission.action})`,
+            }))}
+          />
+        </Space>
+      </Modal>
+    </PageContainer>
   )
 }

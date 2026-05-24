@@ -1,46 +1,49 @@
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Shield, Loader2, CheckCircle2, XCircle, Clock, AlertTriangle } from 'lucide-react'
+import { ProCard, StatisticCard } from '@ant-design/pro-components'
+import { Badge, Card, Empty, Progress, Row, Col, Space, Tag, Tooltip, Typography } from 'antd'
+import {
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  CloseCircleOutlined,
+  ExclamationCircleOutlined,
+  LoadingOutlined,
+  SafetyCertificateOutlined,
+} from '@ant-design/icons'
 import { agentApi } from '../services/api'
 import type { VulnAgentStatus, VulnAgentDashboard } from '../types'
 
-// Category color mapping for vuln types
-const VULN_CATEGORY_COLORS: Record<string, string> = {
-  // XSS variants
-  xss_reflected: 'border-yellow-500/60',
-  xss_stored: 'border-yellow-500/60',
-  xss_dom: 'border-yellow-500/60',
-  blind_xss: 'border-yellow-500/60',
-  mutation_xss: 'border-yellow-500/60',
-  // SQL Injection
-  sqli_error: 'border-red-500/60',
-  sqli_union: 'border-red-500/60',
-  sqli_blind: 'border-red-500/60',
-  sqli_time: 'border-red-500/60',
-  // SSRF
-  ssrf: 'border-purple-500/60',
-  ssrf_cloud: 'border-purple-500/60',
-  // Auth/Access
-  auth_bypass: 'border-blue-500/60',
-  idor: 'border-blue-500/60',
-  bola: 'border-blue-500/60',
-  bfla: 'border-blue-500/60',
-  privilege_escalation: 'border-blue-500/60',
-  // Command/Template
-  command_injection: 'border-red-600/60',
-  ssti: 'border-red-600/60',
-  // File access
-  lfi: 'border-orange-500/60',
-  rfi: 'border-orange-500/60',
-  path_traversal: 'border-orange-500/60',
-  xxe: 'border-orange-500/60',
+const { Text } = Typography
+
+const CATEGORY_COLORS: Record<string, string> = {
+  xss_reflected: 'gold',
+  xss_stored: 'gold',
+  xss_dom: 'gold',
+  blind_xss: 'gold',
+  mutation_xss: 'gold',
+  sqli_error: 'red',
+  sqli_union: 'red',
+  sqli_blind: 'red',
+  sqli_time: 'red',
+  ssrf: 'purple',
+  ssrf_cloud: 'purple',
+  auth_bypass: 'blue',
+  idor: 'blue',
+  bola: 'blue',
+  bfla: 'blue',
+  privilege_escalation: 'blue',
+  command_injection: 'volcano',
+  ssti: 'volcano',
+  lfi: 'orange',
+  rfi: 'orange',
+  path_traversal: 'orange',
+  xxe: 'orange',
 }
 
 function getCategoryColor(vulnType: string): string {
-  return VULN_CATEGORY_COLORS[vulnType] || 'border-dark-600'
+  return CATEGORY_COLORS[vulnType] || 'default'
 }
 
-// Shortened display names for grid cells
 function getShortName(vulnType: string): string {
   const names: Record<string, string> = {
     sqli_error: 'SQLi Err',
@@ -110,7 +113,7 @@ function getShortName(vulnType: string): string {
     business_logic: 'Biz Logic',
     rate_limit_bypass: 'Rate Limit',
     timing_attack: 'Timing',
-    insecure_deserialization: 'Deseiral',
+    insecure_deserialization: 'Deserial',
     file_upload: 'File Upload',
     arbitrary_file_delete: 'File Del',
     zip_slip: 'Zip Slip',
@@ -137,12 +140,25 @@ function getShortName(vulnType: string): string {
   return names[vulnType] || vulnType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).substring(0, 12)
 }
 
-const STATUS_ICONS: Record<string, React.ReactNode> = {
-  idle: <Clock className="w-3 h-3 text-dark-500" />,
-  running: <Loader2 className="w-3 h-3 text-blue-400 animate-spin" />,
-  completed: <CheckCircle2 className="w-3 h-3 text-green-400" />,
-  failed: <XCircle className="w-3 h-3 text-red-400" />,
-  cancelled: <AlertTriangle className="w-3 h-3 text-yellow-500" />,
+function statusIcon(status: string) {
+  if (status === 'running') return <LoadingOutlined spin />
+  if (status === 'completed') return <CheckCircleOutlined />
+  if (status === 'failed') return <CloseCircleOutlined />
+  if (status === 'cancelled') return <ExclamationCircleOutlined />
+  return <ClockCircleOutlined />
+}
+
+function statusBadge(status: string) {
+  if (status === 'running') return 'processing'
+  if (status === 'completed') return 'success'
+  if (status === 'failed') return 'error'
+  if (status === 'cancelled') return 'warning'
+  return 'default'
+}
+
+function formatDuration(seconds?: number | null) {
+  if (!seconds) return null
+  return seconds < 60 ? `${Math.round(seconds)}s` : `${(seconds / 60).toFixed(1)}m`
 }
 
 interface Props {
@@ -153,7 +169,6 @@ interface Props {
 export default function VulnAgentGrid({ agentId, isRunning }: Props) {
   const { t } = useTranslation()
   const [data, setData] = useState<VulnAgentDashboard | null>(null)
-  const [hoveredAgent, setHoveredAgent] = useState<string | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
@@ -161,9 +176,7 @@ export default function VulnAgentGrid({ agentId, isRunning }: Props) {
       try {
         const result = await agentApi.getVulnAgents(agentId)
         setData(result)
-      } catch {
-        // Agent may not exist yet
-      }
+      } catch {}
     }
 
     fetchData()
@@ -177,152 +190,86 @@ export default function VulnAgentGrid({ agentId, isRunning }: Props) {
     }
   }, [agentId, isRunning])
 
+  const pendingCount = useMemo(() => {
+    if (!data) return 0
+    const { stats } = data
+    return stats.total - stats.completed - stats.running - stats.failed - (stats.cancelled || 0)
+  }, [data])
+
   if (!data || !data.enabled) {
     return (
-      <div className="bg-dark-800 border border-dark-700 rounded-2xl p-6 text-center">
-        <Shield className="w-8 h-8 text-dark-500 mx-auto mb-2" />
-        <p className="text-dark-400 text-sm">
-          {t('vulnAgent.notEnabled')}
-        </p>
-        <p className="text-dark-500 text-xs mt-1">
-          {t('vulnAgent.enableHint')}
-        </p>
-      </div>
+      <ProCard>
+        <Empty
+          image={<SafetyCertificateOutlined style={{ fontSize: 40, color: '#bfbfbf' }} />}
+          description={(
+            <Space direction="vertical" size={0}>
+              <Text>{t('vulnAgent.notEnabled')}</Text>
+              <Text type="secondary">{t('vulnAgent.enableHint')}</Text>
+            </Space>
+          )}
+        />
+      </ProCard>
     )
   }
 
   const { agents, stats } = data
+  const percent = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0
 
   return (
-    <div className="space-y-4">
-      {/* Summary bar */}
-      <div className="bg-dark-800 border border-dark-700 rounded-xl p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Shield className="w-5 h-5 text-primary-400" />
-            <span className="text-white font-semibold">{t('vulnAgent.title')}</span>
-            <span className="text-dark-400 text-sm">({stats.total} types)</span>
-          </div>
-          <div className="flex items-center gap-4 text-xs">
-            {stats.completed > 0 && (
-              <span className="text-green-400">
-                <CheckCircle2 className="w-3 h-3 inline mr-1" />{stats.completed} {t('vulnAgent.done')}
-              </span>
-            )}
-            {stats.running > 0 && (
-              <span className="text-blue-400">
-                <Loader2 className="w-3 h-3 inline mr-1 animate-spin" />{stats.running} {t('vulnAgent.running')}
-              </span>
-            )}
-            {stats.failed > 0 && (
-              <span className="text-red-400">
-                <XCircle className="w-3 h-3 inline mr-1" />{stats.failed} {t('vulnAgent.failed')}
-              </span>
-            )}
-            {(stats.total - stats.completed - stats.running - stats.failed - (stats.cancelled || 0)) > 0 && (
-              <span className="text-dark-400">
-                <Clock className="w-3 h-3 inline mr-1" />
-                {stats.total - stats.completed - stats.running - stats.failed - (stats.cancelled || 0)} {t('vulnAgent.pending')}
-              </span>
-            )}
-            {stats.findings_total > 0 && (
-              <span className="text-red-400 font-bold">
-                {stats.findings_total} {t('vulnAgent.findings')}
-              </span>
-            )}
-            {stats.elapsed > 0 && (
-              <span className="text-dark-500">
-                {stats.elapsed < 60 ? `${Math.round(stats.elapsed)}s` : `${Math.round(stats.elapsed / 60)}m`}
-              </span>
-            )}
-          </div>
-        </div>
+    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <ProCard
+        title={<Space><SafetyCertificateOutlined />{t('vulnAgent.title')}<Tag>{stats.total} types</Tag></Space>}
+        extra={stats.elapsed > 0 ? <Tag icon={<ClockCircleOutlined />}>{formatDuration(stats.elapsed)}</Tag> : null}
+      >
+        <Row gutter={[16, 16]}>
+          <Col xs={12} sm={8} md={4}><StatisticCard statistic={{ title: t('vulnAgent.done'), value: stats.completed, icon: <CheckCircleOutlined />, valueStyle: { color: '#52c41a' } }} /></Col>
+          <Col xs={12} sm={8} md={4}><StatisticCard statistic={{ title: t('vulnAgent.running'), value: stats.running, icon: <LoadingOutlined />, valueStyle: { color: '#1677ff' } }} /></Col>
+          <Col xs={12} sm={8} md={4}><StatisticCard statistic={{ title: t('vulnAgent.failed'), value: stats.failed, icon: <CloseCircleOutlined />, valueStyle: { color: '#ff4d4f' } }} /></Col>
+          <Col xs={12} sm={8} md={4}><StatisticCard statistic={{ title: t('vulnAgent.pending'), value: pendingCount, icon: <ClockCircleOutlined /> }} /></Col>
+          <Col xs={12} sm={8} md={4}><StatisticCard statistic={{ title: t('vulnAgent.findings'), value: stats.findings_total, valueStyle: { color: '#cf1322' } }} /></Col>
+          <Col xs={12} sm={8} md={4}><StatisticCard statistic={{ title: 'Progress', value: `${percent}%` }} /></Col>
+        </Row>
+        {stats.total > 0 && <Progress percent={percent} status={stats.failed > 0 ? 'exception' : stats.running > 0 ? 'active' : 'success'} style={{ marginTop: 16 }} />}
+      </ProCard>
 
-        {/* Progress bar */}
-        {stats.total > 0 && (
-          <div className="mt-3 h-1.5 bg-dark-700 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-primary-500 to-green-500 rounded-full transition-all duration-500"
-              style={{ width: `${Math.round((stats.completed / stats.total) * 100)}%` }}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Agent grid */}
-      <div className="bg-dark-800 border border-dark-700 rounded-xl p-4">
-        <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 xl:grid-cols-14 gap-1.5">
+      <ProCard>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(88px, 1fr))', gap: 8 }}>
           {agents.map((agent: VulnAgentStatus) => (
-            <div
+            <Tooltip
               key={agent.vuln_type}
-              className={`relative border rounded-lg p-1.5 cursor-pointer transition-all hover:scale-105 ${
-                getCategoryColor(agent.vuln_type)
-              } ${
-                agent.status === 'running' ? 'bg-blue-500/10' :
-                agent.status === 'completed' ? 'bg-dark-900' :
-                agent.status === 'failed' ? 'bg-red-500/5' :
-                'bg-dark-900/50'
-              } ${
-                agent.findings_count > 0 ? 'ring-1 ring-red-500/50' : ''
-              }`}
-              onMouseEnter={() => setHoveredAgent(agent.vuln_type)}
-              onMouseLeave={() => setHoveredAgent(null)}
+              title={(
+                <Space direction="vertical" size={2}>
+                  <Text style={{ color: 'white' }}>{agent.vuln_type.replace(/_/g, ' ')}</Text>
+                  <Text style={{ color: 'white' }}>{t('vulnAgent.status')}: {agent.status}</Text>
+                  <Text style={{ color: 'white' }}>{t('vulnAgent.targets')}: {agent.targets_tested}/{agent.targets_total}</Text>
+                  {agent.findings_count > 0 && <Text style={{ color: '#ff7875' }}>{agent.findings_count} {t('vulnAgent.findingCount')}</Text>}
+                  {agent.duration != null && agent.duration > 0 && <Text style={{ color: 'white' }}>{t('vulnAgent.duration')}: {formatDuration(agent.duration)}</Text>}
+                  {agent.error && <Text style={{ color: '#ff7875' }}>{t('vulnAgent.error')}: {agent.error}</Text>}
+                </Space>
+              )}
             >
-              {/* Status icon */}
-              <div className="flex items-center justify-between mb-1">
-                {STATUS_ICONS[agent.status] || STATUS_ICONS.idle}
-                {agent.findings_count > 0 && (
-                  <span className="bg-red-500 text-white text-[9px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center">
-                    {agent.findings_count}
-                  </span>
-                )}
-              </div>
-
-              {/* Label */}
-              <div className="text-[9px] text-dark-300 leading-tight truncate">
-                {getShortName(agent.vuln_type)}
-              </div>
-
-              {/* Micro progress bar */}
-              {agent.status === 'running' && (
-                <div className="mt-1 h-0.5 bg-dark-700 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-blue-400 rounded-full transition-all"
-                    style={{ width: `${agent.progress}%` }}
-                  />
-                </div>
-              )}
-
-              {/* Tooltip */}
-              {hoveredAgent === agent.vuln_type && (
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 bg-dark-900 border border-dark-600 rounded-lg p-2 shadow-xl min-w-[180px] pointer-events-none">
-                  <div className="text-xs text-white font-medium mb-1">
-                    {agent.vuln_type.replace(/_/g, ' ')}
-                  </div>
-                  <div className="text-[10px] text-dark-400 space-y-0.5">
-                    <div>{t('vulnAgent.status')}: <span className={
-                      agent.status === 'completed' ? 'text-green-400' :
-                      agent.status === 'running' ? 'text-blue-400' :
-                      agent.status === 'failed' ? 'text-red-400' :
-                      'text-dark-300'
-                    }>{agent.status}</span></div>
-                    <div>{t('vulnAgent.targets')}: {agent.targets_tested}/{agent.targets_total}</div>
-                    {agent.findings_count > 0 && (
-                      <div className="text-red-400 font-bold">{agent.findings_count} {t('vulnAgent.findingCount')}</div>
-                    )}
-                    {agent.duration != null && agent.duration > 0 && (
-                      <div>{t('vulnAgent.duration')}: {agent.duration < 60 ? `${Math.round(agent.duration)}s` : `${(agent.duration / 60).toFixed(1)}m`}</div>
-                    )}
-                    {agent.error && (
-                      <div className="text-red-400 truncate">{t('vulnAgent.error')}: {agent.error}</div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+              <Card
+                size="small"
+                hoverable
+                style={{ borderColor: agent.findings_count > 0 ? '#ff4d4f' : undefined }}
+                bodyStyle={{ padding: 8 }}
+              >
+                <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                  <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                    <Badge status={statusBadge(agent.status) as any} />
+                    {statusIcon(agent.status)}
+                    {agent.findings_count > 0 && <Badge count={agent.findings_count} size="small" />}
+                  </Space>
+                  <Tag color={getCategoryColor(agent.vuln_type)} style={{ marginInlineEnd: 0, width: '100%', textAlign: 'center' }}>
+                    {getShortName(agent.vuln_type)}
+                  </Tag>
+                  {agent.status === 'running' && <Progress percent={agent.progress} size="small" showInfo={false} />}
+                </Space>
+              </Card>
+            </Tooltip>
           ))}
         </div>
-      </div>
-    </div>
+      </ProCard>
+    </Space>
   )
 }

@@ -1,154 +1,181 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { PageContainer, ProCard } from '@ant-design/pro-components'
+import { Alert, App as AntApp, Avatar, Button, Descriptions, Form, Input, Space, Spin, Tag, Typography } from 'antd'
+import { EditOutlined, LockOutlined, SaveOutlined, UserOutlined } from '@ant-design/icons'
 import i18n from '../locales'
-import { User, Lock, CheckCircle, XCircle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import axios from 'axios'
+import api from '../services/api'
+
+const { Text } = Typography
+
+interface ProfileFormValues {
+  full_name: string
+}
+
+interface PasswordFormValues {
+  current_password: string
+  new_password: string
+  confirm_password: string
+}
 
 export default function UserProfilePage() {
   const { t } = useTranslation()
   const { user } = useAuth()
+  const { notification } = AntApp.useApp()
   const [editing, setEditing] = useState(false)
-  const [fullName, setFullName] = useState(user?.full_name || '')
   const [changingPassword, setChangingPassword] = useState(false)
-  const [currentPassword, setCurrentPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [profileLoading, setProfileLoading] = useState(false)
+  const [passwordLoading, setPasswordLoading] = useState(false)
+  const [profileForm] = Form.useForm<ProfileFormValues>()
+  const [passwordForm] = Form.useForm<PasswordFormValues>()
 
-  const handleSaveProfile = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const roleLabels: Record<string, string> = {
+    admin: t('usersManagement.admin'),
+    user: t('usersManagement.user'),
+    viewer: t('usersManagement.viewer'),
+    service: 'Service',
+  }
+
+  const roleColors: Record<string, string> = {
+    admin: 'red',
+    user: 'blue',
+    viewer: 'default',
+    service: 'purple',
+  }
+
+  const handleEditProfile = () => {
+    profileForm.setFieldsValue({ full_name: user?.full_name || '' })
+    setEditing(true)
+  }
+
+  const handleSaveProfile = async () => {
+    const values = await profileForm.validateFields()
+    setProfileLoading(true)
     try {
-      await axios.put('/api/v1/auth/me', { full_name: fullName })
-      setMessage({ type: 'success', text: t('profile.updateSuccess') })
+      await api.put('/auth/me', { full_name: values.full_name })
+      notification.success({ message: t('profile.updateSuccess') })
       setEditing(false)
       window.location.reload()
     } catch {
-      setMessage({ type: 'error', text: t('profile.updateFailed') })
+      notification.error({ message: t('profile.updateFailed') })
+    } finally {
+      setProfileLoading(false)
     }
   }
 
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (newPassword !== confirmPassword) {
-      setMessage({ type: 'error', text: t('register.passwordMismatch') })
+  const handleChangePassword = async () => {
+    const values = await passwordForm.validateFields()
+    if (values.new_password !== values.confirm_password) {
+      passwordForm.setFields([{ name: 'confirm_password', errors: [t('register.passwordMismatch')] }])
       return
     }
-    if (newPassword.length < 6) {
-      setMessage({ type: 'error', text: t('register.passwordTooShort') })
-      return
-    }
+
+    setPasswordLoading(true)
     try {
-      await axios.put('/api/v1/auth/change-password', {
-        current_password: currentPassword,
-        new_password: newPassword,
+      await api.put('/auth/change-password', {
+        current_password: values.current_password,
+        new_password: values.new_password,
       })
-      setMessage({ type: 'success', text: t('profile.passwordChanged') })
+      notification.success({ message: t('profile.passwordChanged') })
       setChangingPassword(false)
-      setCurrentPassword('')
-      setNewPassword('')
-      setConfirmPassword('')
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data?.detail || t('profile.changeFailed') })
+      passwordForm.resetFields()
+    } catch (error: any) {
+      notification.error({ message: error.response?.data?.detail || t('profile.changeFailed') })
+    } finally {
+      setPasswordLoading(false)
     }
   }
 
-  const roleLabels = { admin: t('usersManagement.admin'), user: t('usersManagement.user'), viewer: t('usersManagement.viewer') }
-  const roleColors = { admin: 'bg-red-500/20 text-red-400', user: 'bg-blue-500/20 text-blue-400', viewer: 'bg-dark-500/40 text-dark-300' }
+  if (!user) {
+    return (
+      <PageContainer title={t('profile.title')} subTitle={t('profile.subtitle')}>
+        <ProCard bordered><Spin style={{ display: 'block', margin: '64px auto' }} /></ProCard>
+      </PageContainer>
+    )
+  }
 
-  if (!user) return <div className="flex items-center justify-center h-64"><p className="text-dark-400">{t('common.loading')}</p></div>
+  const displayName = user.full_name || user.email
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">{t('profile.title')}</h1>
-        <p className="text-dark-400 mt-1">{t('profile.subtitle')}</p>
-      </div>
+    <PageContainer title={t('profile.title')} subTitle={t('profile.subtitle')}>
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <ProCard bordered>
+          <Space align="center" size="large" wrap>
+            <Avatar size={72} icon={<UserOutlined />} style={{ backgroundColor: '#1677ff' }}>
+              {displayName[0]?.toUpperCase()}
+            </Avatar>
+            <Space direction="vertical" size={0}>
+              <Text strong style={{ fontSize: 20 }}>{displayName}</Text>
+              <Text type="secondary">{user.email}</Text>
+              <Tag color={roleColors[user.role]} style={{ marginTop: 8 }}>{roleLabels[user.role] || user.role}</Tag>
+            </Space>
+          </Space>
+        </ProCard>
 
-      {message && (
-        <div className={`p-4 rounded-lg flex items-center gap-2 ${message.type === 'success' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-          {message.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
-          {message.text}
-          <button onClick={() => setMessage(null)} className="ml-auto text-dark-400 hover:text-white">&times;</button>
-        </div>
-      )}
-
-      {/* Profile Card */}
-      <div className="bg-dark-800 rounded-lg border border-dark-700 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-medium flex items-center gap-2 text-white"><User className="w-5 h-5 text-primary-400" /> {t('profile.personalInfo')}</h2>
-          {!editing && <button onClick={() => setEditing(true)} className="text-sm text-primary-400 hover:text-primary-300">{t('common.edit')}</button>}
-        </div>
-        <div className="flex items-center gap-4 mb-6">
-          <div className="w-16 h-16 bg-primary-500/20 rounded-full flex items-center justify-center text-2xl font-bold text-primary-400">
-            {(user.full_name || user.email)[0].toUpperCase()}
-          </div>
-          <div>
-            <p className="text-lg font-medium text-white">{user.full_name || '-'}</p>
-            <p className="text-dark-400">{user.email}</p>
-          </div>
-        </div>
-        <form onSubmit={handleSaveProfile} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-dark-300 mb-1">{t('usersManagement.fullName')}</label>
-              <input value={fullName} onChange={e => setFullName(e.target.value)} disabled={!editing} className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md disabled:bg-dark-800 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-dark-300 mb-1">{t('login.email')}</label>
-              <input value={user.email} disabled className="w-full px-3 py-2 bg-dark-800 border border-dark-600 rounded-md text-dark-400" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-dark-300 mb-1">{t('usersManagement.role')}</label>
-              <span className={`px-3 py-2 inline-flex text-sm font-semibold rounded-full ${roleColors[user.role as keyof typeof roleColors]}`}>
-                {roleLabels[user.role as keyof typeof roleLabels]}
-              </span>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-dark-300 mb-1">{t('usersManagement.createdAt')}</label>
-              <p className="px-3 py-2 text-dark-400">{new Date(user.created_at).toLocaleString(i18n.language === 'zh-CN' ? 'zh-CN' : 'en-US')}</p>
-            </div>
-          </div>
-          {editing && (
-            <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={() => { setEditing(false); setFullName(user.full_name || '') }} className="px-4 py-2 text-dark-300 bg-dark-700 rounded-md hover:bg-dark-600">{t('common.cancel')}</button>
-              <button type="submit" className="px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600">{t('common.save')}</button>
-            </div>
+        <ProCard
+          bordered
+          title={<Space><UserOutlined />{t('profile.personalInfo')}</Space>}
+          extra={!editing && <Button icon={<EditOutlined />} onClick={handleEditProfile}>{t('common.edit')}</Button>}
+        >
+          {editing ? (
+            <Form form={profileForm} layout="vertical" initialValues={{ full_name: user.full_name || '' }}>
+              <Form.Item name="full_name" label={t('usersManagement.fullName')} rules={[{ required: true }]}>
+                <Input />
+              </Form.Item>
+              <Form.Item label={t('login.email')}>
+                <Input value={user.email} disabled />
+              </Form.Item>
+              <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+                <Button onClick={() => setEditing(false)}>{t('common.cancel')}</Button>
+                <Button type="primary" icon={<SaveOutlined />} loading={profileLoading} onClick={handleSaveProfile}>{t('common.save')}</Button>
+              </Space>
+            </Form>
+          ) : (
+            <Descriptions column={1} bordered size="small">
+              <Descriptions.Item label={t('usersManagement.fullName')}>{user.full_name || '-'}</Descriptions.Item>
+              <Descriptions.Item label={t('login.email')}>{user.email}</Descriptions.Item>
+              <Descriptions.Item label={t('usersManagement.role')}>
+                <Tag color={roleColors[user.role]}>{roleLabels[user.role] || user.role}</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label={t('usersManagement.createdAt')}>
+                {new Date(user.created_at).toLocaleString(i18n.language === 'zh-CN' ? 'zh-CN' : 'en-US')}
+              </Descriptions.Item>
+            </Descriptions>
           )}
-        </form>
-      </div>
+        </ProCard>
 
-      {/* Change Password Card */}
-      <div className="bg-dark-800 rounded-lg border border-dark-700 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-medium flex items-center gap-2 text-white"><Lock className="w-5 h-5 text-primary-400" /> {t('profile.changePassword')}</h2>
-          {!changingPassword && <button onClick={() => setChangingPassword(true)} className="text-sm text-primary-400 hover:text-primary-300">{t('common.edit')}</button>}
-        </div>
-        {changingPassword && (
-          <form onSubmit={handleChangePassword} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-dark-300 mb-1">{t('profile.currentPassword')}</label>
-              <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white placeholder-dark-400 focus:outline-none focus:border-primary-500" required />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-dark-300 mb-1">{t('profile.newPassword')}</label>
-                <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white placeholder-dark-400 focus:outline-none focus:border-primary-500" required minLength={6} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-dark-300 mb-1">{t('profile.confirmNewPassword')}</label>
-                <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white placeholder-dark-400 focus:outline-none focus:border-primary-500" required minLength={6} />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={() => { setChangingPassword(false); setCurrentPassword(''); setNewPassword(''); setConfirmPassword('') }} className="px-4 py-2 text-dark-300 bg-dark-700 rounded-md hover:bg-dark-600">{t('common.cancel')}</button>
-              <button type="submit" className="px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600">{t('profile.confirmChange')}</button>
-            </div>
-          </form>
-        )}
-      </div>
-    </div>
+        <ProCard
+          bordered
+          title={<Space><LockOutlined />{t('profile.changePassword')}</Space>}
+          extra={!changingPassword && <Button icon={<EditOutlined />} onClick={() => setChangingPassword(true)}>{t('common.edit')}</Button>}
+        >
+          {changingPassword ? (
+            <Form form={passwordForm} layout="vertical">
+              <Form.Item name="current_password" label={t('profile.currentPassword')} rules={[{ required: true }]}>
+                <Input.Password />
+              </Form.Item>
+              <Form.Item name="new_password" label={t('profile.newPassword')} rules={[{ required: true }, { min: 6, message: t('register.passwordTooShort') }]}>
+                <Input.Password />
+              </Form.Item>
+              <Form.Item name="confirm_password" label={t('profile.confirmNewPassword')} rules={[{ required: true }]}>
+                <Input.Password />
+              </Form.Item>
+              <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+                <Button onClick={() => {
+                  setChangingPassword(false)
+                  passwordForm.resetFields()
+                }}>
+                  {t('common.cancel')}
+                </Button>
+                <Button type="primary" icon={<LockOutlined />} loading={passwordLoading} onClick={handleChangePassword}>{t('profile.confirmChange')}</Button>
+              </Space>
+            </Form>
+          ) : (
+            <Alert type="info" showIcon message={t('profile.passwordSecurity', 'Use a strong password and change it regularly.')} />
+          )}
+        </ProCard>
+      </Space>
+    </PageContainer>
   )
 }

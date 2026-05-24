@@ -1,36 +1,39 @@
-import { useState, FormEvent } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { Alert, Button, Card, Form, Input, Space, Typography } from 'antd'
+import { LockOutlined, MailOutlined, SafetyCertificateOutlined, UserOutlined } from '@ant-design/icons'
 import { useAuth } from '../contexts/AuthContext'
-import { Shield, Lock, Mail, User } from 'lucide-react'
+
+const { Text, Title } = Typography
+
+interface RegisterFormValues {
+  fullName?: string
+  email: string
+  password: string
+  confirmPassword: string
+}
 
 export default function RegisterPage() {
   const { t } = useTranslation()
   const { register } = useAuth()
   const navigate = useNavigate()
-  const [fullName, setFullName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [form] = Form.useForm<RegisterFormValues>()
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async () => {
+    const values = await form.validateFields()
     setError('')
 
-    if (password !== confirmPassword) {
-      setError(t('register.passwordMismatch'))
-      return
-    }
-    if (password.length < 6) {
-      setError(t('register.passwordTooShort'))
+    if (values.password !== values.confirmPassword) {
+      form.setFields([{ name: 'confirmPassword', errors: [t('register.passwordMismatch')] }])
       return
     }
 
     setSubmitting(true)
     try {
-      await register(email, password, fullName || undefined)
+      await register(values.email, values.password, values.fullName || undefined)
       navigate('/')
     } catch (err: any) {
       setError(err.response?.data?.detail || t('register.registrationFailed'))
@@ -40,100 +43,47 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-primary-500/20 rounded-2xl flex items-center justify-center">
-              <Shield className="w-8 h-8 text-primary-400" />
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'linear-gradient(135deg, #f0f5ff 0%, #ffffff 45%, #f6ffed 100%)' }}>
+      <Card style={{ width: '100%', maxWidth: 440 }} styles={{ body: { padding: 32 } }}>
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          <Space direction="vertical" align="center" size="small" style={{ width: '100%' }}>
+            <div style={{ width: 64, height: 64, borderRadius: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#e6f4ff', color: '#1677ff' }}>
+              <SafetyCertificateOutlined style={{ fontSize: 32 }} />
             </div>
-          </div>
-          <h1 className="text-2xl font-bold text-white">{t('login.title')}</h1>
-          <p className="text-dark-400 mt-2">{t('register.subtitle')}</p>
-        </div>
+            <Title level={3} style={{ margin: 0 }}>{t('login.title')}</Title>
+            <Text type="secondary">{t('register.subtitle')}</Text>
+          </Space>
 
-        <form onSubmit={handleSubmit} className="bg-dark-800/50 border border-dark-700 rounded-xl p-6 space-y-4">
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg text-sm">
-              {error}
-            </div>
-          )}
+          {error && <Alert type="error" showIcon message={error} />}
 
-          <div>
-            <label className="block text-sm font-medium text-dark-300 mb-1.5">
-              <User className="w-4 h-4 inline mr-1.5" />
-              {t('usersManagement.fullName')}
-            </label>
-            <input
-              type="text"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2.5 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 transition-colors"
-              placeholder={t('register.fullNamePlaceholder')}
-            />
-          </div>
+          <Form form={form} layout="vertical" onFinish={handleSubmit} requiredMark={false}>
+            <Form.Item name="fullName" label={t('usersManagement.fullName')}>
+              <Input prefix={<UserOutlined />} placeholder={t('register.fullNamePlaceholder')} autoComplete="name" />
+            </Form.Item>
 
-          <div>
-            <label className="block text-sm font-medium text-dark-300 mb-1.5">
-              <Mail className="w-4 h-4 inline mr-1.5" />
-              {t('login.email')}
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2.5 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 transition-colors"
-              placeholder={t('register.emailPlaceholder')}
-            />
-          </div>
+            <Form.Item name="email" label={t('login.email')} rules={[{ required: true, message: t('register.emailPlaceholder') }, { type: 'email', message: t('register.emailPlaceholder') }]}>
+              <Input prefix={<MailOutlined />} placeholder={t('register.emailPlaceholder')} autoComplete="email" />
+            </Form.Item>
 
-          <div>
-            <label className="block text-sm font-medium text-dark-300 mb-1.5">
-              <Lock className="w-4 h-4 inline mr-1.5" />
-              {t('login.password')}
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2.5 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 transition-colors"
-              placeholder={t('login.passwordPlaceholder')}
-            />
-          </div>
+            <Form.Item name="password" label={t('login.password')} rules={[{ required: true, message: t('login.passwordPlaceholder') }, { min: 6, message: t('register.passwordTooShort') }]}>
+              <Input.Password prefix={<LockOutlined />} placeholder={t('login.passwordPlaceholder')} autoComplete="new-password" />
+            </Form.Item>
 
-          <div>
-            <label className="block text-sm font-medium text-dark-300 mb-1.5">
-              <Lock className="w-4 h-4 inline mr-1.5" />
-              {t('usersManagement.confirmPassword')}
-            </label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2.5 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 transition-colors"
-              placeholder={t('login.passwordPlaceholder')}
-            />
-          </div>
+            <Form.Item name="confirmPassword" label={t('usersManagement.confirmPassword')} rules={[{ required: true, message: t('login.passwordPlaceholder') }]}>
+              <Input.Password prefix={<LockOutlined />} placeholder={t('login.passwordPlaceholder')} autoComplete="new-password" />
+            </Form.Item>
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full bg-primary-600 hover:bg-primary-500 text-white font-medium py-2.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {submitting ? t('register.creatingAccount') : t('register.createAccount')}
-          </button>
+            <Button type="primary" htmlType="submit" block loading={submitting} size="large">
+              {submitting ? t('register.creatingAccount') : t('register.createAccount')}
+            </Button>
+          </Form>
 
-          <div className="text-center text-sm text-dark-400">
+          <Text type="secondary" style={{ display: 'block', textAlign: 'center' }}>
             {t('register.alreadyHaveAccount')}{' '}
-            <Link to="/login" className="text-primary-400 hover:text-primary-300">
-              {t('register.signIn')}
-            </Link>
-          </div>
-        </form>
-      </div>
+            <Link to="/login">{t('register.signIn')}</Link>
+          </Text>
+        </Space>
+      </Card>
     </div>
   )
 }

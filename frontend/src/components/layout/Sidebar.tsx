@@ -1,10 +1,29 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
-  Home, Bot, BookOpen, FileText, Settings, Activity, Shield, Zap,
-  Clock, Rocket, FlaskConical, Terminal, Container, Brain, Cable,
-  Plug, Crosshair, ChevronLeft, ChevronRight, Users, Languages, UserCog,
-} from 'lucide-react'
+  AimOutlined,
+  ApiOutlined,
+  BookOutlined,
+  BulbOutlined,
+  ClockCircleOutlined,
+  CloudServerOutlined,
+  CodeOutlined,
+  DashboardOutlined,
+  ExperimentOutlined,
+  FileTextOutlined,
+  GlobalOutlined,
+  HomeOutlined,
+  LeftOutlined,
+  PlayCircleOutlined,
+  RightOutlined,
+  RobotOutlined,
+  SafetyCertificateOutlined,
+  SettingOutlined,
+  ThunderboltOutlined,
+  TranslationOutlined,
+  UsergroupAddOutlined,
+  UserSwitchOutlined,
+} from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import { useUIStore } from '../../store'
 
@@ -24,34 +43,34 @@ const allNavGroups: NavGroup[] = [
   {
     labelKey: 'sidebar.operations',
     items: [
-      { path: '/', icon: Home, labelKey: 'sidebar.dashboard', requiredPermission: 'dashboard:read' },
-      { path: '/auto', icon: Rocket, labelKey: 'sidebar.autoPentest', requiredPermission: 'agent:execute' },
-      { path: '/scan/new', icon: Bot, labelKey: 'sidebar.aiAgent', requiredPermission: 'scan:create' },
-      { path: '/realtime', icon: Zap, labelKey: 'sidebar.realtimeTask', requiredPermission: 'agent:execute' },
-      { path: '/full-ia', icon: Crosshair, labelKey: 'sidebar.fullIaTesting', requiredPermission: 'full_ia:read' },
+      { path: '/', icon: HomeOutlined, labelKey: 'sidebar.dashboard', requiredPermission: 'dashboard:read' },
+      { path: '/auto', icon: PlayCircleOutlined, labelKey: 'sidebar.autoPentest', requiredPermission: 'agent:execute' },
+      { path: '/scan/new', icon: RobotOutlined, labelKey: 'sidebar.aiAgent', requiredPermission: 'scan:create' },
+      { path: '/realtime', icon: ThunderboltOutlined, labelKey: 'sidebar.realtimeTask', requiredPermission: 'agent:execute' },
+      { path: '/full-ia', icon: AimOutlined, labelKey: 'sidebar.fullIaTesting', requiredPermission: 'full_ia:read' },
     ],
   },
   {
     labelKey: 'sidebar.tools',
     items: [
-      { path: '/vuln-lab', icon: FlaskConical, labelKey: 'sidebar.vulnLab', requiredPermission: 'vulnerability:read' },
-      { path: '/terminal', icon: Terminal, labelKey: 'sidebar.terminalAgent', requiredPermission: 'terminal:execute' },
-      { path: '/sandboxes', icon: Container, labelKey: 'sidebar.sandboxes', requiredPermission: 'sandbox:read' },
-      { path: '/tasks', icon: BookOpen, labelKey: 'sidebar.taskLibrary', requiredPermission: 'agent:read' },
-      { path: '/knowledge', icon: Brain, labelKey: 'sidebar.knowledge', requiredPermission: 'knowledge:read' },
-      { path: '/mcp', icon: Cable, labelKey: 'sidebar.mcpServers', requiredPermission: 'mcp:read' },
-      { path: '/providers', icon: Plug, labelKey: 'sidebar.providers', requiredPermission: 'provider:read' },
+      { path: '/vuln-lab', icon: ExperimentOutlined, labelKey: 'sidebar.vulnLab', requiredPermission: 'vulnerability:read' },
+      { path: '/terminal', icon: CodeOutlined, labelKey: 'sidebar.terminalAgent', requiredPermission: 'terminal:execute' },
+      { path: '/sandboxes', icon: CloudServerOutlined, labelKey: 'sidebar.sandboxes', requiredPermission: 'sandbox:read' },
+      { path: '/tasks', icon: BookOutlined, labelKey: 'sidebar.taskLibrary', requiredPermission: 'agent:read' },
+      { path: '/knowledge', icon: BulbOutlined, labelKey: 'sidebar.knowledge', requiredPermission: 'knowledge:read' },
+      { path: '/mcp', icon: ApiOutlined, labelKey: 'sidebar.mcpServers', requiredPermission: 'mcp:read' },
+      { path: '/providers', icon: GlobalOutlined, labelKey: 'sidebar.providers', requiredPermission: 'provider:read' },
     ],
   },
   {
     labelKey: 'sidebar.configuration',
     items: [
-      { path: '/scheduler', icon: Clock, labelKey: 'sidebar.scheduler', requiredPermission: 'scheduler:read' },
-      { path: '/reports', icon: FileText, labelKey: 'sidebar.reports', requiredPermission: 'report:read' },
-      { path: '/languages', icon: Languages, labelKey: 'languageManagement.title', requiredPermission: 'settings:read' },
-      { path: '/users', icon: Users, labelKey: 'usersManagement.title', requiredPermission: 'user:manage' },
-      { path: '/roles', icon: UserCog, labelKey: 'roleManagement.title', requiredPermission: 'user:manage' },
-      { path: '/settings', icon: Settings, labelKey: 'sidebar.settings', requiredPermission: 'settings:read' },
+      { path: '/scheduler', icon: ClockCircleOutlined, labelKey: 'sidebar.scheduler', requiredPermission: 'scheduler:read' },
+      { path: '/reports', icon: FileTextOutlined, labelKey: 'sidebar.reports', requiredPermission: 'report:read' },
+      { path: '/languages', icon: TranslationOutlined, labelKey: 'languageManagement.title', requiredPermission: 'settings:read' },
+      { path: '/users', icon: UsergroupAddOutlined, labelKey: 'usersManagement.title', requiredPermission: 'user:manage' },
+      { path: '/roles', icon: UserSwitchOutlined, labelKey: 'roleManagement.title', requiredPermission: 'user:manage' },
+      { path: '/settings', icon: SettingOutlined, labelKey: 'sidebar.settings', requiredPermission: 'settings:read' },
     ],
   },
 ]
@@ -88,7 +107,7 @@ export default function Sidebar() {
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 bg-primary-500 rounded-lg flex items-center justify-center flex-shrink-0">
-              <Shield className="w-6 h-6 text-white" />
+              <SafetyCertificateOutlined className="w-6 h-6 text-white" />
             </div>
             {!sidebarCollapsed && (
               <div className="min-w-0">
@@ -101,7 +120,7 @@ export default function Sidebar() {
             onClick={toggleSidebar}
             className="text-dark-400 hover:text-white transition-colors p-1 rounded hover:bg-dark-700 flex-shrink-0"
           >
-            {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            {sidebarCollapsed ? <RightOutlined className="w-4 h-4" /> : <LeftOutlined className="w-4 h-4" />}
           </button>
         </div>
       </div>
@@ -147,7 +166,7 @@ export default function Sidebar() {
 
       <div className="p-3 border-t border-dark-900/50">
         <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-2'} text-sm`}>
-          <Activity className="w-4 h-4 text-green-500 flex-shrink-0" />
+          <DashboardOutlined className="w-4 h-4 text-green-500 flex-shrink-0" />
           {!sidebarCollapsed && <span className="text-dark-400">{t('sidebar.systemOnline')}</span>}
         </div>
       </div>

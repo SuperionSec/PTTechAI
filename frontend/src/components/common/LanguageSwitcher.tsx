@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { Globe } from 'lucide-react'
+import { GlobalOutlined } from '@ant-design/icons'
 
 export default function LanguageSwitcher() {
   const { i18n, t } = useTranslation()
@@ -18,7 +18,7 @@ export default function LanguageSwitcher() {
       className="flex items-center gap-2 px-3 py-2 rounded-lg bg-dark-700/50 hover:bg-dark-600 text-dark-300 hover:text-white transition-colors text-sm"
       title={t('languageSwitcher.label')}
     >
-      <Globe className="w-4 h-4" />
+      <GlobalOutlined className="w-4 h-4" />
       <span>{isChinese ? '中文' : 'English'}</span>
     </button>
   )

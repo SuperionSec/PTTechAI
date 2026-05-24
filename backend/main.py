@@ -11,7 +11,7 @@ from pathlib import Path
 
 from backend.config import settings
 from backend.db.database import init_db, close_db
-from backend.api.v1 import scans, targets, prompts, reports, dashboard, vulnerabilities, settings as settings_router, agent, agent_tasks, scheduler, vuln_lab, terminal, sandbox, knowledge, mcp, providers, full_ia, cli_agent, auth, users, permissions
+from backend.api.v1 import scans, targets, prompts, reports, dashboard, vulnerabilities, settings as settings_router, agent, agent_tasks, scheduler, vuln_lab, terminal, sandbox, knowledge, mcp, providers, full_ia, cli_agent, auth, users, permissions, rbac
 from backend.api.websocket import manager as ws_manager
 
 
@@ -135,6 +135,7 @@ app.include_router(cli_agent.router)
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["User Management"])
 app.include_router(permissions.router, prefix="/api/v1/permissions", tags=["Permissions"])
+app.include_router(rbac.router, prefix="/api/v1/rbac", tags=["RBAC"])
 
 
 @app.get("/api/health")

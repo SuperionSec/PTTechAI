@@ -1,7 +1,32 @@
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Key, Trash2, Plus, Copy, AlertCircle } from 'lucide-react'
+import { PageContainer, ProCard, ProTable, StatisticCard } from '@ant-design/pro-components'
+import type { ProColumns } from '@ant-design/pro-components'
+import {
+  Alert,
+  App as AntApp,
+  Button,
+  Empty,
+  Form,
+  Input,
+  Modal,
+  Popconfirm,
+  Space,
+  Spin,
+  Typography,
+} from 'antd'
+import {
+  ApiOutlined,
+  ClockCircleOutlined,
+  CopyOutlined,
+  DeleteOutlined,
+  KeyOutlined,
+  PlusOutlined,
+  SafetyCertificateOutlined,
+} from '@ant-design/icons'
 import api from '../services/api'
+
+const { Text } = Typography
 
 interface APIKey {
   id: string
@@ -12,136 +37,198 @@ interface APIKey {
   expires_at: string | null
 }
 
+interface CreateKeyFormValues {
+  name: string
+}
+
+function formatDate(value: string | null) {
+  return value ? new Date(value).toLocaleString() : '-'
+}
+
 export default function APIKeysPage() {
   const { t } = useTranslation()
+  const { notification } = AntApp.useApp()
   const [keys, setKeys] = useState<APIKey[]>([])
   const [loading, setLoading] = useState(true)
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [, setNewKey] = useState<{ name: string; key: string } | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [createOpen, setCreateOpen] = useState(false)
   const [showNewKey, setShowNewKey] = useState<string | null>(null)
+  const [form] = Form.useForm<CreateKeyFormValues>()
 
-  useEffect(() => { fetchKeys() }, [])
-
-  const fetchKeys = async () => {
+  const fetchKeys = useCallback(async () => {
+    setLoading(true)
     try {
       const res = await api.get('/api-keys')
       setKeys(res.data)
     } catch (error) {
       console.error('Failed to fetch API keys:', error)
+      notification.error({ message: t('apiKeys.createFailed') })
     } finally {
       setLoading(false)
     }
-  }
+  }, [notification, t])
 
-  const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    const formData = new FormData(e.currentTarget)
-    const name = formData.get('name') as string
+  useEffect(() => {
+    fetchKeys()
+  }, [fetchKeys])
+
+  const handleCreate = async () => {
+    const values = await form.validateFields()
+    setCreating(true)
     try {
-      const res = await api.post('/api-keys', { name })
-      setNewKey({ name, key: res.data.key })
+      const res = await api.post('/api-keys', { name: values.name.trim() })
       setShowNewKey(res.data.key)
-      setShowCreateModal(false)
-      fetchKeys()
-    } catch (error) {
-      alert(t('apiKeys.createFailed'))
+      setCreateOpen(false)
+      form.resetFields()
+      notification.success({ message: t('apiKeys.createKey') })
+      await fetchKeys()
+    } catch {
+      notification.error({ message: t('apiKeys.createFailed') })
+    } finally {
+      setCreating(false)
     }
   }
 
   const handleDelete = async (keyId: string) => {
-    if (!confirm(t('apiKeys.deleteConfirm'))) return
     try {
       await api.delete(`/api-keys/${keyId}`)
-      setKeys(keys.filter(k => k.id !== keyId))
-    } catch (error) {
-      alert(t('apiKeys.deleteFailed'))
+      setKeys(prev => prev.filter(key => key.id !== keyId))
+      notification.success({ message: t('common.delete') })
+    } catch {
+      notification.error({ message: t('apiKeys.deleteFailed') })
     }
   }
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
-    alert(t('apiKeys.copiedToClipboard'))
+  const copyToClipboard = async (text: string) => {
+    await navigator.clipboard.writeText(text)
+    notification.success({ message: t('apiKeys.copiedToClipboard') })
   }
 
-  if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div></div>
+  const activeKeys = keys.filter(key => !key.expires_at || new Date(key.expires_at).getTime() > Date.now()).length
+  const usedKeys = keys.filter(key => key.last_used).length
+
+  const columns: ProColumns<APIKey>[] = [
+    {
+      title: t('apiKeys.name'),
+      dataIndex: 'name',
+      render: (_, key) => (
+        <Space direction="vertical" size={2}>
+          <Text strong>{key.name}</Text>
+          <Text type="secondary">ID: {key.id}</Text>
+        </Space>
+      ),
+    },
+    {
+      title: t('apiKeys.keyHash'),
+      dataIndex: 'key_hash',
+      render: (_, key) => <Text code>{key.key_hash.slice(0, 16)}...</Text>,
+    },
+    {
+      title: t('apiKeys.createdAt'),
+      dataIndex: 'created_at',
+      width: 190,
+      render: (_, key) => formatDate(key.created_at),
+    },
+    {
+      title: t('apiKeys.lastUsed'),
+      dataIndex: 'last_used',
+      width: 190,
+      render: (_, key) => key.last_used ? formatDate(key.last_used) : <Text type="secondary">{t('apiKeys.neverUsed')}</Text>,
+    },
+    {
+      title: t('apiKeys.actions'),
+      valueType: 'option',
+      width: 90,
+      render: (_, key) => [
+        <Popconfirm
+          key="delete"
+          title={t('apiKeys.deleteConfirm')}
+          okText={t('common.delete')}
+          cancelText={t('common.cancel')}
+          okButtonProps={{ danger: true }}
+          onConfirm={() => handleDelete(key.id)}
+        >
+          <Button size="small" danger icon={<DeleteOutlined />} />
+        </Popconfirm>,
+      ],
+    },
+  ]
+
+  if (loading && keys.length === 0) {
+    return (
+      <PageContainer title={t('apiKeys.title')} subTitle={t('apiKeys.subtitle')}>
+        <ProCard bordered><Spin style={{ display: 'block', margin: '64px auto' }} /></ProCard>
+      </PageContainer>
+    )
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">{t('apiKeys.title')}</h1>
-          <p className="text-dark-400 mt-1">{t('apiKeys.subtitle')}</p>
-        </div>
-        <button onClick={() => setShowCreateModal(true)} className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors flex items-center gap-2">
-          <Plus className="w-4 h-4" /> {t('apiKeys.createKey')}
-        </button>
-      </div>
+    <PageContainer
+      title={t('apiKeys.title')}
+      subTitle={t('apiKeys.subtitle')}
+      extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>{t('apiKeys.createKey')}</Button>}
+    >
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <StatisticCard.Group direction="row">
+          <StatisticCard statistic={{ title: t('apiKeys.myKeys'), value: keys.length, icon: <KeyOutlined /> }} />
+          <StatisticCard statistic={{ title: t('common.enabled'), value: activeKeys, icon: <SafetyCertificateOutlined /> }} />
+          <StatisticCard statistic={{ title: t('apiKeys.lastUsed'), value: usedKeys, icon: <ClockCircleOutlined /> }} />
+        </StatisticCard.Group>
 
-      {showNewKey && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
-            <div className="flex-1">
-              <h3 className="text-sm font-medium text-yellow-800">{t('apiKeys.saveYourKey')}</h3>
-              <p className="text-sm text-yellow-700 mt-1">{t('apiKeys.keyOnlyShownOnce')}</p>
-              <div className="mt-2 flex items-center gap-2">
-                <code className="bg-yellow-100 px-3 py-1 rounded text-sm font-mono">{showNewKey}</code>
-                <button onClick={() => copyToClipboard(showNewKey)} className="p-1 hover:bg-yellow-100 rounded"><Copy className="w-4 h-4" /></button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="bg-dark-800 rounded-lg shadow-sm border border-dark-700">
-        <div className="p-4 border-b border-dark-700 flex items-center gap-2">
-          <Key className="w-5 h-5 text-dark-400" />
-          <span className="font-medium text-white">{t('apiKeys.myKeys')} ({keys.length})</span>
-        </div>
-        {keys.length === 0 ? (
-          <div className="p-8 text-center text-dark-400">{t('apiKeys.noKeys')}</div>
-        ) : (
-          <table className="min-w-full divide-y divide-dark-700">
-            <thead className="bg-dark-900/50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-dark-400 uppercase tracking-wider">{t('apiKeys.name')}</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-dark-400 uppercase tracking-wider">{t('apiKeys.keyHash')}</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-dark-400 uppercase tracking-wider">{t('apiKeys.createdAt')}</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-dark-400 uppercase tracking-wider">{t('apiKeys.lastUsed')}</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-dark-400 uppercase tracking-wider">{t('apiKeys.actions')}</th>
-              </tr>
-            </thead>
-            <tbody className="bg-dark-800 divide-y divide-dark-700">
-              {keys.map(key => (
-                <tr key={key.id} className="hover:bg-dark-700/50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{key.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-400 font-mono">{key.key_hash.slice(0, 16)}...</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-400">{new Date(key.created_at).toLocaleString()}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-400">{key.last_used ? new Date(key.last_used).toLocaleString() : t('apiKeys.neverUsed')}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button onClick={() => handleDelete(key.id)} className="text-red-400 hover:text-red-300"><Trash2 className="w-4 h-4" /></button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {showNewKey && (
+          <Alert
+            type="warning"
+            showIcon
+            message={t('apiKeys.saveYourKey')}
+            description={
+              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                <Text>{t('apiKeys.keyOnlyShownOnce')}</Text>
+                <Space.Compact style={{ width: '100%' }}>
+                  <Input value={showNewKey} readOnly />
+                  <Button icon={<CopyOutlined />} onClick={() => copyToClipboard(showNewKey)} />
+                </Space.Compact>
+              </Space>
+            }
+            closable
+            onClose={() => setShowNewKey(null)}
+          />
         )}
-      </div>
 
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-dark-800 rounded-lg p-6 w-96 border border-dark-700">
-            <h3 className="text-lg font-medium mb-4 text-white">{t('apiKeys.createNewKey')}</h3>
-            <form onSubmit={handleCreate}>
-              <input name="name" placeholder={t('apiKeys.keyName')} className="w-full px-3 py-2 bg-dark-900 border border-dark-600 rounded-md mb-4 text-white placeholder-dark-500" required />
-              <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => setShowCreateModal(false)} className="px-4 py-2 text-dark-300 bg-dark-700 rounded-md hover:bg-dark-600">{t('common.cancel')}</button>
-                <button type="submit" className="px-4 py-2 bg-emerald-500 text-white rounded-md hover:bg-emerald-600">{t('common.create')}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
+        <ProCard bordered title={<Space><ApiOutlined />{t('apiKeys.myKeys')} ({keys.length})</Space>}>
+          {keys.length === 0 ? (
+            <Empty description={t('apiKeys.noKeys')}>
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>{t('apiKeys.createKey')}</Button>
+            </Empty>
+          ) : (
+            <ProTable<APIKey>
+              rowKey="id"
+              search={false}
+              options={false}
+              columns={columns}
+              dataSource={keys}
+              pagination={{ pageSize: 10, showSizeChanger: true }}
+              toolBarRender={false}
+              loading={loading}
+            />
+          )}
+        </ProCard>
+      </Space>
+
+      <Modal
+        title={t('apiKeys.createNewKey')}
+        open={createOpen}
+        confirmLoading={creating}
+        onOk={handleCreate}
+        onCancel={() => setCreateOpen(false)}
+        okText={t('common.create')}
+        cancelText={t('common.cancel')}
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item name="name" label={t('apiKeys.keyName')} rules={[{ required: true, message: t('apiKeys.keyName') }]}>
+            <Input prefix={<KeyOutlined />} placeholder={t('apiKeys.keyName')} />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </PageContainer>
   )
 }

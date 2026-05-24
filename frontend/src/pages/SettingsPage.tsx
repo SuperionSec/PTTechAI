@@ -1,34 +1,44 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { PageContainer, ProCard, StatisticCard } from '@ant-design/pro-components'
 import {
-  Save,
-  Shield,
-  Trash2,
-  RefreshCw,
-  AlertTriangle,
-  Brain,
-  Router,
-  Eye,
-  ChevronDown,
-  Loader2,
-  Bell,
-  Send,
-  Phone,
-  MessageCircle,
-  Hash,
-  X,
-  Settings,
-  Database,
-  Zap,
-  CheckCircle2,
-} from 'lucide-react'
-import Card from '../components/common/Card'
-import Button from '../components/common/Button'
-import Input from '../components/common/Input'
+  App as AntApp,
+  Button,
+  Col,
+  Divider,
+  Form,
+  Input,
+  InputNumber,
+  Popconfirm,
+  Row,
+  Select,
+  Space,
+  Spin,
+  Switch,
+  Tag,
+  Typography,
+} from 'antd'
+import {
+  BellOutlined,
+  CheckCircleOutlined,
+  CloudOutlined,
+  DatabaseOutlined,
+  DeleteOutlined,
+  EyeOutlined,
+  InfoCircleOutlined,
+  MessageOutlined,
+  PhoneOutlined,
+  ReloadOutlined,
+  RocketOutlined,
+  BranchesOutlined,
+  SaveOutlined,
+  SecurityScanOutlined,
+  SendOutlined,
+  SettingOutlined,
+  ThunderboltOutlined,
+} from '@ant-design/icons'
 
-/* ------------------------------------------------------------------ */
-/*  Types                                                              */
-/* ------------------------------------------------------------------ */
+const { Paragraph, Text } = Typography
 
 interface Settings {
   llm_provider: string
@@ -49,7 +59,6 @@ interface Settings {
   enable_knowledge_augmentation: boolean
   enable_browser_validation: boolean
   max_output_tokens: number | null
-  // Notifications
   enable_notifications: boolean
   has_discord_webhook: boolean
   has_telegram_bot: boolean
@@ -72,86 +81,16 @@ interface ModelInfo {
   is_local: boolean
 }
 
-/* ------------------------------------------------------------------ */
-/*  Toast notification system                                          */
-/* ------------------------------------------------------------------ */
-
-interface Toast {
-  id: number
-  message: string
-  severity: 'info' | 'success' | 'warning' | 'error'
-}
-
-let _toastId = 0
-
-function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: number) => void }) {
-  if (toasts.length === 0) return null
-  const border: Record<string, string> = {
-    info: 'border-blue-500',
-    success: 'border-green-500',
-    warning: 'border-yellow-500',
-    error: 'border-red-500',
-  }
-  return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm">
-      {toasts.map(t => (
-        <div
-          key={t.id}
-          className={`bg-dark-800 border-l-4 ${border[t.severity]} rounded-lg px-4 py-3 shadow-xl flex items-start gap-3`}
-          style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
-        >
-          <span className="text-sm text-dark-200 flex-1">{t.message}</span>
-          <button onClick={() => onDismiss(t.id)} className="text-dark-500 hover:text-white">
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-/* ------------------------------------------------------------------ */
-/*  Constants                                                          */
-/* ------------------------------------------------------------------ */
-
 const PROVIDERS = [
-  { id: 'claude', label: 'Claude', color: 'orange' },
-  { id: 'openai', label: 'OpenAI', color: 'emerald' },
-  { id: 'gemini', label: 'Gemini', color: 'blue' },
-  { id: 'openrouter', label: 'OpenRouter', color: 'violet' },
-  { id: 'together', label: 'Together AI', color: 'teal' },
-  { id: 'fireworks', label: 'Fireworks AI', color: 'rose' },
-  { id: 'ollama', label: 'Ollama', color: 'gray' },
-  { id: 'lmstudio', label: 'LM Studio', color: 'slate' },
-] as const
-
-const getFeatureToggles = (t: any) => [
-  {
-    key: 'modelRouting' as const,
-    icon: Router,
-    iconColor: 'text-blue-400',
-    title: t('settings.modelRouting'),
-    description: t('settings.modelRoutingDesc'),
-  },
-  {
-    key: 'knowledgeAugmentation' as const,
-    icon: Brain,
-    iconColor: 'text-purple-400',
-    title: t('settings.knowledgeAugmentation'),
-    description: t('settings.knowledgeAugmentationDesc'),
-  },
-  {
-    key: 'browserValidation' as const,
-    icon: Eye,
-    iconColor: 'text-green-400',
-    title: t('settings.browserValidation'),
-    description: t('settings.browserValidationDesc'),
-  },
+  { id: 'claude', label: 'Claude' },
+  { id: 'openai', label: 'OpenAI' },
+  { id: 'gemini', label: 'Gemini' },
+  { id: 'openrouter', label: 'OpenRouter' },
+  { id: 'together', label: 'Together AI' },
+  { id: 'fireworks', label: 'Fireworks AI' },
+  { id: 'ollama', label: 'Ollama' },
+  { id: 'lmstudio', label: 'LM Studio' },
 ]
-
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
 
 function formatNumber(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
@@ -159,12 +98,14 @@ function formatNumber(n: number): string {
   return String(n)
 }
 
-/* ------------------------------------------------------------------ */
-/*  Page Component                                                     */
-/* ------------------------------------------------------------------ */
+function tokenHeaders() {
+  const token = localStorage.getItem('access_token')
+  return { Authorization: `Bearer ${token}` }
+}
 
 export default function SettingsPage() {
   const { t } = useTranslation()
+  const { notification } = AntApp.useApp()
   const [settings, setSettings] = useState<Settings | null>(null)
   const [dbStats, setDbStats] = useState<DbStats | null>(null)
   const [apiKey, setApiKey] = useState('')
@@ -177,13 +118,12 @@ export default function SettingsPage() {
   const [lmstudioUrl, setLmstudioUrl] = useState('')
   const [llmProvider, setLlmProvider] = useState('claude')
   const [llmModel, setLlmModel] = useState('')
-  const [maxConcurrentScans, setMaxConcurrentScans] = useState('3')
-  const [maxOutputTokens, setMaxOutputTokens] = useState('')
+  const [maxConcurrentScans, setMaxConcurrentScans] = useState(3)
+  const [maxOutputTokens, setMaxOutputTokens] = useState<number | null>(null)
   const [aggressiveMode, setAggressiveMode] = useState(false)
   const [enableModelRouting, setEnableModelRouting] = useState(false)
   const [enableKnowledgeAugmentation, setEnableKnowledgeAugmentation] = useState(false)
   const [enableBrowserValidation, setEnableBrowserValidation] = useState(false)
-  // Notifications
   const [enableNotifications, setEnableNotifications] = useState(false)
   const [discordWebhookUrl, setDiscordWebhookUrl] = useState('')
   const [telegramBotToken, setTelegramBotToken] = useState('')
@@ -193,37 +133,18 @@ export default function SettingsPage() {
   const [twilioFromNumber, setTwilioFromNumber] = useState('')
   const [twilioToNumber, setTwilioToNumber] = useState('')
   const [notificationSeverityFilter, setNotificationSeverityFilter] = useState('critical,high')
-  const [testingChannel, setTestingChannel] = useState<string | null>(null)
-
   const [isSaving, setIsSaving] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
-  const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [availableModels, setAvailableModels] = useState<ModelInfo[]>([])
   const [loadingModels, setLoadingModels] = useState(false)
   const [refreshSpinning, setRefreshSpinning] = useState(false)
   const [statsRefreshing, setStatsRefreshing] = useState(false)
-  const [toasts, setToasts] = useState<Toast[]>([])
+  const [testingChannel, setTestingChannel] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  /* ---------- Toast helpers ---------- */
-  const addToast = useCallback((message: string, severity: Toast['severity']) => {
-    const id = ++_toastId
-    setToasts(prev => [...prev, { id, message, severity }])
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000)
-  }, [])
-
-  const dismissToast = useCallback((id: number) => {
-    setToasts(prev => prev.filter(t => t.id !== id))
-  }, [])
-
-  /* ---------- Derived data ---------- */
-  const totalDbRecords = useMemo(() => {
-    if (!dbStats) return 0
-    return dbStats.scans + dbStats.vulnerabilities + dbStats.endpoints + dbStats.reports
-  }, [dbStats])
-
-  const activeProviderLabel = useMemo(() => {
-    return PROVIDERS.find(p => p.id === llmProvider)?.label || llmProvider
-  }, [llmProvider])
+  const activeProviderLabel = useMemo(() => PROVIDERS.find(p => p.id === llmProvider)?.label || llmProvider, [llmProvider])
+  const totalDbRecords = useMemo(() => dbStats ? dbStats.scans + dbStats.vulnerabilities + dbStats.endpoints + dbStats.reports : 0, [dbStats])
+  const enabledFeaturesCount = useMemo(() => [enableModelRouting, enableKnowledgeAugmentation, enableBrowserValidation].filter(Boolean).length, [enableModelRouting, enableKnowledgeAugmentation, enableBrowserValidation])
 
   const hasApiKeyForProvider = useMemo((): boolean => {
     if (!settings) return false
@@ -240,28 +161,20 @@ export default function SettingsPage() {
     return keyMap[llmProvider] ?? false
   }, [settings, llmProvider])
 
-  const enabledFeaturesCount = useMemo(() => {
-    return [enableModelRouting, enableKnowledgeAugmentation, enableBrowserValidation].filter(Boolean).length
-  }, [enableModelRouting, enableKnowledgeAugmentation, enableBrowserValidation])
-
-  /* ---------- Data fetching ---------- */
   const fetchSettings = useCallback(async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await fetch('/api/v1/settings', {
-        headers: { 'Authorization': `Bearer ${token}` },
-      })
+      const response = await fetch('/api/v1/settings', { headers: tokenHeaders() })
       if (response.ok) {
         const data: Settings = await response.json()
         setSettings(data)
         setLlmProvider(data.llm_provider)
         setLlmModel(data.llm_model || '')
-        setMaxConcurrentScans(String(data.max_concurrent_scans))
+        setMaxConcurrentScans(data.max_concurrent_scans)
         setAggressiveMode(data.aggressive_mode)
         setEnableModelRouting(data.enable_model_routing ?? false)
         setEnableKnowledgeAugmentation(data.enable_knowledge_augmentation ?? false)
         setEnableBrowserValidation(data.enable_browser_validation ?? false)
-        setMaxOutputTokens(data.max_output_tokens ? String(data.max_output_tokens) : '')
+        setMaxOutputTokens(data.max_output_tokens)
         setOllamaUrl(data.ollama_base_url || '')
         setLmstudioUrl(data.lmstudio_base_url || '')
         setEnableNotifications(data.enable_notifications ?? false)
@@ -269,20 +182,16 @@ export default function SettingsPage() {
       }
     } catch (error) {
       console.error('Failed to fetch settings:', error)
-      addToast(t('settings.failedToLoadSettings'), 'error')
+      notification.error({ message: t('settings.failedToLoadSettings') })
+    } finally {
+      setLoading(false)
     }
-  }, [addToast])
+  }, [notification, t])
 
   const fetchDbStats = useCallback(async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await fetch('/api/v1/settings/stats', {
-        headers: { 'Authorization': `Bearer ${token}` },
-      })
-      if (response.ok) {
-        const data: DbStats = await response.json()
-        setDbStats(data)
-      }
+      const response = await fetch('/api/v1/settings/stats', { headers: tokenHeaders() })
+      if (response.ok) setDbStats(await response.json())
     } catch (error) {
       console.error('Failed to fetch db stats:', error)
     }
@@ -314,25 +223,22 @@ export default function SettingsPage() {
     fetchModels(llmProvider)
   }, [llmProvider, fetchModels])
 
-  /* ---------- Handlers ---------- */
   const handleSave = useCallback(async () => {
     setIsSaving(true)
-
     try {
       const body: Record<string, unknown> = {
         llm_provider: llmProvider,
         llm_model: llmModel || undefined,
-        max_concurrent_scans: parseInt(maxConcurrentScans),
+        max_concurrent_scans: maxConcurrentScans,
         aggressive_mode: aggressiveMode,
         enable_model_routing: enableModelRouting,
         enable_knowledge_augmentation: enableKnowledgeAugmentation,
         enable_browser_validation: enableBrowserValidation,
-        max_output_tokens: maxOutputTokens ? parseInt(maxOutputTokens) : null,
+        max_output_tokens: maxOutputTokens,
         enable_notifications: enableNotifications,
         notification_severity_filter: notificationSeverityFilter,
       }
 
-      // Notification credentials (only send if changed)
       if (discordWebhookUrl) body.discord_webhook_url = discordWebhookUrl
       if (telegramBotToken) body.telegram_bot_token = telegramBotToken
       if (telegramChatId) body.telegram_chat_id = telegramChatId
@@ -340,8 +246,6 @@ export default function SettingsPage() {
       if (twilioAuthToken) body.twilio_auth_token = twilioAuthToken
       if (twilioFromNumber) body.twilio_from_number = twilioFromNumber
       if (twilioToNumber) body.twilio_to_number = twilioToNumber
-
-      // Only send keys that were changed
       if (apiKey) body.anthropic_api_key = apiKey
       if (openaiKey) body.openai_api_key = openaiKey
       if (openrouterKey) body.openrouter_api_key = openrouterKey
@@ -351,16 +255,14 @@ export default function SettingsPage() {
       if (ollamaUrl) body.ollama_base_url = ollamaUrl
       if (lmstudioUrl) body.lmstudio_base_url = lmstudioUrl
 
-      const token = localStorage.getItem('access_token')
       const response = await fetch('/api/v1/settings', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', ...tokenHeaders() },
         body: JSON.stringify(body),
       })
 
       if (response.ok) {
-        const data: Settings = await response.json()
-        setSettings(data)
+        setSettings(await response.json())
         setApiKey('')
         setOpenaiKey('')
         setOpenrouterKey('')
@@ -374,12 +276,12 @@ export default function SettingsPage() {
         setTwilioAuthToken('')
         setTwilioFromNumber('')
         setTwilioToNumber('')
-        addToast(t('settings.savedSuccessfully'), 'success')
+        notification.success({ message: t('settings.savedSuccessfully') })
       } else {
-        addToast(t('settings.failedToSaveSettings'), 'error')
+        notification.error({ message: t('settings.failedToSaveSettings') })
       }
     } catch {
-      addToast(t('settings.failedToSaveSettings'), 'error')
+      notification.error({ message: t('settings.failedToSaveSettings') })
     } finally {
       setIsSaving(false)
     }
@@ -390,58 +292,50 @@ export default function SettingsPage() {
     discordWebhookUrl, telegramBotToken, telegramChatId,
     twilioAccountSid, twilioAuthToken, twilioFromNumber, twilioToNumber,
     apiKey, openaiKey, openrouterKey, geminiKey, togetherKey, fireworksKey,
-    ollamaUrl, lmstudioUrl, addToast,
+    ollamaUrl, lmstudioUrl, notification, t,
   ])
 
   const handleClearDatabase = useCallback(async () => {
     setIsClearing(true)
-
     try {
-      const token = localStorage.getItem('access_token')
       const response = await fetch('/api/v1/settings/clear-database', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', ...tokenHeaders() },
         body: JSON.stringify({ confirm: true }),
       })
-
       if (response.ok) {
-        addToast(t('settings.databaseCleared'), 'success')
-        setShowClearConfirm(false)
-        fetchDbStats()
+        notification.success({ message: t('settings.databaseCleared') })
+        await fetchDbStats()
       } else {
         const data = await response.json()
-        addToast(data.detail || t('settings.failedToClearDatabase'), 'error')
+        notification.error({ message: data.detail || t('settings.failedToClearDatabase') })
       }
     } catch {
-      addToast(t('settings.failedToClearDatabase'), 'error')
+      notification.error({ message: t('settings.failedToClearDatabase') })
     } finally {
       setIsClearing(false)
     }
-  }, [addToast, fetchDbStats])
+  }, [fetchDbStats, notification, t])
 
   const handleTestNotification = useCallback(async (channel: string) => {
     setTestingChannel(channel)
     try {
-      const token = localStorage.getItem('access_token')
       const response = await fetch(`/api/v1/settings/notifications/test/${channel}`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: tokenHeaders(),
       })
       const data = await response.json()
       if (data.success) {
-        addToast(data.message || t('settings.testSentTo', { channel }), 'success')
+        notification.success({ message: data.message || t('settings.testSentTo', { channel }) })
       } else {
-        addToast(data.error || t('settings.testFailedFor', { channel }), 'error')
+        notification.error({ message: data.error || t('settings.testFailedFor', { channel }) })
       }
     } catch {
-      addToast(t('settings.testFailedFor', { channel }), 'error')
+      notification.error({ message: t('settings.testFailedFor', { channel }) })
     } finally {
       setTestingChannel(null)
     }
-  }, [addToast])
+  }, [notification, t])
 
   const handleRefreshModels = useCallback(() => {
     setRefreshSpinning(true)
@@ -455,617 +349,245 @@ export default function SettingsPage() {
     setTimeout(() => setStatsRefreshing(false), 800)
   }, [fetchDbStats])
 
-  const handleProviderSelect = useCallback((providerId: string) => {
-    setLlmProvider(providerId)
-  }, [])
+  if (loading && !settings) {
+    return (
+      <PageContainer title={t('settings.title')}>
+        <ProCard bordered><Spin style={{ display: 'block', margin: '64px auto' }} /></ProCard>
+      </PageContainer>
+    )
+  }
 
-  const handleModelChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    setLlmModel(e.target.value)
-  }, [])
-
-  const featureToggleSetters = useMemo(() => ({
-    modelRouting: () => setEnableModelRouting(prev => !prev),
-    knowledgeAugmentation: () => setEnableKnowledgeAugmentation(prev => !prev),
-    browserValidation: () => setEnableBrowserValidation(prev => !prev),
-  }), [])
-
-  const featureToggleValues = useMemo(() => ({
-    modelRouting: enableModelRouting,
-    knowledgeAugmentation: enableKnowledgeAugmentation,
-    browserValidation: enableBrowserValidation,
-  }), [enableModelRouting, enableKnowledgeAugmentation, enableBrowserValidation])
-
-  /* ---------- Sub-components ---------- */
-  const ToggleSwitch = useCallback(({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) => (
-    <button
-      onClick={onToggle}
-      className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${enabled ? 'bg-primary-500' : 'bg-dark-700'}`}
-    >
-      <div
-        className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ${enabled ? 'translate-x-6' : 'translate-x-0.5'}`}
-      />
-    </button>
-  ), [])
-
-  /* ---------- Render ---------- */
   return (
-    <div className="space-y-6 animate-fadeIn">
-      {/* Inline keyframes */}
-      <style>{`
-        @keyframes fadeSlideIn {
-          from { opacity: 0; transform: translateY(-8px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes spinOnce {
-          from { transform: rotate(0deg); }
-          to   { transform: rotate(360deg); }
-        }
-      `}</style>
-
-      {/* Toast Notifications */}
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-
-      {/* Page Header */}
-      <div
-        className="flex items-center justify-between"
-        style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
-      >
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-primary-500/10 rounded-xl">
-            <Settings className="w-6 h-6 text-primary-400" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-white">{t('settings.title')}</h1>
-            <p className="text-sm text-dark-400">
-              {activeProviderLabel} {t('settings.provider')}
-              {hasApiKeyForProvider && (
-                <span className="inline-flex items-center ml-2 text-xs text-green-400">
-                  <CheckCircle2 className="w-3 h-3 mr-1" />
-                  {t('settings.keyConfigured')}
-                </span>
-              )}
-              {enabledFeaturesCount > 0 && (
-                <span className="ml-2 text-xs text-purple-400">
-                  {enabledFeaturesCount} {t('settings.featuresActive')}
-                </span>
-              )}
-            </p>
-          </div>
-        </div>
-        <Button onClick={handleSave} isLoading={isSaving}>
-          <Save className="w-4 h-4 mr-2" />
-          {t('settings.saveSettings')}
-        </Button>
-      </div>
-
-      {/* LLM Configuration */}
-      <div style={{ animation: 'fadeSlideIn 0.3s ease-out 0.05s both' }}>
-        <Card title={t('settings.llmConfiguration')} subtitle={t('settings.llmConfigurationDesc')}>
-          <div className="space-y-4">
-            {/* Provider selection */}
-            <div>
-              <label className="block text-sm font-medium text-dark-200 mb-2">
-                {t('settings.llmProvider')}
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {PROVIDERS.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => handleProviderSelect(p.id)}
-                    className={`relative px-3 py-2.5 rounded-lg border text-sm font-medium transition-all duration-200 ${
-                      llmProvider === p.id
-                        ? 'bg-primary-500/15 border-primary-500/50 text-primary-400 shadow-lg shadow-primary-500/10'
-                        : 'bg-dark-900/50 border-dark-700 text-dark-300 hover:bg-dark-800 hover:border-dark-600'
-                    }`}
-                  >
-                    {p.label}
-                    {llmProvider === p.id && (
-                      <span className="absolute top-1 right-1.5">
-                        <CheckCircle2 className="w-3 h-3 text-primary-400" />
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Model Picker */}
-            <div>
-              <label className="block text-sm font-medium text-dark-200 mb-2">
-                {t('settings.modelLabel')}
-                {loadingModels && <Loader2 className="w-3 h-3 inline ml-2 animate-spin" />}
-              </label>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <select
-                    value={llmModel}
-                    onChange={handleModelChange}
-                    className="w-full bg-dark-900 border border-dark-700 rounded-lg px-4 py-2.5 text-white appearance-none cursor-pointer focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/20 transition-colors"
-                  >
-                    <option value="">{t('settings.providerDefault')}</option>
-                    {availableModels.map((m) => (
-                      <option key={m.model_id} value={m.model_id}>
-                        {m.display_name}{m.size ? ` (${m.size})` : ''}{m.context_length ? ` - ${(m.context_length / 1000).toFixed(0)}k ctx` : ''}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-dark-400 pointer-events-none" />
-                </div>
-                <Button variant="secondary" onClick={handleRefreshModels} title={t('settings.refreshModels')}>
-                  <RefreshCw
-                    className="w-4 h-4"
-                    style={refreshSpinning ? { animation: 'spinOnce 0.6s ease-in-out' } : undefined}
+    <PageContainer
+      title={t('settings.title')}
+      subTitle={
+        <Space wrap>
+          <Text type="secondary">{activeProviderLabel} {t('settings.provider')}</Text>
+          {hasApiKeyForProvider && <Tag color="green" icon={<CheckCircleOutlined />}>{t('settings.keyConfigured')}</Tag>}
+          {enabledFeaturesCount > 0 && <Tag color="purple">{enabledFeaturesCount} {t('settings.featuresActive')}</Tag>}
+        </Space>
+      }
+      extra={<Button type="primary" icon={<SaveOutlined />} loading={isSaving} onClick={handleSave}>{t('settings.saveSettings')}</Button>}
+    >
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <ProCard bordered title={<Space><CloudOutlined />{t('settings.llmConfiguration')}</Space>} subTitle={t('settings.llmConfigurationDesc')}>
+          <Form layout="vertical">
+            <Row gutter={16}>
+              <Col xs={24} lg={12}>
+                <Form.Item label={t('settings.llmProvider')}>
+                  <Select
+                    value={llmProvider}
+                    onChange={setLlmProvider}
+                    options={PROVIDERS.map(provider => ({ label: provider.label, value: provider.id }))}
                   />
-                </Button>
-              </div>
-              {llmModel && (
-                <p className="text-xs text-dark-400 mt-1.5 flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3 text-green-500" />
-                  {t('settings.selected')}: <span className="text-dark-200 font-mono">{llmModel}</span>
-                </p>
-              )}
-              {['ollama', 'lmstudio'].includes(llmProvider) && availableModels.length === 0 && !loadingModels && (
-                <p className="text-xs text-yellow-400 mt-1.5 flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3" />
-                  {t('settings.noModelsFound', { provider: llmProvider === 'ollama' ? 'Ollama' : 'LM Studio' })}
-                </p>
-              )}
-            </div>
-
-            {/* API Key inputs */}
-            {llmProvider === 'claude' && (
-              <div style={{ animation: 'fadeSlideIn 0.2s ease-out' }}>
-                <Input
-                  label={t('settings.anthropicApiKey')}
-                  type="password"
-                  placeholder={settings?.has_anthropic_key ? '••••••••••••••••' : 'sk-ant-...'}
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  helperText={settings?.has_anthropic_key ? t('settings.apiKeyConfigured') : t('settings.requiredForClaude')}
-                />
-              </div>
-            )}
-
-            {llmProvider === 'openai' && (
-              <div style={{ animation: 'fadeSlideIn 0.2s ease-out' }}>
-                <Input
-                  label={t('settings.openaiApiKey')}
-                  type="password"
-                  placeholder={settings?.has_openai_key ? '••••••••••••••••' : 'sk-...'}
-                  value={openaiKey}
-                  onChange={(e) => setOpenaiKey(e.target.value)}
-                  helperText={settings?.has_openai_key ? t('settings.apiKeyConfigured') : t('settings.requiredForOpenai')}
-                />
-              </div>
-            )}
-
-            {llmProvider === 'gemini' && (
-              <div style={{ animation: 'fadeSlideIn 0.2s ease-out' }}>
-                <Input
-                  label={t('settings.geminiApiKey')}
-                  type="password"
-                  placeholder={settings?.has_gemini_key ? '••••••••••••••••' : 'AI...'}
-                  value={geminiKey}
-                  onChange={(e) => setGeminiKey(e.target.value)}
-                  helperText={settings?.has_gemini_key ? t('settings.apiKeyConfigured') : t('settings.requiredForGemini')}
-                />
-              </div>
-            )}
-
-            {llmProvider === 'openrouter' && (
-              <div style={{ animation: 'fadeSlideIn 0.2s ease-out' }}>
-                <Input
-                  label={t('settings.openrouterApiKey')}
-                  type="password"
-                  placeholder={settings?.has_openrouter_key ? '••••••••••••••••' : 'sk-or-...'}
-                  value={openrouterKey}
-                  onChange={(e) => setOpenrouterKey(e.target.value)}
-                  helperText={settings?.has_openrouter_key ? t('settings.apiKeyConfigured') : t('settings.requiredForOpenrouter')}
-                />
-              </div>
-            )}
-
-            {llmProvider === 'together' && (
-              <div style={{ animation: 'fadeSlideIn 0.2s ease-out' }}>
-                <Input
-                  label={t('settings.togetherApiKey')}
-                  type="password"
-                  placeholder={settings?.has_together_key ? '••••••••••••••••' : '...'}
-                  value={togetherKey}
-                  onChange={(e) => setTogetherKey(e.target.value)}
-                  helperText={settings?.has_together_key ? t('settings.apiKeyConfigured') : t('settings.requiredForTogether')}
-                />
-              </div>
-            )}
-
-            {llmProvider === 'fireworks' && (
-              <div style={{ animation: 'fadeSlideIn 0.2s ease-out' }}>
-                <Input
-                  label={t('settings.fireworksApiKey')}
-                  type="password"
-                  placeholder={settings?.has_fireworks_key ? '••••••••••••••••' : '...'}
-                  value={fireworksKey}
-                  onChange={(e) => setFireworksKey(e.target.value)}
-                  helperText={settings?.has_fireworks_key ? t('settings.apiKeyConfigured') : t('settings.requiredForFireworks')}
-                />
-              </div>
-            )}
-
-            {llmProvider === 'ollama' && (
-              <div style={{ animation: 'fadeSlideIn 0.2s ease-out' }}>
-                <Input
-                  label={t('settings.ollamaBaseUrl')}
-                  type="text"
-                  placeholder="http://localhost:11434"
-                  value={ollamaUrl}
-                  onChange={(e) => setOllamaUrl(e.target.value)}
-                  helperText={t('settings.ollamaHelper')}
-                />
-              </div>
-            )}
-
-            {llmProvider === 'lmstudio' && (
-              <div style={{ animation: 'fadeSlideIn 0.2s ease-out' }}>
-                <Input
-                  label={t('settings.lmstudioBaseUrl')}
-                  type="text"
-                  placeholder="http://localhost:1234"
-                  value={lmstudioUrl}
-                  onChange={(e) => setLmstudioUrl(e.target.value)}
-                  helperText={t('settings.lmstudioHelper')}
-                />
-              </div>
-            )}
-
-            <Input
-              label={t('settings.maxOutputTokens')}
-              type="number"
-              min="1024"
-              max="64000"
-              placeholder={t('settings.defaultProfileBased')}
-              value={maxOutputTokens}
-              onChange={(e) => setMaxOutputTokens(e.target.value)}
-              helperText={t('settings.maxOutputTokensHelper')}
-            />
-          </div>
-        </Card>
-      </div>
-
-      {/* Advanced Features */}
-      <div style={{ animation: 'fadeSlideIn 0.3s ease-out 0.1s both' }}>
-        <Card title={t('settings.advancedFeatures')} subtitle={t('settings.advancedFeaturesDesc')}>
-          <div className="space-y-3">
-            {getFeatureToggles(t).map((feature, idx) => {
-              const Icon = feature.icon
-              return (
-                <div
-                  key={feature.key}
-                  className="flex items-center justify-between p-4 bg-dark-900/50 rounded-lg border border-dark-700/30 hover:border-dark-600/50 transition-colors"
-                  style={{ animation: `fadeSlideIn 0.3s ease-out ${0.12 + idx * 0.04}s both` }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${featureToggleValues[feature.key] ? 'bg-primary-500/10' : 'bg-dark-800'}`}>
-                      <Icon className={`w-5 h-5 ${feature.iconColor}`} />
-                    </div>
-                    <div>
-                      <p className="font-medium text-white text-sm">{feature.title}</p>
-                      <p className="text-xs text-dark-400 mt-0.5">{feature.description}</p>
-                    </div>
-                  </div>
-                  <ToggleSwitch
-                    enabled={featureToggleValues[feature.key]}
-                    onToggle={featureToggleSetters[feature.key]}
-                  />
-                </div>
-              )
-            })}
-          </div>
-        </Card>
-      </div>
-
-      {/* Notifications */}
-      <div style={{ animation: 'fadeSlideIn 0.3s ease-out 0.15s both' }}>
-        <Card title={t('settings.notifications')} subtitle={t('settings.notificationsDesc')}>
-          <div className="space-y-4">
-            {/* Master toggle */}
-            <div className="flex items-center justify-between p-4 bg-dark-900/50 rounded-lg border border-dark-700/30">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${enableNotifications ? 'bg-yellow-500/10' : 'bg-dark-800'}`}>
-                  <Bell className={`w-5 h-5 ${enableNotifications ? 'text-yellow-400' : 'text-dark-500'}`} />
-                </div>
-                <div>
-                  <p className="font-medium text-white text-sm">{t('settings.enableNotifications')}</p>
-                  <p className="text-xs text-dark-400 mt-0.5">{t('settings.enableNotificationsDesc')}</p>
-                </div>
-              </div>
-              <ToggleSwitch enabled={enableNotifications} onToggle={() => setEnableNotifications(!enableNotifications)} />
-            </div>
-
-            {enableNotifications && (
-              <div className="space-y-4" style={{ animation: 'fadeSlideIn 0.3s ease-out' }}>
-                {/* Severity filter */}
-                <div>
-                  <label className="block text-sm font-medium text-dark-200 mb-2">
-                    <Hash className="w-4 h-4 inline mr-1" />
-                    {t('settings.severityFilter')}
-                  </label>
-                  <input
-                    type="text"
-                    value={notificationSeverityFilter}
-                    onChange={(e) => setNotificationSeverityFilter(e.target.value)}
-                    placeholder="critical,high"
-                    className="w-full bg-dark-900 border border-dark-700 rounded-lg px-4 py-2.5 text-white text-sm focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/20 transition-colors"
-                  />
-                  <p className="text-xs text-dark-500 mt-1">{t('settings.severityFilterHelper')}</p>
-                </div>
-
-                {/* Discord */}
-                <div
-                  className="p-4 bg-dark-900/50 rounded-lg space-y-3 border border-dark-700/30"
-                  style={{ animation: 'fadeSlideIn 0.3s ease-out 0.05s both' }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <MessageCircle className="w-4 h-4 text-indigo-400" />
-                      <span className="text-white font-medium text-sm">Discord</span>
-                      {settings?.has_discord_webhook && (
-                        <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20">
-                          {t('settings.configured')}
-                        </span>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => handleTestNotification('discord')}
-                      disabled={testingChannel === 'discord' || !settings?.has_discord_webhook}
-                      className="text-xs px-3 py-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg hover:bg-indigo-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
-                    >
-                      {testingChannel === 'discord' ? <Loader2 className="w-3 h-3 animate-spin inline" /> : t('settings.test')}
-                    </button>
-                  </div>
-                  <Input
-                    label={t('settings.webhookUrl')}
-                    type="password"
-                    placeholder={settings?.has_discord_webhook ? '••••••••••••••••' : 'https://discord.com/api/webhooks/...'}
-                    value={discordWebhookUrl}
-                    onChange={(e) => setDiscordWebhookUrl(e.target.value)}
-                    helperText={settings?.has_discord_webhook ? t('settings.webhookConfigured') : t('settings.discordHelper')}
-                  />
-                </div>
-
-                {/* Telegram */}
-                <div
-                  className="p-4 bg-dark-900/50 rounded-lg space-y-3 border border-dark-700/30"
-                  style={{ animation: 'fadeSlideIn 0.3s ease-out 0.1s both' }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Send className="w-4 h-4 text-blue-400" />
-                      <span className="text-white font-medium text-sm">Telegram</span>
-                      {settings?.has_telegram_bot && (
-                        <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20">
-                          {t('settings.configured')}
-                        </span>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => handleTestNotification('telegram')}
-                      disabled={testingChannel === 'telegram' || !settings?.has_telegram_bot}
-                      className="text-xs px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
-                    >
-                      {testingChannel === 'telegram' ? <Loader2 className="w-3 h-3 animate-spin inline" /> : t('settings.test')}
-                    </button>
-                  </div>
-                  <Input
-                    label={t('settings.botToken')}
-                    type="password"
-                    placeholder={settings?.has_telegram_bot ? '••••••••••••••••' : '123456:ABC-DEF...'}
-                    value={telegramBotToken}
-                    onChange={(e) => setTelegramBotToken(e.target.value)}
-                    helperText={t('settings.telegramBotHelper')}
-                  />
-                  <Input
-                    label={t('settings.chatId')}
-                    type="text"
-                    placeholder="-1001234567890"
-                    value={telegramChatId}
-                    onChange={(e) => setTelegramChatId(e.target.value)}
-                    helperText={t('settings.telegramChatIdHelper')}
-                  />
-                </div>
-
-                {/* WhatsApp (Twilio) */}
-                <div
-                  className="p-4 bg-dark-900/50 rounded-lg space-y-3 border border-dark-700/30"
-                  style={{ animation: 'fadeSlideIn 0.3s ease-out 0.15s both' }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-green-400" />
-                      <span className="text-white font-medium text-sm">{t('settings.whatsappTwilio')}</span>
-                      {settings?.has_twilio_credentials && (
-                        <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20">
-                          {t('settings.configured')}
-                        </span>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => handleTestNotification('whatsapp')}
-                      disabled={testingChannel === 'whatsapp' || !settings?.has_twilio_credentials}
-                      className="text-xs px-3 py-1.5 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
-                    >
-                      {testingChannel === 'whatsapp' ? <Loader2 className="w-3 h-3 animate-spin inline" /> : t('settings.test')}
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Input
-                      label={t('settings.accountSid')}
-                      type="password"
-                      placeholder={settings?.has_twilio_credentials ? '••••••••' : 'AC...'}
-                      value={twilioAccountSid}
-                      onChange={(e) => setTwilioAccountSid(e.target.value)}
+                </Form.Item>
+              </Col>
+              <Col xs={24} lg={12}>
+                <Form.Item label={<Space>{t('settings.modelLabel')}{loadingModels && <Spin size="small" />}</Space>}>
+                  <Space.Compact style={{ width: '100%' }}>
+                    <Select
+                      value={llmModel || ''}
+                      onChange={setLlmModel}
+                      style={{ width: '100%' }}
+                      options={[
+                        { label: t('settings.providerDefault'), value: '' },
+                        ...availableModels.map(model => ({
+                          label: `${model.display_name}${model.size ? ` (${model.size})` : ''}${model.context_length ? ` - ${(model.context_length / 1000).toFixed(0)}k ctx` : ''}`,
+                          value: model.model_id,
+                        })),
+                      ]}
                     />
-                    <Input
-                      label={t('settings.authToken')}
-                      type="password"
-                      placeholder={settings?.has_twilio_credentials ? '••••••••' : '...'}
-                      value={twilioAuthToken}
-                      onChange={(e) => setTwilioAuthToken(e.target.value)}
-                    />
-                    <Input
-                      label={t('settings.fromNumber')}
-                      type="text"
-                      placeholder="+14155238886"
-                      value={twilioFromNumber}
-                      onChange={(e) => setTwilioFromNumber(e.target.value)}
-                    />
-                    <Input
-                      label={t('settings.toNumber')}
-                      type="text"
-                      placeholder="+1234567890"
-                      value={twilioToNumber}
-                      onChange={(e) => setTwilioToNumber(e.target.value)}
-                    />
-                  </div>
-                  <p className="text-xs text-dark-500">{t('settings.twilioHelper')}</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </Card>
-      </div>
+                    <Button icon={<ReloadOutlined spin={refreshSpinning} />} onClick={handleRefreshModels} />
+                  </Space.Compact>
+                </Form.Item>
+              </Col>
+            </Row>
 
-      {/* Scan Settings */}
-      <div style={{ animation: 'fadeSlideIn 0.3s ease-out 0.2s both' }}>
-        <Card title={t('settings.scanSettings')} subtitle={t('settings.scanSettingsDesc')}>
-          <div className="space-y-4">
-            <Input
-              label={t('settings.maxConcurrentScans')}
-              type="number"
-              min="1"
-              max="10"
-              value={maxConcurrentScans}
-              onChange={(e) => setMaxConcurrentScans(e.target.value)}
-              helperText={t('settings.maxConcurrentScansHelper')}
-            />
+            {llmModel && <Paragraph type="secondary">{t('settings.selected')}: <Text code>{llmModel}</Text></Paragraph>}
 
-            <div className="flex items-center justify-between p-4 bg-dark-900/50 rounded-lg border border-dark-700/30 hover:border-dark-600/50 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${aggressiveMode ? 'bg-red-500/10' : 'bg-dark-800'}`}>
-                  <Zap className={`w-5 h-5 ${aggressiveMode ? 'text-red-400' : 'text-dark-500'}`} />
-                </div>
-                <div>
-                  <p className="font-medium text-white text-sm">{t('settings.enableAggressiveMode')}</p>
-                  <p className="text-xs text-dark-400 mt-0.5">
-                    {t('settings.aggressiveModeDesc')}
-                  </p>
-                </div>
-              </div>
-              <ToggleSwitch enabled={aggressiveMode} onToggle={() => setAggressiveMode(!aggressiveMode)} />
-            </div>
-          </div>
-        </Card>
-      </div>
+            <Row gutter={16}>
+              {llmProvider === 'claude' && (
+                <Col xs={24} lg={12}>
+                  <Form.Item label={t('settings.anthropicApiKey')} extra={settings?.has_anthropic_key ? t('settings.apiKeyConfigured') : t('settings.requiredForClaude')}>
+                    <Input.Password value={apiKey} onChange={event => setApiKey(event.target.value)} placeholder={settings?.has_anthropic_key ? '••••••••••••••••' : 'sk-ant-...'} />
+                  </Form.Item>
+                </Col>
+              )}
+              {llmProvider === 'openai' && (
+                <Col xs={24} lg={12}>
+                  <Form.Item label={t('settings.openaiApiKey')} extra={settings?.has_openai_key ? t('settings.apiKeyConfigured') : t('settings.requiredForOpenai')}>
+                    <Input.Password value={openaiKey} onChange={event => setOpenaiKey(event.target.value)} placeholder={settings?.has_openai_key ? '••••••••••••••••' : 'sk-...'} />
+                  </Form.Item>
+                </Col>
+              )}
+              {llmProvider === 'gemini' && (
+                <Col xs={24} lg={12}>
+                  <Form.Item label={t('settings.geminiApiKey')} extra={settings?.has_gemini_key ? t('settings.apiKeyConfigured') : t('settings.requiredForGemini')}>
+                    <Input.Password value={geminiKey} onChange={event => setGeminiKey(event.target.value)} placeholder={settings?.has_gemini_key ? '••••••••••••••••' : 'AI...'} />
+                  </Form.Item>
+                </Col>
+              )}
+              {llmProvider === 'openrouter' && (
+                <Col xs={24} lg={12}>
+                  <Form.Item label={t('settings.openrouterApiKey')} extra={settings?.has_openrouter_key ? t('settings.apiKeyConfigured') : t('settings.requiredForOpenrouter')}>
+                    <Input.Password value={openrouterKey} onChange={event => setOpenrouterKey(event.target.value)} placeholder={settings?.has_openrouter_key ? '••••••••••••••••' : 'sk-or-...'} />
+                  </Form.Item>
+                </Col>
+              )}
+              {llmProvider === 'together' && (
+                <Col xs={24} lg={12}>
+                  <Form.Item label={t('settings.togetherApiKey')} extra={settings?.has_together_key ? t('settings.apiKeyConfigured') : t('settings.requiredForTogether')}>
+                    <Input.Password value={togetherKey} onChange={event => setTogetherKey(event.target.value)} placeholder={settings?.has_together_key ? '••••••••••••••••' : '...'} />
+                  </Form.Item>
+                </Col>
+              )}
+              {llmProvider === 'fireworks' && (
+                <Col xs={24} lg={12}>
+                  <Form.Item label={t('settings.fireworksApiKey')} extra={settings?.has_fireworks_key ? t('settings.apiKeyConfigured') : t('settings.requiredForFireworks')}>
+                    <Input.Password value={fireworksKey} onChange={event => setFireworksKey(event.target.value)} placeholder={settings?.has_fireworks_key ? '••••••••••••••••' : '...'} />
+                  </Form.Item>
+                </Col>
+              )}
+              {llmProvider === 'ollama' && (
+                <Col xs={24} lg={12}>
+                  <Form.Item label={t('settings.ollamaBaseUrl')} extra={t('settings.ollamaHelper')}>
+                    <Input value={ollamaUrl} onChange={event => setOllamaUrl(event.target.value)} placeholder="http://localhost:11434" />
+                  </Form.Item>
+                </Col>
+              )}
+              {llmProvider === 'lmstudio' && (
+                <Col xs={24} lg={12}>
+                  <Form.Item label={t('settings.lmstudioBaseUrl')} extra={t('settings.lmstudioHelper')}>
+                    <Input value={lmstudioUrl} onChange={event => setLmstudioUrl(event.target.value)} placeholder="http://localhost:1234" />
+                  </Form.Item>
+                </Col>
+              )}
+              <Col xs={24} lg={12}>
+                <Form.Item label={t('settings.maxOutputTokens')} extra={t('settings.maxOutputTokensHelper')}>
+                  <InputNumber min={1024} max={64000} value={maxOutputTokens} onChange={setMaxOutputTokens} style={{ width: '100%' }} placeholder={t('settings.defaultProfileBased')} />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Form>
+        </ProCard>
 
-      {/* Database Management */}
-      <div style={{ animation: 'fadeSlideIn 0.3s ease-out 0.25s both' }}>
-        <Card title={t('settings.databaseManagement')} subtitle={t('settings.databaseManagementDesc')}>
-          <div className="space-y-4">
-            {/* Stats */}
-            {dbStats && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {([
-                  { label: t('settings.scans'), value: dbStats.scans, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-                  { label: t('settings.vulnerabilities'), value: dbStats.vulnerabilities, color: 'text-red-400', bg: 'bg-red-500/10' },
-                  { label: t('settings.endpoints'), value: dbStats.endpoints, color: 'text-green-400', bg: 'bg-green-500/10' },
-                  { label: t('settings.reports'), value: dbStats.reports, color: 'text-purple-400', bg: 'bg-purple-500/10' },
-                ] as const).map((stat, idx) => (
-                  <div
-                    key={stat.label}
-                    className={`text-center p-4 ${stat.bg} rounded-lg border border-dark-700/30`}
-                    style={{ animation: `fadeSlideIn 0.3s ease-out ${0.27 + idx * 0.04}s both` }}
-                  >
-                    <p className={`text-2xl font-bold ${stat.color}`}>{formatNumber(stat.value)}</p>
-                    <p className="text-xs text-dark-400 mt-1">{stat.label}</p>
-                  </div>
-                ))}
-              </div>
-            )}
+        <ProCard bordered title={<Space><RocketOutlined />{t('settings.advancedFeatures')}</Space>} subTitle={t('settings.advancedFeaturesDesc')}>
+          <Row gutter={[16, 16]}>
+            <Col xs={24} lg={8}>
+              <ProCard bordered size="small" title={<Space><BranchesOutlined />{t('settings.modelRouting')}</Space>} extra={<Switch checked={enableModelRouting} onChange={setEnableModelRouting} />}>
+                <Text type="secondary">{t('settings.modelRoutingDesc')}</Text>
+              </ProCard>
+            </Col>
+            <Col xs={24} lg={8}>
+              <ProCard bordered size="small" title={<Space><InfoCircleOutlined />{t('settings.knowledgeAugmentation')}</Space>} extra={<Switch checked={enableKnowledgeAugmentation} onChange={setEnableKnowledgeAugmentation} />}>
+                <Text type="secondary">{t('settings.knowledgeAugmentationDesc')}</Text>
+              </ProCard>
+            </Col>
+            <Col xs={24} lg={8}>
+              <ProCard bordered size="small" title={<Space><EyeOutlined />{t('settings.browserValidation')}</Space>} extra={<Switch checked={enableBrowserValidation} onChange={setEnableBrowserValidation} />}>
+                <Text type="secondary">{t('settings.browserValidationDesc')}</Text>
+              </ProCard>
+            </Col>
+          </Row>
+        </ProCard>
 
-            {totalDbRecords > 0 && (
-              <p className="text-xs text-dark-500 text-center">
-                {totalDbRecords.toLocaleString()} {t('settings.totalRecordsStored')}
-              </p>
-            )}
+        <ProCard bordered title={<Space><BellOutlined />{t('settings.notifications')}</Space>} subTitle={t('settings.notificationsDesc')} extra={<Switch checked={enableNotifications} onChange={setEnableNotifications} />}>
+          {enableNotifications && (
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <Form layout="vertical">
+                <Form.Item label={t('settings.severityFilter')} extra={t('settings.severityFilterHelper')}>
+                  <Input value={notificationSeverityFilter} onChange={event => setNotificationSeverityFilter(event.target.value)} placeholder="critical,high" />
+                </Form.Item>
+              </Form>
 
-            {/* Clear Database */}
-            {!showClearConfirm ? (
-              <div className="flex items-center justify-between p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Database className="w-5 h-5 text-red-400/60" />
-                  <div>
-                    <p className="font-medium text-white text-sm">{t('settings.clearAllData')}</p>
-                    <p className="text-xs text-dark-400 mt-0.5">
-                      {t('settings.clearAllDataDesc')}
-                    </p>
-                  </div>
-                </div>
-                <Button variant="danger" onClick={() => setShowClearConfirm(true)}>
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  {t('settings.clearDatabase')}
-                </Button>
-              </div>
-            ) : (
-              <div
-                className="p-4 bg-red-500/20 border border-red-500/50 rounded-lg space-y-4"
-                style={{ animation: 'fadeSlideIn 0.2s ease-out' }}
+              <ProCard bordered size="small" title={<Space><MessageOutlined />Discord{settings?.has_discord_webhook && <Tag color="green">{t('settings.configured')}</Tag>}</Space>} extra={<Button size="small" loading={testingChannel === 'discord'} disabled={!settings?.has_discord_webhook} onClick={() => handleTestNotification('discord')}>{t('settings.test')}</Button>}>
+                <Form layout="vertical">
+                  <Form.Item label={t('settings.webhookUrl')} extra={settings?.has_discord_webhook ? t('settings.webhookConfigured') : t('settings.discordHelper')}>
+                    <Input.Password value={discordWebhookUrl} onChange={event => setDiscordWebhookUrl(event.target.value)} placeholder={settings?.has_discord_webhook ? '••••••••••••••••' : 'https://discord.com/api/webhooks/...'} />
+                  </Form.Item>
+                </Form>
+              </ProCard>
+
+              <ProCard bordered size="small" title={<Space><SendOutlined />Telegram{settings?.has_telegram_bot && <Tag color="green">{t('settings.configured')}</Tag>}</Space>} extra={<Button size="small" loading={testingChannel === 'telegram'} disabled={!settings?.has_telegram_bot} onClick={() => handleTestNotification('telegram')}>{t('settings.test')}</Button>}>
+                <Row gutter={16}>
+                  <Col xs={24} lg={12}>
+                    <Form.Item label={t('settings.botToken')} extra={t('settings.telegramBotHelper')}>
+                      <Input.Password value={telegramBotToken} onChange={event => setTelegramBotToken(event.target.value)} placeholder={settings?.has_telegram_bot ? '••••••••••••••••' : '123456:ABC-DEF...'} />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} lg={12}>
+                    <Form.Item label={t('settings.chatId')} extra={t('settings.telegramChatIdHelper')}>
+                      <Input value={telegramChatId} onChange={event => setTelegramChatId(event.target.value)} placeholder="-1001234567890" />
+                    </Form.Item>
+                  </Col>
+                </Row>
+              </ProCard>
+
+              <ProCard bordered size="small" title={<Space><PhoneOutlined />{t('settings.whatsappTwilio')}{settings?.has_twilio_credentials && <Tag color="green">{t('settings.configured')}</Tag>}</Space>} extra={<Button size="small" loading={testingChannel === 'whatsapp'} disabled={!settings?.has_twilio_credentials} onClick={() => handleTestNotification('whatsapp')}>{t('settings.test')}</Button>}>
+                <Row gutter={16}>
+                  <Col xs={24} lg={12}><Form.Item label={t('settings.accountSid')}><Input.Password value={twilioAccountSid} onChange={event => setTwilioAccountSid(event.target.value)} placeholder={settings?.has_twilio_credentials ? '••••••••' : 'AC...'} /></Form.Item></Col>
+                  <Col xs={24} lg={12}><Form.Item label={t('settings.authToken')}><Input.Password value={twilioAuthToken} onChange={event => setTwilioAuthToken(event.target.value)} placeholder={settings?.has_twilio_credentials ? '••••••••' : '...'} /></Form.Item></Col>
+                  <Col xs={24} lg={12}><Form.Item label={t('settings.fromNumber')}><Input value={twilioFromNumber} onChange={event => setTwilioFromNumber(event.target.value)} placeholder="+14155238886" /></Form.Item></Col>
+                  <Col xs={24} lg={12}><Form.Item label={t('settings.toNumber')}><Input value={twilioToNumber} onChange={event => setTwilioToNumber(event.target.value)} placeholder="+1234567890" /></Form.Item></Col>
+                </Row>
+                <Text type="secondary">{t('settings.twilioHelper')}</Text>
+              </ProCard>
+            </Space>
+          )}
+        </ProCard>
+
+        <ProCard bordered title={<Space><SecurityScanOutlined />{t('settings.scanSettings')}</Space>} subTitle={t('settings.scanSettingsDesc')}>
+          <Row gutter={16}>
+            <Col xs={24} lg={12}>
+              <Form.Item label={t('settings.maxConcurrentScans')} extra={t('settings.maxConcurrentScansHelper')}>
+                <InputNumber min={1} max={10} value={maxConcurrentScans} onChange={value => setMaxConcurrentScans(value || 1)} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} lg={12}>
+              <ProCard bordered size="small" title={<Space><ThunderboltOutlined />{t('settings.enableAggressiveMode')}</Space>} extra={<Switch checked={aggressiveMode} onChange={setAggressiveMode} />}>
+                <Text type="secondary">{t('settings.aggressiveModeDesc')}</Text>
+              </ProCard>
+            </Col>
+          </Row>
+        </ProCard>
+
+        <ProCard bordered title={<Space><DatabaseOutlined />{t('settings.databaseManagement')}</Space>} subTitle={t('settings.databaseManagementDesc')} extra={<Button icon={<ReloadOutlined spin={statsRefreshing} />} onClick={handleRefreshStats}>{t('settings.refreshStatistics')}</Button>}>
+          {dbStats && (
+            <StatisticCard.Group direction="row">
+              <StatisticCard statistic={{ title: t('settings.scans'), value: formatNumber(dbStats.scans) }} />
+              <StatisticCard statistic={{ title: t('settings.vulnerabilities'), value: formatNumber(dbStats.vulnerabilities) }} />
+              <StatisticCard statistic={{ title: t('settings.endpoints'), value: formatNumber(dbStats.endpoints) }} />
+              <StatisticCard statistic={{ title: t('settings.reports'), value: formatNumber(dbStats.reports) }} />
+            </StatisticCard.Group>
+          )}
+          <Divider />
+          <Space direction="vertical" style={{ width: '100%' }}>
+            {totalDbRecords > 0 && <Text type="secondary">{totalDbRecords.toLocaleString()} {t('settings.totalRecordsStored')}</Text>}
+            <ProCard bordered size="small" title={t('settings.clearAllData')} subTitle={t('settings.clearAllDataDesc')}>
+              <Popconfirm
+                title={t('settings.areYouSure')}
+                description={t('settings.clearConfirmDesc')}
+                okText={t('settings.yesClearEverything')}
+                cancelText={t('settings.cancel')}
+                okButtonProps={{ danger: true, loading: isClearing }}
+                onConfirm={handleClearDatabase}
               >
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-6 h-6 text-red-400 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-red-400">{t('settings.areYouSure')}</p>
-                    <p className="text-sm text-dark-300 mt-1">
-                      {t('settings.clearConfirmDesc')}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-3 justify-end">
-                  <Button variant="secondary" onClick={() => setShowClearConfirm(false)}>
-                    {t('settings.cancel')}
-                  </Button>
-                  <Button variant="danger" onClick={handleClearDatabase} isLoading={isClearing}>
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    {t('settings.yesClearEverything')}
-                  </Button>
-                </div>
-              </div>
-            )}
+                <Button danger icon={<DeleteOutlined />} loading={isClearing}>{t('settings.clearDatabase')}</Button>
+              </Popconfirm>
+            </ProCard>
+          </Space>
+        </ProCard>
 
-            {/* Refresh Stats */}
-            <Button variant="secondary" onClick={handleRefreshStats} className="w-full">
-              <RefreshCw
-                className="w-4 h-4 mr-2"
-                style={statsRefreshing ? { animation: 'spinOnce 0.6s ease-in-out' } : undefined}
-              />
-              {t('settings.refreshStatistics')}
-            </Button>
-          </div>
-        </Card>
-      </div>
-
-      {/* About */}
-      <div style={{ animation: 'fadeSlideIn 0.3s ease-out 0.3s both' }}>
-        <Card title={t('settings.aboutBctechai')}>
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-primary-500/10 rounded-xl">
-                <Shield className="w-8 h-8 text-primary-500" />
-              </div>
-              <div>
-                <p className="font-bold text-white text-lg">PTTechAI v3.0</p>
-                <p className="text-sm text-dark-400">{t('settings.aiPoweredPlatform')}</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <ProCard bordered title={<Space><SettingOutlined />{t('settings.aboutBctechai')}</Space>}>
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Space>
+              <SecurityScanOutlined style={{ fontSize: 32, color: '#1677ff' }} />
+              <Space direction="vertical" size={0}>
+                <Text strong style={{ fontSize: 18 }}>PTTechAI v3.0</Text>
+                <Text type="secondary">{t('settings.aiPoweredPlatform')}</Text>
+              </Space>
+            </Space>
+            <Row gutter={[12, 12]}>
               {[
                 t('settings.feature1'),
                 t('settings.feature2'),
@@ -1075,30 +597,19 @@ export default function SettingsPage() {
                 t('settings.feature6'),
                 t('settings.feature7'),
                 t('settings.feature8'),
-              ].map((feature, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-start gap-2 text-sm text-dark-400"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5 text-primary-500/60 flex-shrink-0 mt-0.5" />
-                  <span>{feature}</span>
-                </div>
+              ].map(feature => (
+                <Col key={feature} xs={24} md={12}>
+                  <Space><CheckCircleOutlined style={{ color: '#52c41a' }} /><Text type="secondary">{feature}</Text></Space>
+                </Col>
               ))}
-            </div>
-          </div>
-        </Card>
-      </div>
+            </Row>
+          </Space>
+        </ProCard>
 
-      {/* Sticky Save Button (bottom) */}
-      <div
-        className="flex justify-end pb-4"
-        style={{ animation: 'fadeSlideIn 0.3s ease-out 0.35s both' }}
-      >
-        <Button onClick={handleSave} isLoading={isSaving} size="lg">
-          <Save className="w-5 h-5 mr-2" />
-          {t('settings.saveSettings')}
-        </Button>
-      </div>
-    </div>
+        <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+          <Button type="primary" size="large" icon={<SaveOutlined />} loading={isSaving} onClick={handleSave}>{t('settings.saveSettings')}</Button>
+        </Space>
+      </Space>
+    </PageContainer>
   )
 }

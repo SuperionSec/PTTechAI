@@ -1,8 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Globe, Check, Save } from 'lucide-react'
+import { PageContainer, ProCard, StatisticCard } from '@ant-design/pro-components'
+import { App as AntApp, Button, Descriptions, Radio, Space, Tag, Typography } from 'antd'
+import { CheckOutlined, GlobalOutlined, SaveOutlined, TranslationOutlined } from '@ant-design/icons'
 import { useUIStore } from '../store'
 import i18n from '../locales'
+
+const { Text } = Typography
 
 const availableLanguages = [
   { code: 'zh-CN', name: 'Chinese', nativeName: '中文', flag: '🇨🇳' },
@@ -11,122 +15,105 @@ const availableLanguages = [
 
 export default function LanguagesPage() {
   const { t } = useTranslation()
+  const { notification } = AntApp.useApp()
   const uiStore = useUIStore() as any
   const language = uiStore.language
   const setLanguage = uiStore.setLanguage
   const [selectedLang, setSelectedLang] = useState(language || i18n.language)
   const [isSaving, setIsSaving] = useState(false)
-  const [saveSuccess, setSaveSuccess] = useState(false)
 
   useEffect(() => {
     setSelectedLang(i18n.language)
-  }, [i18n.language])
+  }, [])
+
+  const currentLanguage = availableLanguages.find(lang => lang.code === i18n.language) || availableLanguages[0]
+  const selectedLanguage = availableLanguages.find(lang => lang.code === selectedLang) || currentLanguage
 
   const handleSave = async () => {
     setIsSaving(true)
-    await i18n.changeLanguage(selectedLang)
-    setLanguage(selectedLang)
-    setSaveSuccess(true)
-    setIsSaving(false)
-    setTimeout(() => setSaveSuccess(false), 2000)
+    try {
+      await i18n.changeLanguage(selectedLang)
+      setLanguage(selectedLang)
+      notification.success({ message: t('common.save', 'Saved') })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white mb-2">
-          <Globe className="w-6 h-6 inline-block mr-2" />
-          {t('languageManagement.title', 'Language Management')}
-        </h1>
-        <p className="text-dark-400">
-          {t('languageManagement.description', 'Manage interface language and translation settings')}
-        </p>
-      </div>
+    <PageContainer
+      title={t('languageManagement.title', 'Language Management')}
+      subTitle={t('languageManagement.description', 'Manage interface language and translation settings')}
+    >
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <StatisticCard.Group direction="row">
+          <StatisticCard statistic={{ title: t('languageManagement.interfaceLanguage', 'Interface Language'), value: currentLanguage.nativeName, icon: <GlobalOutlined /> }} />
+          <StatisticCard statistic={{ title: t('languageManagement.translationProgress', 'Translation Progress'), value: '100%', icon: <TranslationOutlined /> }} />
+          <StatisticCard statistic={{ title: t('languageManagement.lastUpdated', 'Last Updated'), value: '2026-05-03', icon: <CheckOutlined /> }} />
+        </StatisticCard.Group>
 
-      <div className="bg-dark-800 rounded-lg border border-dark-900/50 p-6 mb-6">
-        <h2 className="text-lg font-semibold text-white mb-4">
-          {t('languageManagement.selectLanguage', 'Select Language')}
-        </h2>
+        <ProCard bordered title={<Space><GlobalOutlined />{t('languageManagement.selectLanguage', 'Select Language')}</Space>}>
+          <Radio.Group value={selectedLang} onChange={event => setSelectedLang(event.target.value)} style={{ width: '100%' }}>
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              {availableLanguages.map(lang => (
+                <ProCard
+                  key={lang.code}
+                  bordered
+                  hoverable
+                  size="small"
+                  onClick={() => setSelectedLang(lang.code)}
+                  style={{ borderColor: selectedLang === lang.code ? '#1677ff' : undefined }}
+                >
+                  <Space style={{ width: '100%', justifyContent: 'space-between' }} align="center">
+                    <Radio value={lang.code}>
+                      <Space>
+                        <Text style={{ fontSize: 24 }}>{lang.flag}</Text>
+                        <Space direction="vertical" size={0}>
+                          <Text strong>{lang.nativeName} ({lang.name})</Text>
+                          <Text type="secondary">{lang.code}</Text>
+                        </Space>
+                      </Space>
+                    </Radio>
+                    {selectedLang === lang.code && <Tag color="blue" icon={<CheckOutlined />}>{t('common.selected', 'Selected')}</Tag>}
+                  </Space>
+                </ProCard>
+              ))}
+            </Space>
+          </Radio.Group>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          {availableLanguages.map((lang) => (
-            <button
-              key={lang.code}
-              onClick={() => setSelectedLang(lang.code)}
-              className={`p-4 rounded-lg border-2 transition-all text-left ${
-                selectedLang === lang.code
-                  ? 'border-primary-500 bg-primary-500/10'
-                  : 'border-dark-700 hover:border-dark-600 bg-dark-900/50'
-              }`}
+          <Space style={{ marginTop: 24, width: '100%', justifyContent: 'space-between' }} wrap>
+            <Text type="secondary">
+              {t('languageManagement.currentLanguage', 'Current Language')}: <Text strong>{currentLanguage.nativeName}</Text>
+            </Text>
+            <Button
+              type="primary"
+              icon={<SaveOutlined />}
+              loading={isSaving}
+              disabled={selectedLang === i18n.language}
+              onClick={handleSave}
             >
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{lang.flag}</span>
-                <div className="flex-1">
-                  <div className="font-semibold text-white">
-                    {lang.nativeName} ({lang.name})
-                  </div>
-                  <div className="text-sm text-dark-400">{lang.code}</div>
-                </div>
-                {selectedLang === lang.code && (
-                  <Check className="w-5 h-5 text-primary-500" />
-                )}
-              </div>
-            </button>
-          ))}
-        </div>
+              {t('common.save', 'Save')}
+            </Button>
+          </Space>
+        </ProCard>
 
-        <div className="flex items-center justify-between pt-4 border-t border-dark-700">
-          <div className="text-sm text-dark-400">
-            {t('languageManagement.currentLanguage', 'Current Language')}: <span className="text-white font-medium">{availableLanguages.find(l => l.code === i18n.language)?.nativeName}</span>
-          </div>
-          <button
-            onClick={handleSave}
-            disabled={isSaving || selectedLang === i18n.language}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
-              isSaving || selectedLang === i18n.language
-                ? 'bg-dark-700 text-dark-500 cursor-not-allowed'
-                : 'bg-primary-500 hover:bg-primary-600 text-white'
-            }`}
-          >
-            {isSaving ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                {t('common.save', 'Saving...')}
-              </>
-            ) : saveSuccess ? (
-              <>
-                <Check className="w-4 h-4" />
-                {t('common.save', 'Saved')}
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4" />
-                {t('common.save', 'Save')}
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-dark-800 rounded-lg border border-dark-900/50 p-6">
-        <h2 className="text-lg font-semibold text-white mb-4">
-          {t('languageManagement.languageStatus', 'Language Status')}
-        </h2>
-        <div className="space-y-3">
-          <div className="flex justify-between items-center py-2 border-b border-dark-700">
-            <span className="text-dark-400">{t('languageManagement.interfaceLanguage', 'Interface Language')}</span>
-            <span className="text-white font-medium">{availableLanguages.find(l => l.code === i18n.language)?.nativeName}</span>
-          </div>
-          <div className="flex justify-between items-center py-2 border-b border-dark-700">
-            <span className="text-dark-400">{t('languageManagement.translationProgress', 'Translation Progress')}</span>
-            <span className="text-green-500">100%</span>
-          </div>
-          <div className="flex justify-between items-center py-2">
-            <span className="text-dark-400">{t('languageManagement.lastUpdated', 'Last Updated')}</span>
-            <span className="text-white">2026-05-03</span>
-          </div>
-        </div>
-      </div>
-    </div>
+        <ProCard bordered title={<Space><TranslationOutlined />{t('languageManagement.languageStatus', 'Language Status')}</Space>}>
+          <Descriptions column={1} bordered size="small">
+            <Descriptions.Item label={t('languageManagement.interfaceLanguage', 'Interface Language')}>
+              {currentLanguage.nativeName}
+            </Descriptions.Item>
+            <Descriptions.Item label={t('languageManagement.translationProgress', 'Translation Progress')}>
+              <Tag color="green">100%</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label={t('languageManagement.lastUpdated', 'Last Updated')}>
+              2026-05-03
+            </Descriptions.Item>
+            <Descriptions.Item label={t('languageManagement.selectedLanguage', 'Selected Language')}>
+              {selectedLanguage.nativeName} ({selectedLanguage.code})
+            </Descriptions.Item>
+          </Descriptions>
+        </ProCard>
+      </Space>
+    </PageContainer>
   )
 }

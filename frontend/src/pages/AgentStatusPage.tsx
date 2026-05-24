@@ -1,66 +1,98 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { relativeTime } from '../utils/time'
+import { PageContainer, ProCard, StatisticCard } from '@ant-design/pro-components'
 import {
-  Bot, RefreshCw, FileText, CheckCircle,
-  XCircle, Clock, Target, Shield, ChevronDown, ChevronRight, ExternalLink,
-  Copy, Download, StopCircle, Terminal, Brain, Send, Code, Globe, AlertTriangle,
-  SkipForward, MinusCircle, Pause, Play, Sparkles, X, WifiOff
-} from 'lucide-react'
-import Card from '../components/common/Card'
-import Button from '../components/common/Button'
-import { SeverityBadge } from '../components/common/Badge'
+  Alert,
+  App as AntApp,
+  Badge,
+  Button,
+  Card,
+  Collapse,
+  Descriptions,
+  Dropdown,
+  Empty,
+  Input,
+  Popconfirm,
+  Progress,
+  Row,
+  Col,
+  Space,
+  Steps,
+  Switch,
+  Tabs,
+  Tag,
+  Timeline,
+  Typography,
+} from 'antd'
+import {
+  ApiOutlined,
+  BranchesOutlined,
+  BugOutlined,
+  CheckCircleOutlined,
+  CodeOutlined,
+  CopyOutlined,
+  DownloadOutlined,
+  FileTextOutlined,
+  PauseCircleOutlined,
+  PlayCircleOutlined,
+  ReloadOutlined,
+  RobotOutlined,
+  SafetyCertificateOutlined,
+  SendOutlined,
+  StopOutlined,
+  ThunderboltOutlined,
+  WifiOutlined,
+} from '@ant-design/icons'
 import { agentApi, reportsApi } from '../services/api'
-import type { AgentStatus, AgentLog, AgentFinding } from '../types'
+import type { AgentFinding, AgentLog, AgentStatus } from '../types'
+import { relativeTime } from '../utils/time'
 import { isLogContainerNearBottom } from '../utils/logScroll'
 
-/* ------------------------------------------------------------------ */
-/*  Constants                                                          */
-/* ------------------------------------------------------------------ */
-
-const PHASE_ICONS: Record<string, React.ReactNode> = {
-  initializing: <Clock className="w-4 h-4" />,
-  reconnaissance: <Target className="w-4 h-4" />,
-  'reconnaissance complete': <Target className="w-4 h-4" />,
-  recon: <Target className="w-4 h-4" />,
-  'starting reconnaissance': <Target className="w-4 h-4" />,
-  scanning: <Shield className="w-4 h-4" />,
-  analysis: <Bot className="w-4 h-4" />,
-  'attack surface analyzed': <Bot className="w-4 h-4" />,
-  testing: <Shield className="w-4 h-4" />,
-  'vulnerability testing complete': <Shield className="w-4 h-4" />,
-  enhancement: <Brain className="w-4 h-4" />,
-  'findings enhanced': <Brain className="w-4 h-4" />,
-  reporting: <FileText className="w-4 h-4" />,
-  'assessment complete': <CheckCircle className="w-4 h-4" />,
-  completed: <CheckCircle className="w-4 h-4" />,
-  stopped: <StopCircle className="w-4 h-4" />,
-  error: <XCircle className="w-4 h-4" />,
-}
-
-const getScanPhases = (t: any) => [
-  { key: 'recon', label: t('agent.reconnaissance'), progress: 20 },
-  { key: 'analysis', label: t('agent.analysis'), progress: 30 },
-  { key: 'testing', label: t('agent.testing'), progress: 70 },
-  { key: 'enhancement', label: t('agent.enhancement'), progress: 90 },
-  { key: 'completed', label: t('agent.completed'), progress: 100 },
-]
-
-const getModeLabels = (t: any): Record<string, string> => ({
-  full_auto: t('agent.fullAuto'),
-  recon_only: t('agent.reconOnly'),
-  prompt_only: t('agent.promptOnly'),
-  analyze_only: t('agent.analyzeOnly'),
-})
+const { Paragraph, Text } = Typography
+const { TextArea } = Input
 
 type Severity = 'critical' | 'high' | 'medium' | 'low' | 'info'
 
 const SEVERITY_ORDER: Severity[] = ['critical', 'high', 'medium', 'low', 'info']
+const PHASE_KEYS = ['recon', 'analysis', 'testing', 'enhancement', 'completed']
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
+const severityColor: Record<Severity, string> = {
+  critical: 'red',
+  high: 'volcano',
+  medium: 'orange',
+  low: 'blue',
+  info: 'default',
+}
+
+const statusColor: Record<AgentStatus['status'], 'processing' | 'warning' | 'success' | 'error' | 'default'> = {
+  running: 'processing',
+  paused: 'warning',
+  completed: 'success',
+  error: 'error',
+  stopped: 'default',
+}
+
+function getScanPhases(t: (key: string) => string) {
+  return [
+    { key: 'recon', title: t('agent.reconnaissance'), icon: <ApiOutlined /> },
+    { key: 'analysis', title: t('agent.analysis'), icon: <RobotOutlined /> },
+    { key: 'testing', title: t('agent.testing'), icon: <SafetyCertificateOutlined /> },
+    { key: 'enhancement', title: t('agent.enhancement'), icon: <ThunderboltOutlined /> },
+    { key: 'completed', title: t('agent.completed'), icon: <CheckCircleOutlined /> },
+  ]
+}
+
+function getModeLabels(t: (key: string) => string): Record<string, string> {
+  return {
+    full_auto: t('agent.fullAuto'),
+    recon_only: t('agent.reconOnly'),
+    prompt_only: t('agent.promptOnly'),
+    analyze_only: t('agent.analyzeOnly'),
+    auto_pentest: t('autoPentest.title'),
+  }
+}
 
 function getPhaseIndex(phase: string): number {
   const p = phase.toLowerCase()
@@ -72,53 +104,84 @@ function getPhaseIndex(phase: string): number {
   return 0
 }
 
-/* ------------------------------------------------------------------ */
-/*  Toast System                                                       */
-/* ------------------------------------------------------------------ */
-
-interface Toast {
-  id: number
-  message: string
-  type: 'success' | 'error' | 'info'
-}
-
-let _toastSeq = 0
-
-function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: number) => void }) {
-  if (toasts.length === 0) return null
-  const borderColor: Record<string, string> = {
-    success: 'border-green-500',
-    error: 'border-red-500',
-    info: 'border-blue-500',
+function formatStatusLabel(status: AgentStatus['status'], t: (key: string) => string) {
+  const labels: Record<AgentStatus['status'], string> = {
+    running: t('agent.statusRunning'),
+    paused: t('agent.statusPaused'),
+    completed: t('agent.statusCompleted'),
+    error: t('agent.statusError'),
+    stopped: t('agent.statusStopped'),
   }
-  return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm">
-      {toasts.map(t => (
-        <div
-          key={t.id}
-          className={`bg-dark-800 border-l-4 ${borderColor[t.type]} rounded-lg px-4 py-3 shadow-xl flex items-start gap-3`}
-          style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
-        >
-          <span className="text-sm text-dark-200 flex-1">{t.message}</span>
-          <button onClick={() => onDismiss(t.id)} className="text-dark-500 hover:text-white">
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      ))}
-    </div>
-  )
+  return labels[status]
 }
 
-/* ================================================================== */
-/*  Main Component                                                     */
-/* ================================================================== */
+function confidenceColor(score?: number) {
+  if (typeof score !== 'number') return 'default'
+  if (score >= 90) return 'green'
+  if (score >= 60) return 'orange'
+  return 'red'
+}
+
+function escapeHtml(value: unknown) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+function buildReportHtml(status: AgentStatus, agentId: string | undefined, modeLabel: string) {
+  const sorted = [...status.findings].sort((a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity))
+  const counts = SEVERITY_ORDER.reduce<Record<Severity, number>>((acc, severity) => {
+    acc[severity] = sorted.filter(finding => finding.severity === severity).length
+    return acc
+  }, { critical: 0, high: 0, medium: 0, low: 0, info: 0 })
+  const riskScore = Math.min(100, counts.critical * 25 + counts.high * 15 + counts.medium * 8 + counts.low * 3)
+  const findingsHtml = sorted.map((finding, index) => `
+    <section class="finding severity-${finding.severity}">
+      <div class="finding-header">
+        <span class="badge">${escapeHtml(finding.severity.toUpperCase())}</span>
+        <span>Finding #${index + 1}</span>
+      </div>
+      <h2>${escapeHtml(finding.title)}</h2>
+      <p class="endpoint">${escapeHtml(finding.affected_endpoint)}</p>
+      ${finding.cvss_score ? `<p><strong>CVSS:</strong> ${escapeHtml(finding.cvss_score)}</p>` : ''}
+      ${finding.cwe_id ? `<p><strong>CWE:</strong> ${escapeHtml(finding.cwe_id)}</p>` : ''}
+      ${finding.parameter ? `<p><strong>Parameter:</strong> <code>${escapeHtml(finding.parameter)}</code></p>` : ''}
+      ${finding.description ? `<h3>Description</h3><p>${escapeHtml(finding.description)}</p>` : ''}
+      ${finding.evidence ? `<h3>Evidence</h3><pre>${escapeHtml(finding.evidence)}</pre>` : ''}
+      ${finding.payload ? `<h3>Payload</h3><pre>${escapeHtml(finding.payload)}</pre>` : ''}
+      ${finding.request ? `<h3>HTTP Request</h3><pre>${escapeHtml(finding.request)}</pre>` : ''}
+      ${finding.response ? `<h3>HTTP Response</h3><pre>${escapeHtml(finding.response)}</pre>` : ''}
+      ${finding.impact ? `<h3>Impact</h3><p>${escapeHtml(finding.impact)}</p>` : ''}
+      ${finding.poc_code ? `<h3>Proof of Concept</h3><pre>${escapeHtml(finding.poc_code)}</pre>` : ''}
+      ${finding.proof_of_execution ? `<h3>Proof of Execution</h3><p>${escapeHtml(finding.proof_of_execution)}</p>` : ''}
+      ${finding.remediation ? `<h3>Remediation</h3><p>${escapeHtml(finding.remediation)}</p>` : ''}
+      ${finding.references?.length ? `<h3>References</h3><ul>${finding.references.map(ref => `<li>${escapeHtml(ref)}</li>`).join('')}</ul>` : ''}
+    </section>`).join('')
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>PTTechAI Security Report - ${escapeHtml(status.target)}</title>
+<style>
+body{margin:0;background:#0f172a;color:#e2e8f0;font-family:Inter,Segoe UI,Arial,sans-serif;line-height:1.65}.page{max-width:1100px;margin:0 auto;padding:42px 28px}.hero,.panel,.finding{background:#111827;border:1px solid #263244;border-radius:14px;padding:26px;margin-bottom:22px}h1,h2,h3{color:#f8fafc}.meta{color:#94a3b8}.grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}.stat{background:#020617;border:1px solid #263244;border-radius:10px;padding:16px;text-align:center}.num{font-size:30px;font-weight:700}.risk{font-size:52px;font-weight:800;color:#f97316}.badge{display:inline-block;border-radius:999px;padding:3px 10px;background:#334155;color:#fff;font-size:12px;font-weight:700}.endpoint,code,pre{font-family:SFMono-Regular,Consolas,monospace}pre{white-space:pre-wrap;word-break:break-word;background:#020617;border:1px solid #263244;border-radius:8px;padding:14px;color:#d1d5db}.severity-critical{border-left:4px solid #ef4444}.severity-high{border-left:4px solid #f97316}.severity-medium{border-left:4px solid #f59e0b}.severity-low{border-left:4px solid #3b82f6}.severity-info{border-left:4px solid #64748b}@media print{body{background:#fff;color:#111827}.hero,.panel,.finding{background:#fff;color:#111827;border-color:#d1d5db}h1,h2,h3{color:#111827}pre{background:#f8fafc;color:#111827}}
+</style>
+</head>
+<body><main class="page">
+<section class="hero"><p class="meta">Confidential Security Report</p><h1>Penetration Test Report</h1><p>Target: <code>${escapeHtml(status.target)}</code></p><p class="meta">Agent: ${escapeHtml(agentId)} · Mode: ${escapeHtml(modeLabel)} · Generated: ${new Date().toISOString()}</p></section>
+<section class="panel"><h2>Risk Overview</h2><div class="risk">${riskScore}</div><div class="grid"><div class="stat"><div class="num">${sorted.length}</div><div>Total</div></div>${SEVERITY_ORDER.map(severity => `<div class="stat"><div class="num">${counts[severity]}</div><div>${severity}</div></div>`).join('')}</div></section>
+<section class="panel"><h2>Executive Summary</h2><p>The assessment against <strong>${escapeHtml(status.target)}</strong> identified <strong>${sorted.length}</strong> finding(s). Critical and high severity findings should be prioritized for remediation.</p></section>
+${findingsHtml || '<section class="panel"><h2>No Findings</h2><p>No vulnerabilities were identified during this assessment.</p></section>'}
+</main></body></html>`
+}
 
 export default function AgentStatusPage() {
   const { agentId } = useParams<{ agentId: string }>()
   const navigate = useNavigate()
   const { t } = useTranslation()
-  const SCAN_PHASES = useMemo(() => getScanPhases(t), [t])
-  const MODE_LABELS = useMemo(() => getModeLabels(t), [t])
+  const { notification } = AntApp.useApp()
   const scriptLogsContainerRef = useRef<HTMLDivElement>(null)
   const llmLogsContainerRef = useRef<HTMLDivElement>(null)
   const scriptStickRef = useRef(true)
@@ -129,64 +192,33 @@ export default function AgentStatusPage() {
   const [logs, setLogs] = useState<AgentLog[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [expandedFindings, setExpandedFindings] = useState<Set<string>>(new Set())
   const [isGeneratingReport, setIsGeneratingReport] = useState(false)
+  const [isGeneratingAiReport, setIsGeneratingAiReport] = useState(false)
   const [isStopping, setIsStopping] = useState(false)
   const [autoScroll, setAutoScroll] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-
-  // Toast state
-  const [toasts, setToasts] = useState<Toast[]>([])
   const [connectionLost, setConnectionLost] = useState(false)
-
-  // Custom prompt state
   const [customPrompt, setCustomPrompt] = useState('')
   const [isSubmittingPrompt, setIsSubmittingPrompt] = useState(false)
-
-  // Phase skip state
-  const [skipConfirm, setSkipConfirm] = useState<string | null>(null)
   const [isSkipping, setIsSkipping] = useState(false)
   const [skippedPhases, setSkippedPhases] = useState<Set<string>>(new Set())
 
-  // AI report state
-  const [isGeneratingAiReport, setIsGeneratingAiReport] = useState(false)
-
-  /* ── Toast helpers ──────────────────────────────────────────── */
-
-  const addToast = useCallback((message: string, type: Toast['type'] = 'info') => {
-    const id = ++_toastSeq
-    setToasts(prev => [...prev.slice(-4), { id, message, type }])
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000)
-  }, [])
-
-  const dismissToast = useCallback((id: number) => {
-    setToasts(prev => prev.filter(t => t.id !== id))
-  }, [])
-
-  /* ── Derived log streams (memoized) ────────────────────────── */
+  const scanPhases = useMemo(() => getScanPhases(t), [t])
+  const modeLabels = useMemo(() => getModeLabels(t), [t])
 
   const scriptLogs = useMemo(
-    () => logs.filter(l => l.source === 'script' || (!l.source && !l.message.includes('[LLM]') && !l.message.includes('[AI]'))),
-    [logs]
+    () => logs.filter(log => log.source === 'script' || (!log.source && !log.message.includes('[LLM]') && !log.message.includes('[AI]'))),
+    [logs],
   )
-
   const llmLogs = useMemo(
-    () => logs.filter(l => l.source === 'llm' || l.message.includes('[LLM]') || l.message.includes('[AI]')),
-    [logs]
+    () => logs.filter(log => log.source === 'llm' || log.message.includes('[LLM]') || log.message.includes('[AI]')),
+    [logs],
   )
-
-  /* ── Severity counts (memoized) ────────────────────────────── */
-
   const severityCounts = useMemo(() => {
-    if (!status) return { critical: 0, high: 0, medium: 0, low: 0, info: 0 }
     const counts: Record<Severity, number> = { critical: 0, high: 0, medium: 0, low: 0, info: 0 }
-    for (const f of status.findings) {
-      if (f.severity in counts) counts[f.severity]++
-    }
+    status?.findings.forEach(finding => { counts[finding.severity] += 1 })
     return counts
   }, [status])
-
-  /* ── Data fetch ────────────────────────────────────────────── */
 
   const fetchStatus = useCallback(async () => {
     if (!agentId) return
@@ -196,100 +228,63 @@ export default function AgentStatusPage() {
         agentApi.getLogs(agentId, 500),
       ])
       setStatus(statusData)
-      setLogs(logsData.logs)
+      setLogs(logsData.logs || [])
       setError(null)
-
       if (consecutiveErrorsRef.current >= 3) {
-        setConnectionLost(false)
-        addToast(t('agent.connectionRestored'), 'success')
+        notification.success({ message: t('agent.connectionRestored') })
       }
       consecutiveErrorsRef.current = 0
+      setConnectionLost(false)
     } catch (err: unknown) {
       const apiErr = err as { response?: { status?: number } }
       if (apiErr.response?.status === 404) {
         setError(t('agent.agentNotFound'))
       } else {
-        console.error('Failed to fetch agent status:', err)
-        consecutiveErrorsRef.current++
+        consecutiveErrorsRef.current += 1
         if (consecutiveErrorsRef.current >= 3) setConnectionLost(true)
       }
     } finally {
       setIsLoading(false)
     }
-  }, [agentId, addToast, t])
+  }, [agentId, notification, t])
 
-  // Poll for status updates
   useEffect(() => {
     if (!agentId) return
-
     fetchStatus()
-
-    const interval = setInterval(() => {
-      if (status?.status === 'running' || status?.status === 'paused') {
-        fetchStatus()
-      }
+    const interval = window.setInterval(() => {
+      if (status?.status === 'running' || status?.status === 'paused') fetchStatus()
     }, 5000)
+    return () => window.clearInterval(interval)
+  }, [agentId, fetchStatus, status?.status])
 
-    return () => clearInterval(interval)
-  }, [agentId, status?.status, fetchStatus])
-
-  // Auto-scroll log panels only when following bottom; never scrolls the page
   useEffect(() => {
     if (!autoScroll) return
-    if (scriptStickRef.current && scriptLogsContainerRef.current) {
-      scriptLogsContainerRef.current.scrollTop = scriptLogsContainerRef.current.scrollHeight
-    }
-    if (llmStickRef.current && llmLogsContainerRef.current) {
-      llmLogsContainerRef.current.scrollTop = llmLogsContainerRef.current.scrollHeight
-    }
+    if (scriptStickRef.current && scriptLogsContainerRef.current) scriptLogsContainerRef.current.scrollTop = scriptLogsContainerRef.current.scrollHeight
+    if (llmStickRef.current && llmLogsContainerRef.current) llmLogsContainerRef.current.scrollTop = llmLogsContainerRef.current.scrollHeight
   }, [logs, autoScroll])
 
-  // Track skipped phases from status updates
   useEffect(() => {
     if (!status) return
     const phase = status.phase.toLowerCase()
     if (phase.includes('_skipped')) {
-      const skippedKey = phase.replace('_skipped', '')
-      setSkippedPhases(prev => new Set(prev).add(skippedKey))
+      setSkippedPhases(prev => new Set(prev).add(phase.replace('_skipped', '')))
     }
-  }, [status?.phase])
-
-  /* ── Handlers ──────────────────────────────────────────────── */
+  }, [status])
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true)
     await fetchStatus()
     setRefreshing(false)
-    addToast(t('agent.statusRefreshed'), 'info')
-  }, [fetchStatus, addToast])
+    notification.info({ message: t('agent.statusRefreshed') })
+  }, [fetchStatus, notification, t])
 
-  const toggleFinding = useCallback((id: string) => {
-    setExpandedFindings(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      return next
-    })
-  }, [])
-
-  const copyToClipboard = useCallback((text: string) => {
-    navigator.clipboard.writeText(text)
-    addToast(t('agent.copiedToClipboard'), 'success')
-  }, [addToast])
-
-  /* ── Report generation ──────────────────────────────────────── */
+  const copyToClipboard = useCallback(async (text: string) => {
+    await navigator.clipboard.writeText(text)
+    notification.success({ message: t('agent.copiedToClipboard') })
+  }, [notification, t])
 
   const generateReportData = useCallback(() => {
     if (!status) return null
-
-    const severityBreakdown: Record<Severity, number> = { critical: 0, high: 0, medium: 0, low: 0, info: 0 }
-    for (const f of status.findings) {
-      if (f.severity in severityBreakdown) severityBreakdown[f.severity]++
-    }
-
     return {
       report_info: {
         agent_id: agentId,
@@ -299,423 +294,111 @@ export default function AgentStatusPage() {
         started_at: status.started_at,
         completed_at: status.completed_at || new Date().toISOString(),
         total_findings: status.findings.length,
-        severity_breakdown: severityBreakdown,
+        severity_breakdown: severityCounts,
       },
-      findings: status.findings.map(f => ({
-        id: f.id,
-        title: f.title,
-        severity: f.severity,
-        type: f.vulnerability_type,
-        cvss_score: f.cvss_score,
-        cvss_vector: f.cvss_vector,
-        cwe_id: f.cwe_id,
-        affected_endpoint: f.affected_endpoint,
-        parameter: f.parameter,
-        payload: f.payload,
-        evidence: f.evidence,
-        request: f.request,
-        response: f.response,
-        description: f.description,
-        impact: f.impact,
-        poc_code: f.poc_code,
-        remediation: f.remediation,
-        references: f.references,
-        ai_verified: f.ai_verified,
-        confidence: f.confidence,
-      })),
+      findings: status.findings,
       logs: logs.slice(-100),
     }
-  }, [status, agentId, logs])
+  }, [agentId, logs, severityCounts, status])
 
-  const generateHTMLReport = useCallback(() => {
-    if (!status) return ''
+  const downloadBlob = useCallback((content: BlobPart, type: string, fileName: string) => {
+    const blob = new Blob([content], { type })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = fileName
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }, [])
 
-    const esc = (s: string | undefined | null): string =>
-      (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
-
-    const sevColors: Record<string, string> = { critical:'#ef4444', high:'#f97316', medium:'#eab308', low:'#3b82f6', info:'#6b7280' }
-    const sevBg: Record<string, string> = { critical:'rgba(239,68,68,.08)', high:'rgba(249,115,22,.08)', medium:'rgba(234,179,8,.08)', low:'rgba(59,130,246,.08)', info:'rgba(107,114,128,.08)' }
-
-    const owaspMap: Record<string, string> = {
-      sqli:'A03:2021 Injection', 'sql_injection':'A03:2021 Injection', xss:'A03:2021 Injection', 'xss_reflected':'A03:2021 Injection', 'xss_stored':'A03:2021 Injection',
-      'command_injection':'A03:2021 Injection', ssrf:'A10:2021 SSRF', idor:'A01:2021 Broken Access Control', bola:'A01:2021 Broken Access Control',
-      csrf:'A01:2021 Broken Access Control', 'auth_bypass':'A07:2021 Auth Failures', 'open_redirect':'A01:2021 Broken Access Control',
-      lfi:'A01:2021 Broken Access Control', 'path_traversal':'A01:2021 Broken Access Control', ssti:'A03:2021 Injection',
-      xxe:'A05:2021 Misconfiguration', cors:'A05:2021 Misconfiguration', 'security_headers':'A05:2021 Misconfiguration',
-      'deserialization':'A08:2021 Integrity Failures', 'cryptographic_failures':'A02:2021 Crypto Failures',
-    }
-    const getOwasp = (type: string): string => owaspMap[type] || owaspMap[type.split('_')[0]] || ''
-
-    // Sort findings by severity order
-    const sevOrder = ['critical','high','medium','low','info']
-    const sorted = [...status.findings].sort((a,b) => sevOrder.indexOf(a.severity) - sevOrder.indexOf(b.severity))
-
-    const sc: Record<string,number> = { critical:0, high:0, medium:0, low:0, info:0 }
-    for (const f of sorted) { if (f.severity in sc) sc[f.severity]++ }
-    const total = sorted.length
-
-    const riskScore = Math.min(100, sc.critical*25 + sc.high*15 + sc.medium*8 + sc.low*3)
-    const riskLevel = riskScore >= 75 ? 'CRITICAL' : riskScore >= 50 ? 'HIGH' : riskScore >= 25 ? 'MEDIUM' : 'LOW'
-    const riskColor = riskScore >= 75 ? '#ef4444' : riskScore >= 50 ? '#f97316' : riskScore >= 25 ? '#eab308' : '#22c55e'
-
-    // Severity distribution bar widths
-    const barPcts = sevOrder.map(s => total > 0 ? Math.round((sc[s]/total)*100) : 0)
-
-    // Table of contents
-    const tocHtml = sorted.map((f, i) =>
-      `<tr>
-        <td style="padding:6px 12px;border-bottom:1px solid #1e293b;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${sevColors[f.severity]};margin-right:8px;"></span>${f.severity.toUpperCase()}</td>
-        <td style="padding:6px 12px;border-bottom:1px solid #1e293b;"><a href="#finding-${i+1}" style="color:#93c5fd;text-decoration:none;">${esc(f.title)}</a></td>
-        <td style="padding:6px 12px;border-bottom:1px solid #1e293b;color:#94a3b8;font-family:monospace;font-size:12px;">${esc(f.vulnerability_type)}</td>
-      </tr>`
-    ).join('')
-
-    // Build each finding card
-    const findingsHtml = sorted.map((f, idx) => {
-      const color = sevColors[f.severity]
-      const bg = sevBg[f.severity]
-      const owasp = getOwasp(f.vulnerability_type)
-      const cweLink = f.cwe_id ? `https://cwe.mitre.org/data/definitions/${f.cwe_id.replace('CWE-','')}.html` : ''
-      const confScore = f.confidence_score || 0
-      const confColor = confScore >= 80 ? '#22c55e' : confScore >= 50 ? '#eab308' : '#ef4444'
-      const confLabel = confScore >= 80 ? t('agent.confirmed') : confScore >= 50 ? t('agent.likely') : t('agent.unconfirmed')
-
-      const section = (title: string, content: string, icon: string = '') =>
-        `<div style="margin-bottom:20px;">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-            ${icon ? `<span style="font-size:14px;">${icon}</span>` : ''}
-            <h4 style="margin:0;color:#e2e8f0;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;">${title}</h4>
-          </div>
-          ${content}
-        </div>`
-
-      const codeBlock = (text: string, maxLen = 3000) =>
-        `<pre style="background:#020617;border:1px solid #1e293b;border-radius:6px;padding:14px;margin:0;overflow-x:auto;font-family:'SF Mono',Monaco,monospace;font-size:12px;line-height:1.6;color:#e2e8f0;white-space:pre-wrap;word-break:break-all;">${esc(text.slice(0,maxLen))}</pre>`
-
-      return `
-      <div id="finding-${idx+1}" style="background:#0f172a;border:1px solid #1e293b;border-radius:12px;margin-bottom:28px;overflow:hidden;page-break-inside:avoid;">
-        <!-- Finding Header -->
-        <div style="padding:24px;background:${bg};border-bottom:1px solid #1e293b;">
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
-            <span style="background:${color};color:#fff;padding:4px 14px;border-radius:4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">${f.severity}</span>
-            <span style="color:#475569;font-size:12px;font-weight:500;">FINDING #${idx+1} of ${total}</span>
-            ${owasp ? `<span style="background:rgba(251,191,36,.1);color:#fbbf24;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:500;">${owasp}</span>` : ''}
-            ${confScore > 0 ? `<span style="background:rgba(0,0,0,.3);color:${confColor};padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;">${confScore}% ${confLabel}</span>` : ''}
-          </div>
-          <h3 style="margin:0 0 8px;color:#f8fafc;font-size:20px;font-weight:600;line-height:1.3;">${esc(f.title)}</h3>
-          <div style="font-family:'SF Mono',Monaco,monospace;font-size:13px;color:#64748b;word-break:break-all;">${esc(f.affected_endpoint)}</div>
-        </div>
-
-        <div style="padding:24px;">
-          <!-- Metrics Row -->
-          <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:24px;">
-            ${f.cvss_score ? `
-            <div style="background:#020617;border:1px solid #1e293b;border-radius:8px;padding:12px 18px;min-width:120px;">
-              <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">CVSS 3.1</div>
-              <div style="font-size:26px;font-weight:700;color:${color};">${f.cvss_score}</div>
-              ${f.cvss_vector ? `<div style="font-size:9px;color:#475569;font-family:monospace;margin-top:2px;">${esc(f.cvss_vector)}</div>` : ''}
-            </div>` : ''}
-            ${f.cwe_id ? `
-            <div style="background:#020617;border:1px solid #1e293b;border-radius:8px;padding:12px 18px;min-width:120px;">
-              <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">CWE</div>
-              <a href="${cweLink}" target="_blank" style="color:#60a5fa;text-decoration:none;font-size:15px;font-weight:600;">${esc(f.cwe_id)}</a>
-            </div>` : ''}
-            <div style="background:#020617;border:1px solid #1e293b;border-radius:8px;padding:12px 18px;min-width:120px;">
-              <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">TYPE</div>
-              <div style="color:#e2e8f0;font-size:14px;font-weight:500;">${esc(f.vulnerability_type)}</div>
-            </div>
-            ${f.parameter ? `
-            <div style="background:#020617;border:1px solid #1e293b;border-radius:8px;padding:12px 18px;min-width:120px;">
-              <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">PARAMETER</div>
-              <div style="color:#38bdf8;font-size:14px;font-family:monospace;">${esc(f.parameter)}</div>
-            </div>` : ''}
-          </div>
-
-          ${f.description ? section('Description', `<p style="color:#cbd5e1;margin:0;line-height:1.8;font-size:14px;">${esc(f.description)}</p>`, '📋') : ''}
-          ${f.evidence ? section('Evidence', codeBlock(f.evidence), '🔍') : ''}
-          ${f.payload ? section('Payload', codeBlock(f.payload, 1000), '💉') : ''}
-
-          ${f.request ? section('HTTP Request', codeBlock(f.request, 2000), '📤') : ''}
-          ${f.response ? section('HTTP Response (excerpt)', codeBlock(f.response, 2000), '📥') : ''}
-
-          ${f.poc_code ? section('Proof of Concept Code', codeBlock(f.poc_code, 4000), '⚡') : ''}
-          ${f.proof_of_execution ? section('Proof of Execution', `<p style="color:#22c55e;margin:0;font-size:14px;line-height:1.7;padding:12px;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.15);border-radius:6px;">${esc(f.proof_of_execution)}</p>`, '✅') : ''}
-
-          ${f.impact ? section('Impact', `<p style="color:#fbbf24;margin:0;line-height:1.7;font-size:14px;padding:12px;background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.12);border-radius:6px;">${esc(f.impact)}</p>`, '⚠️') : ''}
-
-          ${f.remediation ? `
-          <div style="margin-bottom:20px;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.15);border-radius:8px;padding:16px;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-              <span style="font-size:14px;">🛡️</span>
-              <h4 style="margin:0;color:#4ade80;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;">Remediation</h4>
-            </div>
-            <p style="color:#cbd5e1;margin:0;line-height:1.8;font-size:14px;">${esc(f.remediation)}</p>
-          </div>` : ''}
-
-          ${f.references && f.references.length > 0 ? section('References',
-            `<ul style="margin:0;padding-left:20px;color:#94a3b8;font-size:13px;line-height:2;">
-              ${f.references.map(ref => `<li><a href="${esc(ref)}" target="_blank" style="color:#60a5fa;text-decoration:none;">${esc(ref)}</a></li>`).join('')}
-            </ul>`, '📚') : ''}
-        </div>
-      </div>`
-    }).join('')
-
-    // Unique affected endpoints
-    const uniqueEndpoints = [...new Set(sorted.map(f => f.affected_endpoint).filter(Boolean))]
-    const uniqueTypes = [...new Set(sorted.map(f => f.vulnerability_type).filter(Boolean))]
-
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Security Assessment Report - ${esc(status.target)}</title>
-<style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#020617;color:#e2e8f0;line-height:1.6}
-  .page{max-width:1100px;margin:0 auto;padding:40px 32px}
-  a{color:#60a5fa}
-  @media print{
-    body{background:#fff;color:#1e293b;font-size:11pt}
-    .page{padding:20px}
-    .no-print{display:none!important}
-    pre{border:1px solid #e2e8f0!important;background:#f8fafc!important;color:#1e293b!important}
-    h1,h2,h3{color:#0f172a!important}
-  }
-  @page{margin:1.5cm;size:A4}
-</style>
-</head>
-<body>
-<div class="page">
-
-  <!-- ═══ Cover / Header ═══ -->
-  <div style="text-align:center;padding:48px 0 40px;border-bottom:2px solid #1e293b;margin-bottom:40px;">
-    <div style="font-size:11px;text-transform:uppercase;letter-spacing:4px;color:#64748b;margin-bottom:16px;">Confidential Security Report</div>
-    <h1 style="color:#f8fafc;font-size:32px;font-weight:700;margin-bottom:12px;">Penetration Test Report</h1>
-    <div style="color:#94a3b8;font-size:15px;margin-bottom:8px;">Target: <span style="color:#38bdf8;font-family:monospace;">${esc(status.target)}</span></div>
-    <div style="color:#64748b;font-size:13px;">
-      ${new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}
-      &nbsp;&bull;&nbsp; Agent: ${esc(agentId || '')}
-      &nbsp;&bull;&nbsp; Mode: ${esc(MODE_LABELS[status.mode] || status.mode)}
-    </div>
-  </div>
-
-  <!-- ═══ Risk Overview ═══ -->
-  <div style="display:grid;grid-template-columns:240px 1fr;gap:32px;margin-bottom:40px;align-items:start;">
-    <!-- Risk Gauge -->
-    <div style="background:#0f172a;border:1px solid #1e293b;border-radius:12px;padding:28px;text-align:center;">
-      <div style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#64748b;margin-bottom:12px;">Risk Level</div>
-      <div style="font-size:56px;font-weight:800;color:${riskColor};line-height:1;">${riskScore}</div>
-      <div style="font-size:13px;color:${riskColor};font-weight:600;margin-top:4px;">${riskLevel}</div>
-      <div style="height:6px;background:#1e293b;border-radius:3px;margin-top:16px;overflow:hidden;">
-        <div style="height:100%;width:${riskScore}%;background:${riskColor};border-radius:3px;"></div>
-      </div>
-    </div>
-    <!-- Severity Breakdown -->
-    <div style="background:#0f172a;border:1px solid #1e293b;border-radius:12px;padding:28px;">
-      <div style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#64748b;margin-bottom:16px;">Findings Breakdown</div>
-      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px;">
-        <div style="text-align:center;"><div style="font-size:32px;font-weight:700;color:#f8fafc;">${total}</div><div style="font-size:11px;color:#64748b;text-transform:uppercase;">Total</div></div>
-        ${sevOrder.map(s => `<div style="text-align:center;"><div style="font-size:32px;font-weight:700;color:${sevColors[s]};">${sc[s]}</div><div style="font-size:11px;color:#64748b;text-transform:uppercase;">${s}</div></div>`).join('')}
-      </div>
-      <!-- Distribution bar -->
-      ${total > 0 ? `
-      <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;">
-        ${sevOrder.map((s,i) => barPcts[i] > 0 ? `<div style="width:${barPcts[i]}%;background:${sevColors[s]};"></div>` : '').join('')}
-      </div>` : ''}
-    </div>
-  </div>
-
-  <!-- ═══ Executive Summary ═══ -->
-  <div style="background:#0f172a;border:1px solid #1e293b;border-radius:12px;padding:28px;margin-bottom:40px;">
-    <h2 style="color:#f8fafc;font-size:18px;font-weight:600;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #1e293b;">Executive Summary</h2>
-    <p style="color:#cbd5e1;line-height:1.9;font-size:14px;">
-      A security assessment was performed against <strong style="color:#f8fafc;">${esc(status.target)}</strong>
-      using PTTechAI AI-powered penetration testing. The assessment identified
-      <strong style="color:#f8fafc;">${total} security finding${total !== 1 ? 's' : ''}</strong>
-      across <strong>${uniqueEndpoints.length}</strong> unique endpoint${uniqueEndpoints.length !== 1 ? 's' : ''}
-      covering <strong>${uniqueTypes.length}</strong> distinct vulnerability type${uniqueTypes.length !== 1 ? 's' : ''}.
-      ${sc.critical > 0 ? `<br/><br/><span style="color:#ef4444;font-weight:600;">&#9888; ${sc.critical} critical-severity finding${sc.critical > 1 ? 's' : ''} require${sc.critical === 1 ? 's' : ''} immediate remediation.</span>` : ''}
-      ${sc.high > 0 ? ` <span style="color:#f97316;font-weight:500;">${sc.high} high-severity finding${sc.high > 1 ? 's' : ''} should be addressed promptly.</span>` : ''}
-      ${sc.critical === 0 && sc.high === 0 && total > 0 ? ` No critical or high-severity vulnerabilities were identified.` : ''}
-      ${total === 0 ? ` No vulnerabilities were identified during this assessment.` : ''}
-    </p>
-  </div>
-
-  ${total > 0 ? `
-  <!-- ═══ Table of Contents ═══ -->
-  <div style="background:#0f172a;border:1px solid #1e293b;border-radius:12px;padding:28px;margin-bottom:40px;">
-    <h2 style="color:#f8fafc;font-size:18px;font-weight:600;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #1e293b;">Findings Index</h2>
-    <table style="width:100%;border-collapse:collapse;font-size:13px;">
-      <thead>
-        <tr style="border-bottom:2px solid #1e293b;">
-          <th style="text-align:left;padding:8px 12px;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;width:100px;">Severity</th>
-          <th style="text-align:left;padding:8px 12px;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Finding</th>
-          <th style="text-align:left;padding:8px 12px;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;width:180px;">Type</th>
-        </tr>
-      </thead>
-      <tbody>${tocHtml}</tbody>
-    </table>
-  </div>
-
-  <!-- ═══ Detailed Findings ═══ -->
-  <div style="margin-bottom:40px;">
-    <h2 style="color:#f8fafc;font-size:20px;font-weight:600;margin-bottom:24px;padding-bottom:12px;border-bottom:2px solid #1e293b;">
-      Detailed Findings <span style="color:#64748b;font-weight:400;font-size:14px;">(${total})</span>
-    </h2>
-    ${findingsHtml}
-  </div>
-  ` : ''}
-
-  <!-- ═══ Scope & Methodology ═══ -->
-  <div style="background:#0f172a;border:1px solid #1e293b;border-radius:12px;padding:28px;margin-bottom:40px;">
-    <h2 style="color:#f8fafc;font-size:18px;font-weight:600;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #1e293b;">Scope &amp; Methodology</h2>
-    <table style="width:100%;font-size:13px;color:#cbd5e1;">
-      <tr><td style="padding:6px 0;color:#64748b;width:180px;">Target URL</td><td style="padding:6px 0;font-family:monospace;">${esc(status.target)}</td></tr>
-      <tr><td style="padding:6px 0;color:#64748b;">Assessment Mode</td><td style="padding:6px 0;">${esc(MODE_LABELS[status.mode] || status.mode)}</td></tr>
-      <tr><td style="padding:6px 0;color:#64748b;">Agent ID</td><td style="padding:6px 0;font-family:monospace;">${esc(agentId || '')}</td></tr>
-      <tr><td style="padding:6px 0;color:#64748b;">Start Time</td><td style="padding:6px 0;">${status.started_at ? new Date(status.started_at).toLocaleString() : 'N/A'}</td></tr>
-      <tr><td style="padding:6px 0;color:#64748b;">End Time</td><td style="padding:6px 0;">${status.completed_at ? new Date(status.completed_at).toLocaleString() : 'N/A'}</td></tr>
-      <tr><td style="padding:6px 0;color:#64748b;">Endpoints Tested</td><td style="padding:6px 0;">${uniqueEndpoints.length}</td></tr>
-      <tr><td style="padding:6px 0;color:#64748b;">Vulnerability Types</td><td style="padding:6px 0;">${uniqueTypes.length}</td></tr>
-    </table>
-    <p style="color:#94a3b8;font-size:12px;margin-top:16px;line-height:1.7;">
-      This assessment was conducted using PTTechAI v3 AI-powered penetration testing platform with 100 vulnerability type coverage,
-      automated payload generation, and AI-driven validation. Findings were validated through negative control testing,
-      proof-of-execution verification, and confidence scoring.
-    </p>
-  </div>
-
-  <!-- ═══ Footer ═══ -->
-  <div style="text-align:center;padding:32px 0;border-top:1px solid #1e293b;color:#475569;font-size:12px;">
-    <div style="margin-bottom:8px;"><strong style="color:#94a3b8;">Generated by PTTechAI v3</strong> &mdash; AI-Powered Penetration Testing Platform</div>
-    <div>${new Date().toISOString()}</div>
-    <div style="margin-top:12px;font-size:11px;color:#334155;">CONFIDENTIAL &mdash; This document contains sensitive security information. Distribution is restricted to authorized personnel only.</div>
-  </div>
-
-</div>
-</body>
-</html>`
-  }, [status, agentId])
-
-  const handleGenerateReport = useCallback(async (format: 'json' | 'html' = 'json') => {
-    if (!agentId || !status) return
+  const handleGenerateReport = useCallback(async (format: 'json' | 'html') => {
+    if (!status) return
     setIsGeneratingReport(true)
     try {
+      const date = new Date().toISOString().split('T')[0]
       if (format === 'html') {
-        const htmlContent = generateHTMLReport()
-        const blob = new Blob([htmlContent], { type: 'text/html' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `pttechai-report-${agentId}-${new Date().toISOString().split('T')[0]}.html`
-        a.click()
-        URL.revokeObjectURL(url)
-        addToast(t('agent.htmlReportDownloaded'), 'success')
+        downloadBlob(buildReportHtml(status, agentId, modeLabels[status.mode] || status.mode), 'text/html', `pttechai-report-${agentId}-${date}.html`)
+        notification.success({ message: t('agent.htmlReportDownloaded') })
       } else {
         const reportData = status.report || generateReportData()
-        const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `pttechai-report-${agentId}-${new Date().toISOString().split('T')[0]}.json`
-        a.click()
-        URL.revokeObjectURL(url)
-        addToast(t('agent.jsonReportDownloaded'), 'success')
+        downloadBlob(JSON.stringify(reportData, null, 2), 'application/json', `pttechai-report-${agentId}-${date}.json`)
+        notification.success({ message: t('agent.jsonReportDownloaded') })
       }
     } finally {
       setIsGeneratingReport(false)
     }
-  }, [agentId, status, generateHTMLReport, generateReportData, addToast])
+  }, [agentId, downloadBlob, generateReportData, modeLabels, notification, status, t])
 
   const handleGenerateAiReport = useCallback(async () => {
     if (!status?.scan_id) return
     setIsGeneratingAiReport(true)
     try {
-      const report = await reportsApi.generateAiReport({
-        scan_id: status.scan_id,
-        title: `AI Report - ${status.target || 'Agent Scan'}`,
-      })
+      const report = await reportsApi.generateAiReport({ scan_id: status.scan_id, title: `AI Report - ${status.target || 'Agent Scan'}` })
       window.open(reportsApi.getViewUrl(report.id), '_blank')
-      addToast(t('agent.aiReportGenerated'), 'success')
+      notification.success({ message: t('agent.aiReportGenerated') })
     } catch (err) {
       console.error('Failed to generate AI report:', err)
-      addToast(t('agent.failedToGenerateReport'), 'error')
+      notification.error({ message: t('agent.failedToGenerateReport') })
     } finally {
       setIsGeneratingAiReport(false)
     }
-  }, [status, addToast])
-
-  /* ── Scan controls ──────────────────────────────────────────── */
+  }, [notification, status, t])
 
   const handleStopScan = useCallback(async () => {
     if (!agentId) return
     setIsStopping(true)
     try {
       await agentApi.stop(agentId)
-      const statusData = await agentApi.getStatus(agentId)
-      setStatus(statusData)
-      addToast(t('agent.agentStopped'), 'info')
+      await fetchStatus()
+      notification.info({ message: t('agent.agentStopped') })
     } catch (err) {
       console.error('Failed to stop agent:', err)
-      addToast(t('agent.failedToStopAgent'), 'error')
+      notification.error({ message: t('agent.failedToStopAgent') })
     } finally {
       setIsStopping(false)
     }
-  }, [agentId, addToast])
+  }, [agentId, fetchStatus, notification, t])
 
   const handlePauseScan = useCallback(async () => {
     if (!agentId) return
     try {
       await agentApi.pause(agentId)
-      const statusData = await agentApi.getStatus(agentId)
-      setStatus(statusData)
-      addToast(t('agent.agentPaused'), 'info')
+      await fetchStatus()
+      notification.info({ message: t('agent.agentPaused') })
     } catch (err) {
       console.error('Failed to pause agent:', err)
-      addToast(t('agent.failedToPauseAgent'), 'error')
+      notification.error({ message: t('agent.failedToPauseAgent') })
     }
-  }, [agentId, addToast])
+  }, [agentId, fetchStatus, notification, t])
 
   const handleResumeScan = useCallback(async () => {
     if (!agentId) return
     try {
       await agentApi.resume(agentId)
-      const statusData = await agentApi.getStatus(agentId)
-      setStatus(statusData)
-      addToast(t('agent.agentResumed'), 'success')
+      await fetchStatus()
+      notification.success({ message: t('agent.agentResumed') })
     } catch (err) {
       console.error('Failed to resume agent:', err)
-      addToast(t('agent.failedToResumeAgent'), 'error')
+      notification.error({ message: t('agent.failedToResumeAgent') })
     }
-  }, [agentId, addToast])
-
-  /* ── Custom prompt ──────────────────────────────────────────── */
+  }, [agentId, fetchStatus, notification, t])
 
   const handleSubmitPrompt = useCallback(async () => {
     if (!customPrompt.trim() || !agentId) return
     setIsSubmittingPrompt(true)
-    const sentPrompt = customPrompt
     try {
+      const sentPrompt = customPrompt
       await agentApi.sendPrompt(agentId, customPrompt)
       setCustomPrompt('')
-      addToast(t('agent.promptSent', { preview: `${sentPrompt.slice(0, 50)}${sentPrompt.length > 50 ? '...' : ''}` }), 'success')
-
-      const [statusData, logsData] = await Promise.all([
-        agentApi.getStatus(agentId),
-        agentApi.getLogs(agentId, 200),
-      ])
-      setStatus(statusData)
-      setLogs(logsData.logs || [])
+      notification.success({ message: t('agent.promptSent', { preview: `${sentPrompt.slice(0, 50)}${sentPrompt.length > 50 ? '...' : ''}` }) })
+      await fetchStatus()
     } catch (err) {
       console.error('Failed to send prompt:', err)
-      addToast(t('agent.failedToSendPrompt'), 'error')
+      notification.error({ message: t('agent.failedToSendPrompt') })
     } finally {
       setIsSubmittingPrompt(false)
     }
-  }, [customPrompt, agentId, addToast, t])
-
-  /* ── Phase skip ─────────────────────────────────────────────── */
+  }, [agentId, customPrompt, fetchStatus, notification, t])
 
   const handleSkipToPhase = useCallback(async (targetPhase: string) => {
     if (!agentId) return
@@ -723,891 +406,261 @@ export default function AgentStatusPage() {
     try {
       await agentApi.skipToPhase(agentId, targetPhase)
       const currentIndex = status ? getPhaseIndex(status.phase) : 0
-      const targetIndex = SCAN_PHASES.findIndex(p => p.key === targetPhase)
-      const newSkipped = new Set(skippedPhases)
-      for (let i = currentIndex; i < targetIndex; i++) {
-        newSkipped.add(SCAN_PHASES[i].key)
-      }
-      setSkippedPhases(newSkipped)
-      setSkipConfirm(null)
-      const phaseLabel = SCAN_PHASES.find(p => p.key === targetPhase)?.label ?? targetPhase
-      addToast(t('agent.skippedToPhase', { phase: phaseLabel }), 'info')
+      const targetIndex = PHASE_KEYS.indexOf(targetPhase)
+      setSkippedPhases(prev => {
+        const next = new Set(prev)
+        for (let index = currentIndex; index < targetIndex; index += 1) next.add(PHASE_KEYS[index])
+        return next
+      })
+      notification.info({ message: t('agent.skippedToPhase', { phase: scanPhases.find(phase => phase.key === targetPhase)?.title || targetPhase }) })
+      await fetchStatus()
     } catch (err) {
       console.error('Failed to skip phase:', err)
-      addToast(t('agent.failedToSkipPhase'), 'error')
+      notification.error({ message: t('agent.failedToSkipPhase') })
     } finally {
       setIsSkipping(false)
     }
-  }, [agentId, status, skippedPhases, addToast, t, SCAN_PHASES])
+  }, [agentId, fetchStatus, notification, scanPhases, status, t])
 
-  /* ── Sub-renderers ──────────────────────────────────────────── */
+  const renderLogViewer = useCallback((items: AgentLog[], ref: React.RefObject<HTMLDivElement>, stickRef: React.MutableRefObject<boolean>, emptyText: string, icon: ReactNode) => (
+    <div
+      ref={ref}
+      onScroll={() => {
+        const element = ref.current
+        if (element) stickRef.current = isLogContainerNearBottom(element)
+      }}
+      style={{ maxHeight: 420, overflow: 'auto', fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace', fontSize: 12 }}
+    >
+      {items.length ? (
+        <Timeline
+          items={items.map((log, index) => ({
+            color: log.level === 'error' ? 'red' : log.level === 'warning' ? 'orange' : log.level === 'success' ? 'green' : log.level === 'llm' ? 'purple' : 'blue',
+            children: (
+              <Space key={index} direction="vertical" size={2} style={{ width: '100%' }}>
+                <Text type="secondary">{new Date(log.time).toLocaleTimeString()}</Text>
+                <Text style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{log.message}</Text>
+              </Space>
+            ),
+          }))}
+        />
+      ) : (
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<Space>{icon}{emptyText}</Space>} />
+      )}
+    </div>
+  ), [])
 
   const renderFindingDetails = useCallback((finding: AgentFinding) => (
-    <div className="p-4 pt-0 space-y-4 border-t border-dark-700">
-      {/* CVSS & Meta Info */}
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-dark-400">CVSS:</span>
-          <span className={`font-bold ${
-            finding.cvss_score >= 9 ? 'text-red-500' :
-            finding.cvss_score >= 7 ? 'text-orange-500' :
-            finding.cvss_score >= 4 ? 'text-yellow-500' :
-            'text-blue-500'
-          }`}>
-            {finding.cvss_score?.toFixed(1) || 'N/A'}
-          </span>
-        </div>
-        {finding.cwe_id && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-dark-400">CWE:</span>
-            <a
-              href={`https://cwe.mitre.org/data/definitions/${finding.cwe_id.replace('CWE-', '')}.html`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary-400 hover:underline flex items-center gap-1"
-            >
-              {finding.cwe_id}
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
-        )}
-        <span className="text-xs bg-dark-700 px-2 py-1 rounded text-dark-300">
-          {finding.vulnerability_type}
-        </span>
-        {finding.confidence && (
-          <span className={`text-xs px-2 py-1 rounded ${
-            finding.confidence === 'high' ? 'bg-green-500/20 text-green-400' :
-            finding.confidence === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-            'bg-red-500/20 text-red-400'
-          }`}>
-            {t('agent.confidenceLevel', { level: finding.confidence })}
-          </span>
-        )}
-        {typeof finding.confidence_score === 'number' && (
-          <span className={`text-xs px-2 py-1 rounded border font-medium tabular-nums ${
-            finding.confidence_score >= 90 ? 'bg-green-500/15 text-green-400 border-green-500/30' :
-            finding.confidence_score >= 60 ? 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30' :
-            'bg-red-500/15 text-red-400 border-red-500/30'
-          }`}>
-            {finding.confidence_score}/100
-          </span>
-        )}
-      </div>
+    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Descriptions size="small" column={{ xs: 1, sm: 2, md: 3 }} bordered>
+        <Descriptions.Item label="CVSS">{finding.cvss_score?.toFixed?.(1) || 'N/A'}</Descriptions.Item>
+        <Descriptions.Item label="CWE">{finding.cwe_id || 'N/A'}</Descriptions.Item>
+        <Descriptions.Item label={t('agent.confidence')}>{finding.confidence || finding.confidence_score || 'N/A'}</Descriptions.Item>
+        <Descriptions.Item label={t('agent.endpointLabel')} span={3}>{finding.affected_endpoint || 'N/A'}</Descriptions.Item>
+        {finding.parameter && <Descriptions.Item label={t('agent.vulnerableParameter')} span={3}>{finding.parameter}</Descriptions.Item>}
+      </Descriptions>
 
-      {/* CVSS Vector */}
-      {finding.cvss_vector && (
-        <div className="text-xs bg-dark-800 p-2 rounded font-mono text-dark-300">
-          {finding.cvss_vector}
-        </div>
-      )}
-
-      {/* Technical Details Section */}
-      <div className="bg-dark-800/50 rounded-lg p-4 space-y-3">
-        <h4 className="text-sm font-medium text-primary-400 flex items-center gap-2">
-          <Code className="w-4 h-4" />
-          {t('agent.technicalDetails')}
-        </h4>
-
-        {/* Affected Endpoint */}
-        <div>
-          <span className="text-xs text-dark-500">{t('agent.endpointLabel')}</span>
-          <div className="flex items-center gap-2 mt-1">
-            <Globe className="w-4 h-4 text-dark-400 flex-shrink-0" />
-            <code className="text-sm text-blue-400 bg-dark-900 px-2 py-1 rounded break-all">
-              {finding.affected_endpoint}
-            </code>
-          </div>
-        </div>
-
-        {/* Parameter */}
-        {finding.parameter && (
-          <div>
-            <span className="text-xs text-dark-500">{t('agent.vulnerableParameter')}</span>
-            <code className="block mt-1 text-sm text-yellow-400 bg-dark-900 px-2 py-1 rounded">
-              {finding.parameter}
-            </code>
-          </div>
-        )}
-
-        {/* Payload */}
-        {finding.payload && (
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-dark-500">{t('agent.payloadUsed')}</span>
-              <Button variant="ghost" size="sm" onClick={() => copyToClipboard(finding.payload!)}>
-                <Copy className="w-3 h-3" />
-              </Button>
-            </div>
-            <code className="block mt-1 text-sm text-red-400 bg-dark-900 px-2 py-1 rounded break-all">
-              {finding.payload}
-            </code>
-          </div>
-        )}
-
-        {/* HTTP Request */}
-        {finding.request && (
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-dark-500">{t('agent.httpRequest')}</span>
-              <Button variant="ghost" size="sm" onClick={() => copyToClipboard(finding.request!)}>
-                <Copy className="w-3 h-3" />
-              </Button>
-            </div>
-            <pre className="mt-1 text-xs text-green-400 bg-dark-900 p-2 rounded overflow-x-auto max-h-32">
-              {finding.request}
-            </pre>
-          </div>
-        )}
-
-        {/* HTTP Response */}
-        {finding.response && (
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-dark-500">{t('agent.httpResponseExcerpt')}</span>
-              <Button variant="ghost" size="sm" onClick={() => copyToClipboard(finding.response!)}>
-                <Copy className="w-3 h-3" />
-              </Button>
-            </div>
-            <pre className="mt-1 text-xs text-orange-400 bg-dark-900 p-2 rounded overflow-x-auto max-h-32">
-              {finding.response}
-            </pre>
-          </div>
-        )}
-
-        {/* Evidence */}
-        {finding.evidence && (
-          <div>
-            <span className="text-xs text-dark-500">{t('agent.evidenceLabel')}</span>
-            <p className="mt-1 text-sm text-dark-300 bg-dark-900 p-2 rounded">
-              {finding.evidence}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Description */}
-      {finding.description && (
-        <div>
-          <p className="text-sm font-medium text-dark-300 mb-1">{t('agent.description')}</p>
-          <p className="text-sm text-dark-400">{finding.description}</p>
-        </div>
-      )}
-
-      {/* Impact */}
-      {finding.impact && (
-        <div>
-          <p className="text-sm font-medium text-dark-300 mb-1">{t('agent.impact')}</p>
-          <p className="text-sm text-dark-400">{finding.impact}</p>
-        </div>
-      )}
-
-      {/* PoC Code */}
-      {finding.poc_code && (
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-sm font-medium text-dark-300">{t('agent.proofOfConcept')}</p>
-            <Button variant="ghost" size="sm" onClick={() => copyToClipboard(finding.poc_code)}>
-              <Copy className="w-3 h-3 mr-1" />
-              {t('agent.copy')}
-            </Button>
-          </div>
-          <pre className="text-xs bg-dark-800 p-3 rounded overflow-x-auto text-dark-300 font-mono">
-            {finding.poc_code}
-          </pre>
-        </div>
-      )}
-
-      {/* Remediation */}
-      {finding.remediation && (
-        <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
-          <p className="text-sm font-medium text-green-400 mb-1">{t('agent.remediation')}</p>
-          <p className="text-sm text-dark-400">{finding.remediation}</p>
-        </div>
-      )}
-
-      {/* Confidence Breakdown */}
+      {finding.cvss_vector && <Alert type="info" showIcon message="CVSS Vector" description={<Text code>{finding.cvss_vector}</Text>} />}
+      {finding.description && <Card size="small" title={t('agent.description')}><Paragraph>{finding.description}</Paragraph></Card>}
+      {finding.evidence && <Card size="small" title={t('agent.evidenceLabel')}><Paragraph copyable>{finding.evidence}</Paragraph></Card>}
+      {finding.payload && <Card size="small" title={t('agent.payloadUsed')}><Paragraph code copyable>{finding.payload}</Paragraph></Card>}
+      {finding.request && <Card size="small" title={t('agent.httpRequest')}><pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{finding.request}</pre></Card>}
+      {finding.response && <Card size="small" title={t('agent.httpResponseExcerpt')}><pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{finding.response}</pre></Card>}
+      {finding.impact && <Alert type="warning" showIcon message={t('agent.impact')} description={finding.impact} />}
+      {finding.poc_code && <Card size="small" title={t('agent.proofOfConcept')} extra={<Button size="small" icon={<CopyOutlined />} onClick={() => copyToClipboard(finding.poc_code)}>{t('agent.copy')}</Button>}><pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{finding.poc_code}</pre></Card>}
+      {finding.proof_of_execution && <Alert type="success" showIcon message={t('agent.proofOfExecution')} description={finding.proof_of_execution} />}
+      {finding.remediation && <Alert type="success" showIcon message={t('agent.remediation')} description={finding.remediation} />}
       {finding.confidence_breakdown && Object.keys(finding.confidence_breakdown).length > 0 && (
-        <div className="bg-dark-800/50 rounded-lg p-3">
-          <p className="text-sm font-medium text-dark-300 mb-2">{t('agent.confidenceBreakdown')}</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {Object.entries(finding.confidence_breakdown).map(([key, val]) => (
-              <div key={key} className="flex items-center justify-between text-xs bg-dark-900 px-2 py-1.5 rounded">
-                <span className="text-dark-400 truncate mr-2">{key.replace(/_/g, ' ')}</span>
-                <span className={`font-medium tabular-nums ${
-                  val > 0 ? 'text-green-400' : val < 0 ? 'text-red-400' : 'text-dark-500'
-                }`}>
-                  {val > 0 ? '+' : ''}{val}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <Card size="small" title={t('agent.confidenceBreakdown')}>
+          <Space wrap>{Object.entries(finding.confidence_breakdown).map(([key, value]) => <Tag key={key}>{key.replace(/_/g, ' ')}: {value > 0 ? '+' : ''}{value}</Tag>)}</Space>
+        </Card>
       )}
-
-      {/* Proof of Execution */}
-      {finding.proof_of_execution && (
-        <div className="bg-dark-800/50 rounded-lg p-3">
-          <p className="text-sm font-medium text-dark-300 mb-1">{t('agent.proofOfExecution')}</p>
-          <p className="text-xs text-dark-400 whitespace-pre-wrap">{finding.proof_of_execution}</p>
-        </div>
+      {finding.references?.length > 0 && (
+        <Card size="small" title={t('agent.references')}>
+          <Space direction="vertical">{finding.references.map(ref => <Text key={ref} copyable>{ref}</Text>)}</Space>
+        </Card>
       )}
-
-      {/* References */}
-      {finding.references && finding.references.length > 0 && (
-        <div>
-          <p className="text-sm font-medium text-dark-300 mb-1">{t('agent.references')}</p>
-          <div className="flex flex-wrap gap-2">
-            {finding.references.map((ref, i) => (
-              <a
-                key={i}
-                href={ref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-primary-400 hover:underline flex items-center gap-1 bg-dark-800 px-2 py-1 rounded"
-              >
-                {(() => {
-                  try {
-                    return new URL(ref).hostname
-                  } catch {
-                    return ref
-                  }
-                })()}
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+    </Space>
   ), [copyToClipboard, t])
 
-  const renderLogViewer = useCallback((
-    logsToShow: AgentLog[],
-    containerRef: React.RefObject<HTMLDivElement>,
-    stickRef: React.MutableRefObject<boolean>,
-    stream: 'script' | 'ai',
-    icon: React.ReactNode,
-  ) => (
-    <div
-      ref={containerRef}
-      onScroll={() => {
-        const el = containerRef.current
-        if (!el) return
-        stickRef.current = isLogContainerNearBottom(el)
-      }}
-      className="space-y-1 max-h-[400px] overflow-auto font-mono text-xs overscroll-y-contain"
-    >
-      {logsToShow.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12">
-          <Terminal className="w-8 h-8 text-dark-600 mb-2" />
-          <p className="text-dark-400 text-center text-sm">
-            {stream === 'script' ? t('agent.logEmptyScript') : t('agent.logEmptyAi')}
-          </p>
-        </div>
-      ) : (
-        logsToShow.map((log, i) => {
-          const isUserPrompt = log.message.includes('[USER PROMPT]')
-          const isAIResponse = log.message.includes('[AI RESPONSE]') || log.message.includes('[AI]')
-
-          return (
-            <div
-              key={i}
-              className={`flex gap-2 py-1 px-1 rounded ${
-                isUserPrompt ? 'bg-blue-500/10 border-l-2 border-blue-500' :
-                isAIResponse && log.message.includes('[AI RESPONSE]') ? 'bg-purple-500/10 border-l-2 border-purple-500' :
-                'hover:bg-dark-800/30'
-              }`}
-            >
-              <span className="text-dark-500 flex-shrink-0 w-20">
-                {new Date(log.time).toLocaleTimeString()}
-              </span>
-              <span className="flex-shrink-0">
-                {isUserPrompt ? <Send className="w-3 h-3 text-blue-400" /> :
-                 isAIResponse ? <Brain className="w-3 h-3 text-purple-400" /> :
-                 icon}
-              </span>
-              <span className={`break-words ${
-                isUserPrompt ? 'text-blue-300 font-medium' :
-                isAIResponse && log.message.includes('[AI RESPONSE]') ? 'text-purple-300' :
-                log.level === 'error' ? 'text-red-400' :
-                log.level === 'warning' ? 'text-yellow-400' :
-                log.level === 'success' ? 'text-green-400' :
-                log.level === 'llm' ? 'text-purple-400' :
-                'text-dark-300'
-              }`}>
-                {log.message}
-              </span>
-            </div>
-          )
-        })
-      )}
-    </div>
-  ), [t])
-
-  /* ── Loading state ──────────────────────────────────────────── */
-
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <RefreshCw className="w-8 h-8 animate-spin text-primary-500" />
-      </div>
-    )
+    return <PageContainer><ProCard><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('common.loading')} /></ProCard></PageContainer>
   }
-
-  /* ── Error state ────────────────────────────────────────────── */
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-64">
-        <XCircle className="w-12 h-12 text-red-500 mb-4" />
-        <p className="text-xl text-white mb-2">{error}</p>
-        <Button onClick={() => navigate('/scan/new')}>{t('agent.startNewAgent')}</Button>
-      </div>
+      <PageContainer>
+        <Alert type="error" showIcon message={error} action={<Button onClick={() => navigate('/scan/new')}>{t('agent.startNewAgent')}</Button>} />
+      </PageContainer>
     )
   }
 
   if (!status) return null
 
-  /* ── Main render ────────────────────────────────────────────── */
+  const currentPhaseIndex = status.status === 'completed' ? 4 : getPhaseIndex(status.phase)
+  const reportMenu = {
+    items: [
+      { key: 'html', icon: <FileTextOutlined />, label: t('agent.htmlReport') },
+      { key: 'json', icon: <DownloadOutlined />, label: t('agent.jsonReport') },
+      ...(status.scan_id ? [{ key: 'ai', icon: <ThunderboltOutlined />, label: t('agent.aiReport') }] : []),
+    ],
+    onClick: ({ key }: { key: string }) => {
+      if (key === 'ai') handleGenerateAiReport()
+      else handleGenerateReport(key as 'json' | 'html')
+    },
+  }
+
+  const canExport = status.findings.length > 0 || !!status.report
+  const findingItems = status.findings.map(finding => ({
+    key: finding.id,
+    label: (
+      <Space direction="vertical" size={2} style={{ width: '100%' }}>
+        <Space wrap>
+          <Tag color={severityColor[finding.severity]}>{finding.severity.toUpperCase()}</Tag>
+          {finding.ai_verified && <Tag color="purple" icon={<RobotOutlined />}>{t('agent.aiVerified')}</Tag>}
+          {typeof finding.confidence_score === 'number' && <Tag color={confidenceColor(finding.confidence_score)}>{finding.confidence_score}/100</Tag>}
+          <Text strong>{finding.title}</Text>
+        </Space>
+        <Text type="secondary" ellipsis>{finding.affected_endpoint}</Text>
+      </Space>
+    ),
+    children: renderFindingDetails(finding),
+  }))
 
   return (
-    <>
-      <style>{`
-        @keyframes fadeSlideIn {
-          from { opacity: 0; transform: translateY(-8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
+    <PageContainer
+      title={<Space><RobotOutlined />{t('agent.agentHeading', { id: agentId })}</Space>}
+      extra={[
+        <Button key="refresh" icon={<ReloadOutlined spin={refreshing} />} onClick={handleRefresh}>{t('common.refresh')}</Button>,
+        status.status === 'running' && <Button key="pause" icon={<PauseCircleOutlined />} onClick={handlePauseScan}>{t('agent.pause')}</Button>,
+        status.status === 'paused' && <Button key="resume" type="primary" icon={<PlayCircleOutlined />} onClick={handleResumeScan}>{t('agent.resume')}</Button>,
+        (status.status === 'running' || status.status === 'paused') && (
+          <Popconfirm key="stop" title={t('agent.stop')} onConfirm={handleStopScan} okButtonProps={{ loading: isStopping }}>
+            <Button danger icon={<StopOutlined />}>{t('agent.stop')}</Button>
+          </Popconfirm>
+        ),
+        status.scan_id && <Button key="scan" icon={<SafetyCertificateOutlined />} onClick={() => navigate(`/scan/${status.scan_id}`)}>{t('agent.viewInDashboard')}</Button>,
+        canExport && <Dropdown key="report" menu={reportMenu} disabled={isGeneratingReport || isGeneratingAiReport}><Button type="primary" icon={<DownloadOutlined />} loading={isGeneratingReport || isGeneratingAiReport}>{t('agent.generateReport')}</Button></Dropdown>,
+      ]}
+    >
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        {connectionLost && <Alert type="warning" showIcon icon={<WifiOutlined />} message={t('agent.connectionIssuesRetrying')} />}
+        {status.error && <Alert type="error" showIcon message={t('agent.agentErrorTitle')} description={status.error} />}
 
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+        <StatisticCard.Group direction="row">
+          <StatisticCard statistic={{ title: t('agent.target'), value: status.target, icon: <ApiOutlined /> }} />
+          <StatisticCard statistic={{ title: t('agent.mode'), value: modeLabels[status.mode] || status.mode, icon: <BranchesOutlined /> }} />
+          <StatisticCard statistic={{ title: t('agent.totalFindingsLabel'), value: status.findings_count, icon: <BugOutlined /> }} />
+          <StatisticCard statistic={{ title: t('agent.status'), value: formatStatusLabel(status.status, t), icon: <Badge status={statusColor[status.status]} /> }} />
+        </StatisticCard.Group>
 
-      <div className="space-y-6">
-        {/* Connection Lost Banner */}
-        {connectionLost && (
-          <div
-            className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-4 py-2.5 flex items-center gap-3"
-            style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
-          >
-            <WifiOff className="w-4 h-4 text-yellow-400 flex-shrink-0" />
-            <span className="text-sm text-yellow-300">{t('agent.connectionIssuesRetrying')}</span>
-          </div>
-        )}
-
-        {/* Header */}
-        <div
-          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-          style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
-        >
-          <div className="min-w-0">
-            <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-              <Bot className="w-7 h-7 text-primary-500 flex-shrink-0" />
-              <span className="truncate">{t('agent.agentHeading', { id: agentId })}</span>
-            </h2>
-            <div className="flex items-center gap-3 mt-2 flex-wrap">
-              <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 ${
-                status.status === 'running' ? 'bg-blue-500/20 text-blue-400' :
-                status.status === 'completed' ? 'bg-green-500/20 text-green-400' :
-                status.status === 'paused' ? 'bg-yellow-500/20 text-yellow-400' :
-                status.status === 'stopped' ? 'bg-orange-500/20 text-orange-400' :
-                'bg-red-500/20 text-red-400'
-              }`}>
-                {PHASE_ICONS[status.status]}
-                {status.status === 'running' ? t('agent.statusRunning') :
-                status.status === 'completed' ? t('agent.statusCompleted') :
-                status.status === 'paused' ? t('agent.statusPaused') :
-                status.status === 'stopped' ? t('agent.statusStopped') :
-                t('agent.statusError')}
-              </span>
-              <span className="text-dark-400 text-sm">{t('agent.modePrefix')} {MODE_LABELS[status.mode] || status.mode}</span>
-              {status.task && <span className="text-dark-400 text-sm truncate max-w-xs">{t('agent.taskPrefix')} {status.task}</span>}
-              {status.started_at && (
-                <span className="text-dark-500 text-xs">{t('agent.started')} {relativeTime(status.started_at, t)}</span>
-              )}
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {/* Refresh button */}
-            <button
-              onClick={handleRefresh}
-              className="p-2 rounded-lg bg-dark-800 border border-dark-700 hover:border-dark-600 text-dark-400 hover:text-white transition-all"
-              title={t('common.refresh')}
-            >
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-            </button>
-            {status.status === 'running' && (
-              <>
-                <Button variant="secondary" onClick={handlePauseScan}>
-                  <Pause className="w-4 h-4 mr-2" />
-                  {t('agent.pause')}
-                </Button>
-                <Button variant="danger" onClick={handleStopScan} isLoading={isStopping}>
-                  <StopCircle className="w-4 h-4 mr-2" />
-                  {t('agent.stop')}
-                </Button>
-              </>
-            )}
-            {status.status === 'paused' && (
-              <>
-                <Button variant="primary" onClick={handleResumeScan}>
-                  <Play className="w-4 h-4 mr-2" />
-                  {t('agent.resume')}
-                </Button>
-                <Button variant="danger" onClick={handleStopScan} isLoading={isStopping}>
-                  <StopCircle className="w-4 h-4 mr-2" />
-                  {t('agent.stop')}
-                </Button>
-              </>
-            )}
-            {status.scan_id && (
-              <Button variant="secondary" onClick={() => navigate(`/scan/${status.scan_id}`)}>
-                <Shield className="w-4 h-4 mr-2" />
-                {t('agent.viewInDashboard')}
-              </Button>
-            )}
-            {/* Always show export if there are findings */}
-            {(status.findings.length > 0 || status.report) && (
-              <>
-                <Button onClick={() => handleGenerateReport('html')} isLoading={isGeneratingReport} variant="primary">
-                  <FileText className="w-4 h-4 mr-2" />
-                  {t('agent.htmlReport')}
-                </Button>
-                <Button onClick={() => handleGenerateReport('json')} isLoading={isGeneratingReport} variant="secondary">
-                  <Download className="w-4 h-4 mr-2" />
-                  {t('agent.jsonReport')}
-                </Button>
-                {status.scan_id && (
-                  <Button onClick={handleGenerateAiReport} isLoading={isGeneratingAiReport} variant="secondary">
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    {t('agent.aiReport')}
-                  </Button>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Progress with Phase Steps */}
-        {(status.status === 'running' || status.status === 'completed' || status.status === 'stopped' || status.status === 'paused') && (
-          <Card>
-            <div
-              className="space-y-4"
-              style={{ animation: 'fadeSlideIn 0.3s ease-out 0.05s both' }}
-            >
-              {/* Phase Steps with Skip */}
-              <div className="flex items-center justify-between px-2">
-                {SCAN_PHASES.map((phase, index) => {
-                  const currentIndex = status.status === 'completed' ? 4 : getPhaseIndex(status.phase)
-                  const isActive = index === currentIndex
-                  const isCompleted = index < currentIndex || status.status === 'completed'
-                  const isStopped = status.status === 'stopped' && index > currentIndex
-                  const isSkipped = skippedPhases.has(phase.key)
-                  const canSkipTo = (status.status === 'running' || status.status === 'paused') && index > currentIndex && phase.key !== 'completed'
-
-                  return (
-                    <div key={phase.key} className="flex flex-col items-center flex-1 relative group">
-                      {/* Connector line */}
-                      {index > 0 && (
-                        <div className={`absolute top-4 right-1/2 w-full h-0.5 -translate-y-1/2 z-0 ${
-                          isCompleted || isActive ? 'bg-green-500/50' :
-                          isSkipped ? 'bg-yellow-500/30' :
-                          'bg-dark-700'
-                        }`} />
-                      )}
-
-                      {/* Phase node */}
-                      <div
-                        className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center mb-1 transition-all ${
-                          isSkipped ? 'bg-yellow-500/20 text-yellow-500 ring-2 ring-yellow-500/30' :
-                          isCompleted ? 'bg-green-500 text-white' :
-                          isActive ? 'bg-primary-500 text-white animate-pulse ring-2 ring-primary-500/30' :
-                          isStopped ? 'bg-yellow-500/20 text-yellow-500' :
-                          canSkipTo ? 'bg-dark-700 text-dark-400 cursor-pointer hover:bg-primary-500/20 hover:text-primary-400 hover:ring-2 hover:ring-primary-500/30' :
-                          'bg-dark-700 text-dark-400'
-                        }`}
-                        onClick={() => canSkipTo && setSkipConfirm(phase.key)}
-                      >
-                        {isSkipped ? <MinusCircle className="w-4 h-4" /> :
-                         isCompleted ? <CheckCircle className="w-4 h-4" /> :
-                         isActive ? (PHASE_ICONS[phase.key === 'recon' ? 'reconnaissance' : phase.key] || <span className="text-xs font-bold">{index + 1}</span>) :
-                         isStopped ? <StopCircle className="w-4 h-4" /> :
-                         canSkipTo ? <SkipForward className="w-3.5 h-3.5" /> :
-                         <span className="text-xs font-bold">{index + 1}</span>}
-                      </div>
-
-                      <span className={`text-xs text-center ${
-                        isSkipped ? 'text-yellow-500' :
-                        isCompleted || isActive ? 'text-white' :
-                        canSkipTo ? 'text-dark-400 group-hover:text-primary-400' :
-                        'text-dark-500'
-                      }`}>
-                        {isSkipped ? t('agent.phaseSkipped', { label: phase.label }) : phase.label}
-                      </span>
-
-                      {/* Skip tooltip on hover */}
-                      {canSkipTo && (
-                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-dark-800 text-primary-400 text-[10px] px-2 py-0.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-dark-600">
-                          {t('agent.skipToTooltip', { label: phase.label })}
-                        </div>
-                      )}
-
-                      {/* Inline skip confirmation */}
-                      {skipConfirm === phase.key && (
-                        <div className="absolute top-10 left-1/2 -translate-x-1/2 z-20 bg-dark-800 border border-dark-600 rounded-lg p-3 shadow-xl whitespace-nowrap">
-                          <p className="text-xs text-dark-300 mb-2">{t('agent.skipToConfirm', { label: phase.label })}</p>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleSkipToPhase(phase.key)}
-                              disabled={isSkipping}
-                              className="px-3 py-1 bg-primary-500 text-white text-xs rounded hover:bg-primary-600 disabled:opacity-50"
-                            >
-                              {isSkipping ? t('agent.skipping') : t('agent.confirm')}
-                            </button>
-                            <button
-                              onClick={() => setSkipConfirm(null)}
-                              className="px-3 py-1 bg-dark-700 text-dark-300 text-xs rounded hover:bg-dark-600"
-                            >
-                              {t('common.cancel')}
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-
-              {/* Progress Bar */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-dark-300">
-                  {PHASE_ICONS[status.phase.toLowerCase()] || <Clock className="w-4 h-4" />}
-                  <span className="capitalize">{status.phase.replace(/_/g, ' ')}</span>
-                </div>
-                <span className="text-white font-medium tabular-nums">{status.progress}%</span>
-              </div>
-              <div className="h-2 bg-dark-900 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    status.status === 'completed' ? 'bg-green-500' :
-                    status.status === 'stopped' ? 'bg-yellow-500' :
-                    'bg-primary-500'
-                  }`}
-                  style={{ width: `${status.progress}%` }}
-                />
-              </div>
-            </div>
-          </Card>
-        )}
-
-        {/* Stats */}
-        <div
-          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3"
-          style={{ animation: 'fadeSlideIn 0.3s ease-out 0.1s both' }}
-        >
-          {/* Total */}
-          <div className="bg-dark-800 rounded-xl border border-primary-500/20 p-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-white tabular-nums">{status.findings_count}</p>
-              <p className="text-[11px] text-dark-400 mt-1">{t('agent.totalFindingsLabel')}</p>
-            </div>
-          </div>
-          {/* Per-severity cards */}
-          {SEVERITY_ORDER.map((sev, idx) => {
-            const colorClass: Record<Severity, string> = {
-              critical: 'text-red-500',
-              high: 'text-orange-500',
-              medium: 'text-yellow-500',
-              low: 'text-blue-500',
-              info: 'text-gray-400',
-            }
-            const borderClass: Record<Severity, string> = {
-              critical: 'border-red-500/20',
-              high: 'border-orange-500/20',
-              medium: 'border-yellow-500/20',
-              low: 'border-blue-500/20',
-              info: 'border-dark-700',
-            }
-            return (
-              <div
-                key={sev}
-                className={`bg-dark-800 rounded-xl border ${borderClass[sev]} p-4`}
-                style={{ animation: `fadeSlideIn 0.3s ease-out ${0.1 + (idx + 1) * 0.03}s both` }}
-              >
-                <div className="text-center">
-                  <p className={`text-2xl font-bold tabular-nums ${colorClass[sev]}`}>{severityCounts[sev]}</p>
-                  <p className="text-[11px] text-dark-400 mt-1 capitalize">{sev}</p>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Custom Prompt Input */}
-        {status.status === 'running' && (
-          <Card>
-            <div
-              className="space-y-3"
-              style={{ animation: 'fadeSlideIn 0.3s ease-out 0.15s both' }}
-            >
-              <div className="flex items-center gap-2 text-primary-400">
-                <Brain className="w-5 h-5" />
-                <h3 className="font-medium">{t('agent.customAiPromptTitle')}</h3>
-              </div>
-              <p className="text-sm text-dark-400">
-                {t('agent.customAiPromptHelp')}
-              </p>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={customPrompt}
-                  onChange={(e) => setCustomPrompt(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSubmitPrompt()}
-                  placeholder={t('agent.customPromptPlaceholder')}
-                  className="flex-1 bg-dark-800 border border-dark-600 rounded-lg px-4 py-2 text-white placeholder-dark-400 focus:outline-none focus:border-primary-500 transition-colors"
-                />
-                <Button
-                  onClick={handleSubmitPrompt}
-                  isLoading={isSubmittingPrompt}
-                  disabled={!customPrompt.trim()}
-                >
-                  <Send className="w-4 h-4 mr-2" />
-                  {t('agent.send')}
-                </Button>
-              </div>
-            </div>
-          </Card>
-        )}
-
-        {/* Findings */}
-        <div style={{ animation: 'fadeSlideIn 0.3s ease-out 0.15s both' }}>
-          <Card title={t('agent.vulnsFoundTitle')} subtitle={t('agent.findingsCountSubtitle', { count: status.findings_count })}>
-            <div className="space-y-3 max-h-[600px] overflow-auto">
-              {status.findings.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <AlertTriangle className="w-12 h-12 text-dark-600 mb-3" />
-                  <p className="text-dark-400 text-sm">
-                    {status.status === 'running' ? t('agent.scanningForVulns') : t('agent.noVulnsFound')}
-                  </p>
-                  {status.status === 'running' && (
-                    <p className="text-dark-500 text-xs mt-1">{t('agent.findingsWillAppear')}</p>
-                  )}
-                </div>
-              ) : (
-                status.findings.map((finding) => (
-                  <div
-                    key={finding.id}
-                    className="bg-dark-900/50 rounded-lg border border-dark-700 overflow-hidden"
-                  >
-                    {/* Finding Header */}
-                    <div
-                      className="p-4 cursor-pointer hover:bg-dark-800/50 transition-colors"
-                      onClick={() => toggleFinding(finding.id)}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-2 flex-1 min-w-0">
-                          {expandedFindings.has(finding.id) ? (
-                            <ChevronDown className="w-4 h-4 mt-1 text-dark-400 flex-shrink-0" />
-                          ) : (
-                            <ChevronRight className="w-4 h-4 mt-1 text-dark-400 flex-shrink-0" />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-white">{finding.title}</p>
-                            <p className="text-sm text-dark-400 truncate">{finding.affected_endpoint}</p>
-                            {finding.parameter && (
-                              <p className="text-xs text-yellow-400 mt-1">
-                                {t('agent.parameterInline')} <code className="bg-dark-800 px-1 rounded">{finding.parameter}</code>
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <SeverityBadge severity={finding.severity} />
-                          {finding.ai_verified && (
-                            <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded flex items-center gap-1">
-                              <Brain className="w-3 h-3" />
-                              {t('agent.aiVerified')}
-                            </span>
-                          )}
-                          {typeof finding.confidence_score === 'number' && (
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium tabular-nums ${
-                              finding.confidence_score >= 90 ? 'bg-green-500/15 text-green-400 border-green-500/30' :
-                              finding.confidence_score >= 60 ? 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30' :
-                              'bg-red-500/15 text-red-400 border-red-500/30'
-                            }`}>
-                              {finding.confidence_score}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Finding Details */}
-                    {expandedFindings.has(finding.id) && renderFindingDetails(finding)}
-                  </div>
-                ))
-              )}
-            </div>
-          </Card>
-        </div>
-
-        {/* Split Log Viewers */}
-        <div
-          className="grid grid-cols-1 lg:grid-cols-2 gap-6"
-          style={{ animation: 'fadeSlideIn 0.3s ease-out 0.2s both' }}
-        >
-          {/* Script Activity Log */}
-          <Card
-            title={
-              <div className="flex items-center gap-2">
-                <Terminal className="w-4 h-4 text-green-400" />
-                <span>{t('agent.scriptActivity')}</span>
-                <span className="text-xs bg-dark-700 px-2 py-0.5 rounded text-dark-400 tabular-nums">
-                  {scriptLogs.length}
-                </span>
-              </div>
-            }
-            subtitle={t('agent.scriptActivitySubtitle')}
-          >
-            {renderLogViewer(scriptLogs, scriptLogsContainerRef, scriptStickRef, 'script', <Terminal className="w-3 h-3 text-green-400" />)}
-          </Card>
-
-          {/* LLM Activity Log */}
-          <Card
-            title={
-              <div className="flex items-center gap-2">
-                <Brain className="w-4 h-4 text-purple-400" />
-                <span>{t('agent.aiAnalysis')}</span>
-                <span className="text-xs bg-dark-700 px-2 py-0.5 rounded text-dark-400 tabular-nums">
-                  {llmLogs.length}
-                </span>
-              </div>
-            }
-            subtitle={t('agent.aiAnalysisSubtitle')}
-          >
-            {renderLogViewer(llmLogs, llmLogsContainerRef, llmStickRef, 'ai', <Brain className="w-3 h-3 text-purple-400" />)}
-          </Card>
-        </div>
-
-        {/* Auto-scroll toggle */}
-        <div className="flex justify-end">
-          <label className="flex items-center gap-2 text-sm text-dark-400 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={autoScroll}
-              onChange={(e) => {
-                const on = e.target.checked
-                setAutoScroll(on)
-                if (on) {
-                  scriptStickRef.current = true
-                  llmStickRef.current = true
-                  requestAnimationFrame(() => {
-                    if (scriptLogsContainerRef.current) {
-                      scriptLogsContainerRef.current.scrollTop = scriptLogsContainerRef.current.scrollHeight
-                    }
-                    if (llmLogsContainerRef.current) {
-                      llmLogsContainerRef.current.scrollTop = llmLogsContainerRef.current.scrollHeight
-                    }
-                  })
-                }
-              }}
-              className="w-4 h-4 rounded border-dark-600 bg-dark-800 text-primary-500 focus:ring-primary-500"
+        <ProCard bordered>
+          <Space direction="vertical" style={{ width: '100%' }} size="middle">
+            <Row gutter={[16, 16]} align="middle">
+              <Col flex="auto">
+                <Space wrap>
+                  <Tag color={statusColor[status.status]}>{formatStatusLabel(status.status, t)}</Tag>
+                  <Text>{t('agent.phaseToast', { phase: status.phase.replace(/_/g, ' ') })}</Text>
+                  {status.started_at && <Text type="secondary">{t('agent.started')} {relativeTime(status.started_at, t)}</Text>}
+                  {status.task && <Text type="secondary">{t('agent.taskPrefix')} {status.task}</Text>}
+                </Space>
+              </Col>
+              <Col><Text strong>{status.progress}%</Text></Col>
+            </Row>
+            <Progress percent={status.progress} status={status.status === 'error' ? 'exception' : status.status === 'completed' ? 'success' : 'active'} />
+            <Steps
+              current={currentPhaseIndex}
+              items={scanPhases.map((phase, index) => ({
+                title: skippedPhases.has(phase.key) ? t('agent.phaseSkipped', { label: phase.title }) : phase.title,
+                icon: phase.icon,
+                status: skippedPhases.has(phase.key) ? 'wait' : index < currentPhaseIndex || status.status === 'completed' ? 'finish' : index === currentPhaseIndex ? 'process' : 'wait',
+                description: (status.status === 'running' || status.status === 'paused') && index > currentPhaseIndex && phase.key !== 'completed'
+                  ? <Popconfirm title={t('agent.skipToConfirm', { label: phase.title })} onConfirm={() => handleSkipToPhase(phase.key)} okButtonProps={{ loading: isSkipping }}><Button size="small" type="link">{t('agent.skipToTooltip', { label: phase.title })}</Button></Popconfirm>
+                  : undefined,
+              }))}
             />
-            {t('agent.autoScrollLogs')}
-          </label>
-        </div>
+          </Space>
+        </ProCard>
 
-        {/* Report Summary */}
-        {(status.status === 'completed' || status.status === 'stopped') && (status.report || status.findings.length > 0) && (() => {
-          const reportData = status.report || {
-            summary: {
-              target: status.target,
-              mode: status.mode,
-              duration: status.started_at
-                ? `${Math.round((new Date(status.completed_at || new Date().toISOString()).getTime() - new Date(status.started_at).getTime()) / 60000)} min`
-                : 'N/A',
-              total_findings: status.findings.length,
-              severity_breakdown: {
-                critical: status.findings.filter(f => f.severity === 'critical').length,
-                high: status.findings.filter(f => f.severity === 'high').length,
-                medium: status.findings.filter(f => f.severity === 'medium').length,
-                low: status.findings.filter(f => f.severity === 'low').length,
-                info: status.findings.filter(f => f.severity === 'info').length,
-              },
-            },
-            executive_summary: status.status === 'stopped'
-              ? t('agent.scanStoppedByUser', { count: status.findings.length })
-              : undefined,
-            recommendations: [] as string[],
-          }
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12} md={4}><ProCard bordered><StatisticCard statistic={{ title: t('agent.totalFindingsShort'), value: status.findings_count }} /></ProCard></Col>
+          {SEVERITY_ORDER.map(severity => (
+            <Col key={severity} xs={12} sm={6} md={4}><ProCard bordered><StatisticCard statistic={{ title: severity, value: severityCounts[severity], status: severity === 'critical' || severity === 'high' ? 'error' : severity === 'medium' ? 'warning' : 'default' }} /></ProCard></Col>
+          ))}
+        </Row>
 
-          return (
-            <div style={{ animation: 'fadeSlideIn 0.3s ease-out 0.25s both' }}>
-              <Card title={status.status === 'stopped' ? t('agent.partialReportSummary') : t('agent.reportSummary')}>
-                <div className="space-y-4">
-                  {status.status === 'stopped' && (
-                    <div className="flex items-center gap-2 text-yellow-500 bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-3 py-2">
-                      <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                      <span className="text-sm">{t('agent.scanStoppedPartial')}</span>
-                    </div>
-                  )}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                      <p className="text-sm text-dark-400">{t('agent.target')}</p>
-                      <p className="text-white font-medium truncate" title={reportData.summary.target}>{reportData.summary.target}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-dark-400">{t('agent.mode')}</p>
-                      <p className="text-white font-medium">{MODE_LABELS[reportData.summary.mode] || reportData.summary.mode}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-dark-400">{t('agent.duration')}</p>
-                      <p className="text-white font-medium">{reportData.summary.duration}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-dark-400">{t('agent.totalFindingsShort')}</p>
-                      <p className="text-white font-medium tabular-nums">{reportData.summary.total_findings}</p>
-                    </div>
-                  </div>
-
-                  {reportData.executive_summary && (
-                    <div>
-                      <p className="text-sm font-medium text-dark-300 mb-2">{t('agent.executiveSummaryHeading')}</p>
-                      <p className="text-dark-400 whitespace-pre-wrap">{reportData.executive_summary}</p>
-                    </div>
-                  )}
-
-                  {reportData.recommendations && reportData.recommendations.length > 0 && (
-                    <div>
-                      <p className="text-sm font-medium text-dark-300 mb-2">{t('agent.recommendations')}</p>
-                      <ul className="space-y-2">
-                        {reportData.recommendations.map((rec: string, i: number) => (
-                          <li key={i} className="flex items-start gap-2 text-dark-400">
-                            <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
-                            {rec}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              </Card>
-            </div>
-          )
-        })()}
-
-        {/* Error Display */}
-        {status.error && (
-          <div
-            className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 flex items-start gap-3"
-            style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
-          >
-            <XCircle className="w-6 h-6 text-red-500 flex-shrink-0" />
-            <div>
-              <p className="font-medium text-red-400">{t('agent.agentErrorTitle')}</p>
-              <p className="text-sm text-red-300/80 mt-1">{status.error}</p>
-            </div>
-          </div>
+        {status.status === 'running' && (
+          <ProCard bordered title={<Space><RobotOutlined />{t('agent.customAiPromptTitle')}</Space>}>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Text type="secondary">{t('agent.customAiPromptHelp')}</Text>
+              <TextArea value={customPrompt} onChange={event => setCustomPrompt(event.target.value)} placeholder={t('agent.customPromptPlaceholder')} autoSize={{ minRows: 2, maxRows: 5 }} onPressEnter={event => { if (!event.shiftKey) { event.preventDefault(); handleSubmitPrompt() } }} />
+              <Button type="primary" icon={<SendOutlined />} loading={isSubmittingPrompt} disabled={!customPrompt.trim()} onClick={handleSubmitPrompt}>{t('agent.send')}</Button>
+            </Space>
+          </ProCard>
         )}
-      </div>
-    </>
+
+        <Tabs
+          items={[
+            {
+              key: 'findings',
+              label: `${t('agent.vulnsFoundTitle')} (${status.findings_count})`,
+              children: status.findings.length ? <Collapse items={findingItems} /> : <Empty description={status.status === 'running' ? t('agent.scanningForVulns') : t('agent.noVulnsFound')} />,
+            },
+            {
+              key: 'logs',
+              label: t('agentStatus.logs'),
+              children: (
+                <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                  <Row justify="end"><Space><Text type="secondary">{t('agent.autoScrollLogs')}</Text><Switch checked={autoScroll} onChange={setAutoScroll} /></Space></Row>
+                  <Row gutter={[16, 16]}>
+                    <Col xs={24} lg={12}>
+                      <ProCard bordered title={<Space><CodeOutlined />{t('agent.scriptActivity')}<Tag>{scriptLogs.length}</Tag></Space>} subTitle={t('agent.scriptActivitySubtitle')}>
+                        {renderLogViewer(scriptLogs, scriptLogsContainerRef, scriptStickRef, t('agent.logEmptyScript'), <CodeOutlined />)}
+                      </ProCard>
+                    </Col>
+                    <Col xs={24} lg={12}>
+                      <ProCard bordered title={<Space><RobotOutlined />{t('agent.aiAnalysis')}<Tag>{llmLogs.length}</Tag></Space>} subTitle={t('agent.aiAnalysisSubtitle')}>
+                        {renderLogViewer(llmLogs, llmLogsContainerRef, llmStickRef, t('agent.logEmptyAi'), <RobotOutlined />)}
+                      </ProCard>
+                    </Col>
+                  </Row>
+                </Space>
+              ),
+            },
+            {
+              key: 'report',
+              label: t('agent.reportSummary'),
+              children: (status.report || status.findings.length > 0) ? (
+                <ProCard bordered>
+                  <Descriptions bordered column={{ xs: 1, md: 2 }}>
+                    <Descriptions.Item label={t('agent.target')}>{status.report?.summary.target || status.target}</Descriptions.Item>
+                    <Descriptions.Item label={t('agent.mode')}>{modeLabels[status.report?.summary.mode || status.mode] || status.mode}</Descriptions.Item>
+                    <Descriptions.Item label={t('agent.duration')}>{status.report?.summary.duration || 'N/A'}</Descriptions.Item>
+                    <Descriptions.Item label={t('agent.totalFindingsShort')}>{status.report?.summary.total_findings || status.findings.length}</Descriptions.Item>
+                  </Descriptions>
+                  {status.report?.executive_summary && <Alert style={{ marginTop: 16 }} type="info" showIcon message={t('agent.executiveSummaryHeading')} description={status.report.executive_summary} />}
+                  {status.report?.recommendations?.length ? <Card style={{ marginTop: 16 }} title={t('agent.recommendations')}>{status.report.recommendations.map(item => <Paragraph key={item}>{item}</Paragraph>)}</Card> : null}
+                </ProCard>
+              ) : <Empty description={t('agentStatus.noFindings')} />,
+            },
+            {
+              key: 'details',
+              label: t('agentStatus.title'),
+              children: (
+                <Descriptions bordered column={{ xs: 1, md: 2 }}>
+                  <Descriptions.Item label="Agent ID">{agentId}</Descriptions.Item>
+                  <Descriptions.Item label="Scan ID">{status.scan_id || 'N/A'}</Descriptions.Item>
+                  <Descriptions.Item label={t('agentStatus.startTime')}>{status.started_at ? new Date(status.started_at).toLocaleString() : 'N/A'}</Descriptions.Item>
+                  <Descriptions.Item label="Completed">{status.completed_at ? new Date(status.completed_at).toLocaleString() : 'N/A'}</Descriptions.Item>
+                  <Descriptions.Item label="Logs">{status.logs_count}</Descriptions.Item>
+                  <Descriptions.Item label="Rejected">{status.rejected_findings_count || 0}</Descriptions.Item>
+                  <Descriptions.Item label={t('autoPentest.containerLabel')}>{status.container_status ? (status.container_status.online ? t('autoPentest.online') : t('autoPentest.offline')) : 'N/A'}</Descriptions.Item>
+                  <Descriptions.Item label="Container ID">{status.container_status?.container_id || 'N/A'}</Descriptions.Item>
+                </Descriptions>
+              ),
+            },
+          ]}
+        />
+      </Space>
+    </PageContainer>
   )
 }

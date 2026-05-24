@@ -1,4 +1,4 @@
-"""
+/*
 Frontend Permission E2E Tests
 PTTechAI v0.1.0 - RBAC Permission System
 
@@ -10,7 +10,7 @@ Tests for frontend permission control:
 - Button-level permission control
 
 These are unit/integration tests for frontend permission components.
-"""
+*/
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'

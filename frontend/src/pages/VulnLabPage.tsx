@@ -1,331 +1,275 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { PageContainer, ProCard, ProTable, StatisticCard } from '@ant-design/pro-components'
+import type { ProColumns } from '@ant-design/pro-components'
 import {
-  FlaskConical, ChevronDown, ChevronUp, Loader2, Lock,
-  AlertTriangle, CheckCircle2, XCircle, Play, Square,
-  Trash2, Eye, Search, BarChart3, Clock, Target,
-  Terminal, Shield, Globe, FileText, ChevronRight,
-  RefreshCw, X
-} from 'lucide-react'
-import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
+  Alert,
+  App as AntApp,
+  Button,
+  Card,
+  Collapse,
+  Descriptions,
+  Empty,
+  Form,
+  Input,
+  Progress,
+  Row,
+  Col,
+  Popconfirm,
+  Select,
+  Space,
+  Tabs,
+  Tag,
+  Timeline,
+  Typography,
+} from 'antd'
+import {
+  BarChartOutlined,
+  BugOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  CodeOutlined,
+  DeleteOutlined,
+  EyeOutlined,
+  ExperimentOutlined,
+  FileTextOutlined,
+  GlobalOutlined,
+  LockOutlined,
+  PlayCircleOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  StopOutlined,
+  WarningOutlined,
+} from '@ant-design/icons'
 import { vulnLabApi } from '../services/api'
-import type { VulnTypeCategory, VulnLabChallenge, VulnLabStats, VulnLabLogEntry, VulnLabRealtimeStatus } from '../types'
+import type { VulnLabChallenge, VulnLabLogEntry, VulnLabRealtimeStatus, VulnLabStats, VulnTypeCategory } from '../types'
 import { isLogContainerNearBottom } from '../utils/logScroll'
 
-/* ─── Types ──────────────────────────────────────────────────── */
+const { Text } = Typography
+const { TextArea } = Input
 
-// The API returns VulnLabRealtimeStatus | VulnLabChallenge; we access fields from both
-// Override status to string to allow runtime 'error' status values
 type ChallengeDetail = Omit<VulnLabRealtimeStatus, 'status'> & Partial<Omit<VulnLabChallenge, 'status'>> & { status: string }
+type ActiveTab = 'test' | 'history' | 'stats'
 
-/* ─── Constants ──────────────────────────────────────────────── */
-
-const SEVERITY_COLORS: Record<string, string> = {
-  critical: 'bg-red-500',
-  high: 'bg-orange-500',
-  medium: 'bg-yellow-500',
-  low: 'bg-blue-500',
-  info: 'bg-gray-500',
+interface FormValues {
+  target_url: string
+  challenge_name?: string
+  vuln_type: string
+  auth_type?: string
+  auth_value?: string
+  notes?: string
 }
 
-const SEVERITY_CHART_COLORS: Record<string, string> = {
-  detected: '#22c55e',
-  not_detected: '#ef4444',
-  error: '#eab308',
+const severityColors: Record<string, string> = {
+  critical: 'red',
+  high: 'volcano',
+  medium: 'orange',
+  low: 'blue',
+  info: 'default',
 }
 
-const RESULT_BADGE: Record<string, { bg: string; text: string; labelKey: string }> = {
-  detected: { bg: 'bg-green-500/20', text: 'text-green-400', labelKey: 'detected' },
-  not_detected: { bg: 'bg-red-500/20', text: 'text-red-400', labelKey: 'notDetected' },
-  error: { bg: 'bg-yellow-500/20', text: 'text-yellow-400', labelKey: 'error' },
+const statusColors: Record<string, string> = {
+  running: 'processing',
+  completed: 'success',
+  failed: 'error',
+  error: 'error',
+  stopped: 'warning',
+  pending: 'default',
+  paused: 'warning',
 }
 
-const STATUS_BADGE: Record<string, { bg: string; text: string; labelKey: string }> = {
-  running: { bg: 'bg-blue-500/20', text: 'text-blue-400', labelKey: 'running' },
-  completed: { bg: 'bg-green-500/20', text: 'text-green-400', labelKey: 'completed' },
-  failed: { bg: 'bg-red-500/20', text: 'text-red-400', labelKey: 'failed' },
-  stopped: { bg: 'bg-orange-500/20', text: 'text-orange-400', labelKey: 'stopped' },
-  pending: { bg: 'bg-gray-500/20', text: 'text-gray-400', labelKey: 'pending' },
+const resultColors: Record<string, string> = {
+  detected: 'green',
+  not_detected: 'red',
+  error: 'orange',
 }
 
-const LOG_LEVEL_COLORS: Record<string, string> = {
-  error: 'text-red-400',
-  warning: 'text-yellow-400',
-  info: 'text-blue-300',
-  debug: 'text-dark-500',
-  critical: 'text-red-500 font-bold',
-}
-
-/* ─── Toast System ───────────────────────────────────────────── */
-
-interface Toast { id: number; message: string; type: 'success' | 'error' | 'info' }
-let _toastId = 0
-
-function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: number) => void }) {
-  if (toasts.length === 0) return null
-  const border: Record<string, string> = {
-    info: 'border-blue-500', success: 'border-green-500', error: 'border-red-500',
-  }
-  return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm">
-      {toasts.map(t => (
-        <div
-          key={t.id}
-          className={`bg-dark-800 border-l-4 ${border[t.type]} rounded-lg px-4 py-3 shadow-xl flex items-start gap-3`}
-          style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
-        >
-          <span className="text-sm text-dark-200 flex-1">{t.message}</span>
-          <button onClick={() => onDismiss(t.id)} className="text-dark-500 hover:text-white">
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-/* ─── Detection Rate Donut ───────────────────────────────────── */
-
-function DetectionDonut({ stats }: { stats: VulnLabStats }) {
-  const data = useMemo(() => {
-    const rc = stats.result_counts || {}
-    const detected = rc.detected || 0
-    const notDetected = rc.not_detected || 0
-    const errorCount = rc.error || 0
-    if (detected + notDetected + errorCount === 0) return []
-    return [
-      { name: 'Detected', value: detected, color: SEVERITY_CHART_COLORS.detected },
-      { name: 'Not Detected', value: notDetected, color: SEVERITY_CHART_COLORS.not_detected },
-      ...(errorCount > 0 ? [{ name: 'Error', value: errorCount, color: SEVERITY_CHART_COLORS.error }] : []),
-    ]
-  }, [stats])
-
-  if (data.length === 0) return null
-
-  return (
-    <div className="w-24 h-24 flex-shrink-0">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={38} innerRadius={20} strokeWidth={0} paddingAngle={2}>
-            {data.map((d, i) => <Cell key={i} fill={d.color} />)}
-          </Pie>
-          <RechartsTooltip
-            contentStyle={{ background: '#1a1a2e', border: '1px solid #2a2a3e', borderRadius: 8, fontSize: 11 }}
-            itemStyle={{ color: '#e2e8f0' }}
-          />
-        </PieChart>
-      </ResponsiveContainer>
-    </div>
-  )
-}
-
-/* ─── LogLine Component ──────────────────────────────────────── */
-
-function LogLine({ log }: { log: VulnLabLogEntry }) {
-  const color = LOG_LEVEL_COLORS[log.level] || 'text-dark-400'
-  const time = log.time ? new Date(log.time).toLocaleTimeString() : ''
-  const isLlm = log.source === 'llm'
-
-  return (
-    <div className={`flex gap-2 text-xs font-mono leading-relaxed ${color}`}>
-      <span className="text-dark-600 shrink-0 w-16">{time}</span>
-      <span className={`shrink-0 w-12 uppercase ${
-        log.level === 'error' ? 'text-red-500' :
-        log.level === 'warning' ? 'text-yellow-500' :
-        'text-dark-600'
-      }`}>{log.level}</span>
-      {isLlm && <span className="text-purple-500 shrink-0">[AI]</span>}
-      <span className="break-all">{log.message}</span>
-    </div>
-  )
-}
-
-/* ─── Helpers ────────────────────────────────────────────────── */
-
-function formatDuration(seconds: number | null | undefined): string {
+function formatDuration(seconds: number | null | undefined) {
   if (!seconds) return '-'
   if (seconds < 60) return `${seconds}s`
-  const m = Math.floor(seconds / 60)
-  const s = seconds % 60
-  return `${m}m ${s}s`
+  const minutes = Math.floor(seconds / 60)
+  const rest = seconds % 60
+  return `${minutes}m ${rest}s`
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   Main Component
-   ═══════════════════════════════════════════════════════════════ */
+function resultLabel(result: string | null | undefined, t: (key: string) => string) {
+  if (!result) return '-'
+  const key = result === 'not_detected' ? 'notDetected' : result
+  return t(`vulnLab.result.${key}`)
+}
+
+function statusLabel(status: string, t: (key: string) => string) {
+  return t(`vulnLab.status.${status}`)
+}
+
+function LogTimeline({ logs, maxHeight = 360 }: { logs: VulnLabLogEntry[]; maxHeight?: number }) {
+  const { t } = useTranslation()
+  const [filter, setFilter] = useState<'all' | 'info' | 'warning' | 'error'>('all')
+  const filtered = filter === 'all' ? logs : logs.filter(log => log.level === filter)
+
+  return (
+    <Space direction="vertical" style={{ width: '100%' }}>
+      <Space wrap>
+        {(['all', 'info', 'warning', 'error'] as const).map(level => (
+          <Button key={level} size="small" type={filter === level ? 'primary' : 'default'} onClick={() => setFilter(level)}>
+            {t(`vulnLab.logLevel.${level}`)}
+          </Button>
+        ))}
+      </Space>
+      <div style={{ maxHeight, overflow: 'auto', padding: 12, background: '#0f172a', borderRadius: 8 }}>
+        {filtered.length ? (
+          <Timeline
+            items={filtered.map(log => ({
+              color: log.level === 'error' ? 'red' : log.level === 'warning' ? 'orange' : log.level === 'critical' ? 'red' : log.source === 'llm' ? 'purple' : 'blue',
+              children: (
+                <Space direction="vertical" size={2}>
+                  <Space wrap>
+                    <Text style={{ color: '#94a3b8' }}>{log.time ? new Date(log.time).toLocaleTimeString() : ''}</Text>
+                    <Tag color={log.level === 'error' ? 'red' : log.level === 'warning' ? 'orange' : 'blue'}>{log.level}</Tag>
+                    {log.source === 'llm' && <Tag color="purple">AI</Tag>}
+                  </Space>
+                  <Text style={{ color: '#e2e8f0', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{log.message}</Text>
+                </Space>
+              ),
+            }))}
+          />
+        ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('vulnLab.noLogsMatch')} />}
+      </div>
+    </Space>
+  )
+}
 
 export default function VulnLabPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { notification } = AntApp.useApp()
+  const [form] = Form.useForm<FormValues>()
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const logScrollRef = useRef<HTMLDivElement>(null)
+  const autoScrollRef = useRef(true)
 
-  // Form state
-  const [targetUrl, setTargetUrl] = useState('')
-  const [challengeName, setChallengeName] = useState('')
-  const [selectedVulnType, setSelectedVulnType] = useState('')
-  const [showAuth, setShowAuth] = useState(false)
-  const [authType, setAuthType] = useState('')
-  const [authValue, setAuthValue] = useState('')
-  const [notes, setNotes] = useState('')
-  const [searchFilter, setSearchFilter] = useState('')
-
-  // Data state
   const [categories, setCategories] = useState<Record<string, VulnTypeCategory>>({})
-  const [expandedCat, setExpandedCat] = useState<string | null>(null)
   const [challenges, setChallenges] = useState<VulnLabChallenge[]>([])
   const [stats, setStats] = useState<VulnLabStats | null>(null)
-
-  // Running state
+  const [activeTab, setActiveTab] = useState<ActiveTab>('test')
   const [isRunning, setIsRunning] = useState(false)
   const [runningChallengeId, setRunningChallengeId] = useState<string | null>(null)
   const [runningStatus, setRunningStatus] = useState<ChallengeDetail | null>(null)
   const [runningLogs, setRunningLogs] = useState<VulnLabLogEntry[]>([])
-  const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'test' | 'history' | 'stats'>('test')
-  const [showLogs, setShowLogs] = useState(true)
   const [logFilter, setLogFilter] = useState<'all' | 'info' | 'warning' | 'error'>('all')
-
-  // History expansion state
+  const [showAuth, setShowAuth] = useState(false)
+  const [searchFilter, setSearchFilter] = useState('')
+  const [selectedVulnType, setSelectedVulnType] = useState('')
   const [expandedChallenge, setExpandedChallenge] = useState<string | null>(null)
   const [expandedChallengeData, setExpandedChallengeData] = useState<ChallengeDetail | null>(null)
   const [loadingChallenge, setLoadingChallenge] = useState(false)
-
-  // Toast state
-  const [toasts, setToasts] = useState<Toast[]>([])
-
-  // Refresh state
   const [refreshing, setRefreshing] = useState(false)
-
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const vulnLogsScrollRef = useRef<HTMLDivElement>(null)
-  const autoScrollRef = useRef(true)
-
-  /* ── Toast helpers ──────────────────────────────────────────── */
-
-  const addToast = useCallback((message: string, type: Toast['type'] = 'info') => {
-    const id = ++_toastId
-    setToasts(prev => [...prev.slice(-4), { id, message, type }])
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000)
-  }, [])
-
-  // Helper to get translated status label
-  const getStatusLabel = useCallback((status: string) => {
-    return t(`vulnLab.status.${status}` as any) || status
-  }, [t])
-
-  // Helper to get translated result label
-  const getResultLabel = useCallback((result: string) => {
-    return t(`vulnLab.result.${result}` as any) || result
-  }, [t])
-
-  const dismissToast = useCallback((id: number) => {
-    setToasts(prev => prev.filter(t => t.id !== id))
-  }, [])
-
-  /* ── Data fetching ─────────────────────────────────────────── */
+  const [error, setError] = useState<string | null>(null)
 
   const loadChallenges = useCallback(async () => {
     try {
       const data = await vulnLabApi.listChallenges({ limit: 50 })
-      setChallenges(data.challenges)
-    } catch { /* ignore */ }
+      setChallenges(data.challenges || [])
+    } catch {
+      // ignore
+    }
   }, [])
 
   const loadStats = useCallback(async () => {
     try {
-      const data = await vulnLabApi.getStats()
-      setStats(data)
-    } catch { /* ignore */ }
+      setStats(await vulnLabApi.getStats())
+    } catch {
+      // ignore
+    }
   }, [])
 
-  // Load vuln types on mount
   useEffect(() => {
-    vulnLabApi.getTypes().then(data => {
-      setCategories(data.categories)
-    }).catch(() => {})
-
+    vulnLabApi.getTypes().then(data => setCategories(data.categories)).catch(() => {})
     loadChallenges()
     loadStats()
   }, [loadChallenges, loadStats])
 
-  // Auto-scroll live logs (container only; does not scroll the page)
   useEffect(() => {
-    if (!autoScrollRef.current || !vulnLogsScrollRef.current) return
-    vulnLogsScrollRef.current.scrollTop = vulnLogsScrollRef.current.scrollHeight
+    if (!autoScrollRef.current || !logScrollRef.current) return
+    logScrollRef.current.scrollTop = logScrollRef.current.scrollHeight
   }, [runningLogs])
 
-  // Poll running challenge (3s for faster updates)
   useEffect(() => {
     if (!runningChallengeId || !isRunning) return
 
     const poll = async () => {
       try {
-        const s = await vulnLabApi.getChallenge(runningChallengeId)
-        setRunningStatus(s as ChallengeDetail)
-        if (s.logs) setRunningLogs(s.logs)
-        if (['completed', 'failed', 'stopped', 'error'].includes(s.status)) {
+        const status = await vulnLabApi.getChallenge(runningChallengeId)
+        const detail = status as ChallengeDetail
+        setRunningStatus(detail)
+        if (detail.logs) setRunningLogs(detail.logs)
+        if (['completed', 'failed', 'stopped', 'error'].includes(detail.status)) {
           setIsRunning(false)
-          if (pollRef.current) clearInterval(pollRef.current)
+          if (pollRef.current) window.clearInterval(pollRef.current)
           loadChallenges()
           loadStats()
-          if (s.status === 'completed') {
-            addToast(
-              s.result === 'detected'
-                ? t('vulnLab.vulnDetected')
-                : s.result === 'not_detected'
-                  ? t('vulnLab.testCompleteNotDetected')
-                  : t('vulnLab.testCompleted'),
-              s.result === 'detected' ? 'success' : 'info'
-            )
-          } else if (s.status === 'failed' || s.status === 'error') {
-            addToast(t('vulnLab.testFailed'), 'error')
+          if (detail.status === 'completed') {
+            notification[detail.result === 'detected' ? 'success' : 'info']({
+              message: detail.result === 'detected' ? t('vulnLab.vulnDetected') : detail.result === 'not_detected' ? t('vulnLab.testCompleteNotDetected') : t('vulnLab.testCompleted'),
+            })
+          } else if (detail.status === 'failed' || detail.status === 'error') {
+            notification.error({ message: t('vulnLab.testFailed') })
           }
         }
-      } catch { /* ignore */ }
+      } catch {
+        // ignore
+      }
     }
 
     poll()
-    pollRef.current = setInterval(poll, 3000)
-    return () => { if (pollRef.current) clearInterval(pollRef.current) }
-  }, [runningChallengeId, isRunning, loadChallenges, loadStats, addToast, t])
+    pollRef.current = window.setInterval(poll, 3000)
+    return () => { if (pollRef.current) window.clearInterval(pollRef.current) }
+  }, [isRunning, loadChallenges, loadStats, notification, runningChallengeId, t])
 
-  /* ── Handlers ──────────────────────────────────────────────── */
+  const allTypes = useMemo(() => Object.entries(categories).flatMap(([categoryKey, category]) => category.types.map(type => ({ ...type, categoryKey, categoryLabel: category.label }))), [categories])
+  const selectedInfo = useMemo(() => allTypes.find(type => type.key === selectedVulnType), [allTypes, selectedVulnType])
+  const filteredCategories = useMemo(() => Object.entries(categories).map(([key, category]) => ({
+    key,
+    ...category,
+    types: searchFilter ? category.types.filter(type => type.key.toLowerCase().includes(searchFilter.toLowerCase()) || type.title.toLowerCase().includes(searchFilter.toLowerCase())) : category.types,
+  })).filter(category => category.types.length > 0), [categories, searchFilter])
+  const filteredLogs = logFilter === 'all' ? runningLogs : runningLogs.filter(log => log.level === logFilter)
 
   const handleStart = useCallback(async () => {
-    if (!targetUrl.trim() || !selectedVulnType) return
-
+    const values = await form.validateFields()
     setError(null)
     setIsRunning(true)
     setRunningStatus(null)
     setRunningLogs([])
-    setShowLogs(true)
-
     try {
-      const resp = await vulnLabApi.run({
-        target_url: targetUrl.trim(),
-        vuln_type: selectedVulnType,
-        challenge_name: challengeName || undefined,
-        auth_type: authType || undefined,
-        auth_value: authValue || undefined,
-        notes: notes || undefined,
+      const response = await vulnLabApi.run({
+        target_url: values.target_url.trim(),
+        vuln_type: values.vuln_type,
+        challenge_name: values.challenge_name || undefined,
+        auth_type: values.auth_type || undefined,
+        auth_value: values.auth_value || undefined,
+        notes: values.notes || undefined,
       })
-      setRunningChallengeId(resp.challenge_id)
-      addToast(t('vulnLab.testStarted'), 'success')
+      setRunningChallengeId(response.challenge_id)
+      notification.success({ message: t('vulnLab.testStarted') })
     } catch (err: unknown) {
-      const errObj = err as { response?: { data?: { detail?: string } }; message?: string }
-      setError(errObj?.response?.data?.detail || errObj?.message || t('vulnLab.failedToStart'))
+      const apiError = err as { response?: { data?: { detail?: string } }; message?: string }
+      setError(apiError.response?.data?.detail || apiError.message || t('vulnLab.failedToStart'))
       setIsRunning(false)
     }
-  }, [targetUrl, selectedVulnType, challengeName, authType, authValue, notes, addToast, t])
+  }, [form, notification, t])
 
   const handleStop = useCallback(async () => {
     if (!runningChallengeId) return
     try {
       await vulnLabApi.stopChallenge(runningChallengeId)
       setIsRunning(false)
-      addToast(t('vulnLab.testStopped'), 'info')
-    } catch { /* ignore */ }
-  }, [runningChallengeId, addToast, t])
+      notification.info({ message: t('vulnLab.testStopped') })
+    } catch {
+      // ignore
+    }
+  }, [notification, runningChallengeId, t])
 
   const handleDelete = useCallback(async (id: string) => {
     try {
@@ -334,13 +278,12 @@ export default function VulnLabPage() {
         setExpandedChallenge(null)
         setExpandedChallengeData(null)
       }
-      loadChallenges()
-      loadStats()
-      addToast(t('vulnLab.challengeDeleted'), 'success')
+      await Promise.all([loadChallenges(), loadStats()])
+      notification.success({ message: t('vulnLab.challengeDeleted') })
     } catch {
-      addToast(t('vulnLab.failedToDelete'), 'error')
+      notification.error({ message: t('vulnLab.failedToDelete') })
     }
-  }, [expandedChallenge, loadChallenges, loadStats, addToast, t])
+  }, [expandedChallenge, loadChallenges, loadStats, notification, t])
 
   const toggleChallengeExpand = useCallback(async (challengeId: string) => {
     if (expandedChallenge === challengeId) {
@@ -348,12 +291,10 @@ export default function VulnLabPage() {
       setExpandedChallengeData(null)
       return
     }
-
     setExpandedChallenge(challengeId)
     setLoadingChallenge(true)
     try {
-      const data = await vulnLabApi.getChallenge(challengeId)
-      setExpandedChallengeData(data as ChallengeDetail)
+      setExpandedChallengeData(await vulnLabApi.getChallenge(challengeId) as ChallengeDetail)
     } catch {
       setExpandedChallengeData(null)
     } finally {
@@ -365,962 +306,223 @@ export default function VulnLabPage() {
     setRefreshing(true)
     await Promise.all([loadChallenges(), loadStats()])
     setRefreshing(false)
-    addToast(t('vulnLab.dataRefreshed'), 'info')
-  }, [loadChallenges, loadStats, addToast, t])
+    notification.info({ message: t('vulnLab.dataRefreshed') })
+  }, [loadChallenges, loadStats, notification, t])
 
-  /* ── Derived data (useMemo) ────────────────────────────────── */
-
-  // Get selected vuln type info
-  const selectedInfo = useMemo(() => {
-    for (const cat of Object.values(categories)) {
-      const found = cat.types.find(t => t.key === selectedVulnType)
-      if (found) return found
-    }
-    return null
-  }, [categories, selectedVulnType])
-
-  // Filter vuln types by search
-  const filteredCategories = useMemo(() => {
-    return Object.entries(categories).map(([key, cat]) => {
-      const filtered = searchFilter
-        ? cat.types.filter(t =>
-            t.key.includes(searchFilter.toLowerCase()) ||
-            t.title.toLowerCase().includes(searchFilter.toLowerCase())
-          )
-        : cat.types
-      return { key, ...cat, types: filtered }
-    }).filter(c => c.types.length > 0)
-  }, [categories, searchFilter])
-
-  // Filter running logs
-  const filteredLogs = useMemo(() => {
-    return logFilter === 'all'
-      ? runningLogs
-      : runningLogs.filter(l => l.level === logFilter)
-  }, [runningLogs, logFilter])
-
-  // Stats donut data for result distribution
-  const statsDonutData = useMemo(() => {
-    if (!stats || stats.total === 0) return []
-    const rc = stats.result_counts || {}
-    return [
-      { name: 'Detected', value: rc.detected || 0, color: '#22c55e' },
-      { name: 'Not Detected', value: rc.not_detected || 0, color: '#ef4444' },
-      { name: 'Error', value: rc.error || 0, color: '#eab308' },
-    ].filter(d => d.value > 0)
-  }, [stats])
-
-  /* ── Render ─────────────────────────────────────────────────── */
+  const columns: ProColumns<VulnLabChallenge>[] = [
+    {
+      title: t('vulnLab.challengeName'),
+      dataIndex: 'challenge_name',
+      render: (_, record) => (
+        <Space direction="vertical" size={2}>
+          <Text strong>{record.challenge_name || record.vuln_type.replace(/_/g, ' ')}</Text>
+          <Text type="secondary" ellipsis style={{ maxWidth: 320 }}>{record.target_url}</Text>
+        </Space>
+      ),
+    },
+    { title: t('vulnLab.vulnType'), dataIndex: 'vuln_type', render: (_, record) => <Tag>{record.vuln_type}</Tag> },
+    { title: t('vulnLab.statusLabel'), dataIndex: 'status', render: (_, record) => <Tag color={statusColors[record.status]}>{statusLabel(record.status, t)}</Tag> },
+    { title: t('vulnLab.resultLabel'), dataIndex: 'result', render: (_, record) => record.result ? <Tag color={resultColors[record.result]}>{resultLabel(record.result, t)}</Tag> : '-' },
+    {
+      title: t('vulnLab.findings'),
+      dataIndex: 'findings_count',
+      render: (_, record) => (
+        <Space wrap>
+          <Tag color={record.findings_count ? 'green' : 'default'}>{record.findings_count}</Tag>
+          {(['critical', 'high', 'medium', 'low', 'info'] as const).map(severity => {
+            const count = record[`${severity}_count` as keyof VulnLabChallenge] as number
+            return count ? <Tag key={severity} color={severityColors[severity]}>{severity}: {count}</Tag> : null
+          })}
+        </Space>
+      ),
+    },
+    { title: t('agent.duration'), dataIndex: 'duration', render: (_, record) => formatDuration(record.duration) },
+    {
+      title: t('common.actions'),
+      valueType: 'option',
+      render: (_, record) => [
+        <Button key="detail" size="small" icon={<EyeOutlined />} onClick={() => toggleChallengeExpand(record.id)}>{expandedChallenge === record.id ? t('common.close') : t('common.view')}</Button>,
+        record.scan_id && <Button key="scan" size="small" icon={<GlobalOutlined />} onClick={() => navigate(`/scan/${record.scan_id}`)}>{t('vulnLab.viewScanDetails')}</Button>,
+        <Popconfirm key="delete" title={t('common.delete')} onConfirm={() => handleDelete(record.id)}><Button size="small" danger icon={<DeleteOutlined />}>{t('common.delete')}</Button></Popconfirm>,
+      ].filter(Boolean),
+    },
+  ]
 
   return (
-    <>
-      <style>{`
-        @keyframes fadeSlideIn {
-          from { opacity: 0; transform: translateY(-8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
+    <PageContainer title={<Space><ExperimentOutlined />{t('vulnLab.title')}</Space>} subTitle={t('vulnLab.subtitle')}>
+      <Tabs
+        activeKey={activeTab}
+        onChange={key => setActiveTab(key as ActiveTab)}
+        items={[
+          { key: 'test', label: <Space><PlayCircleOutlined />{t('vulnLab.newTest')}</Space> },
+          { key: 'history', label: <Space><ClockCircleOutlined />{t('vulnLab.history')}</Space> },
+          { key: 'stats', label: <Space><BarChartOutlined />{t('vulnLab.stats')}</Space> },
+        ]}
+      />
 
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-
-      <div className="min-h-screen flex flex-col items-center py-8 px-4">
-        {/* Header */}
-        <div
-          className="text-center mb-8"
-          style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
-        >
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-500/20 rounded-2xl mb-4">
-            <FlaskConical className="w-8 h-8 text-purple-400" />
-          </div>
-          <h1 className="text-3xl font-bold text-white mb-2">{t('vulnLab.title')}</h1>
-          <p className="text-dark-400 max-w-lg">
-            {t('vulnLab.subtitle')}
-          </p>
-        </div>
-
-        {/* Tab Bar */}
-        <div
-          className="flex gap-2 mb-6 flex-wrap justify-center"
-          style={{ animation: 'fadeSlideIn 0.3s ease-out 0.05s both' }}
-        >
-          {[
-            { key: 'test' as const, label: t('vulnLab.newTest'), icon: Play },
-            { key: 'history' as const, label: t('vulnLab.history'), icon: Clock },
-            { key: 'stats' as const, label: t('vulnLab.stats'), icon: BarChart3 },
-          ].map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                activeTab === tab.key
-                  ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30 shadow-lg shadow-purple-500/5'
-                  : 'bg-dark-800 text-dark-400 border border-dark-700 hover:text-white hover:border-dark-600'
-              }`}
-            >
-              <tab.icon className="w-4 h-4" />
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* ========== NEW TEST TAB ========== */}
-        {activeTab === 'test' && (
-          <div
-            className="w-full max-w-3xl"
-            style={{ animation: 'fadeSlideIn 0.3s ease-out 0.1s both' }}
-          >
-            <div className="bg-dark-800 border border-dark-700 rounded-2xl p-8">
-              {/* Target URL */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-dark-300 mb-2">{t('vulnLab.targetUrl')}</label>
-                <input
-                  type="url"
-                  value={targetUrl}
-                  onChange={e => setTargetUrl(e.target.value)}
-                  placeholder={t('vulnLab.targetPlaceholder')}
-                  disabled={isRunning}
-                  className="w-full px-4 py-4 bg-dark-900 border border-dark-600 rounded-xl text-white text-lg placeholder-dark-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 disabled:opacity-50 transition-colors"
-                />
-              </div>
-
-              {/* Challenge Name (optional) */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-dark-300 mb-2">{t('vulnLab.challengeName')}</label>
-                <input
-                  type="text"
-                  value={challengeName}
-                  onChange={e => setChallengeName(e.target.value)}
-                  placeholder={t('vulnLab.challengePlaceholder')}
-                  disabled={isRunning}
-                  className="w-full px-4 py-3 bg-dark-900 border border-dark-600 rounded-xl text-white placeholder-dark-500 focus:outline-none focus:border-purple-500 disabled:opacity-50 transition-colors"
-                />
-              </div>
-
-              {/* Vulnerability Type Selector */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-dark-300 mb-2">
-                  {t('vulnLab.vulnType')} {selectedInfo && (
-                    <span className={`ml-2 px-2 py-0.5 rounded text-xs ${SEVERITY_COLORS[selectedInfo.severity]} text-white`}>
-                      {selectedInfo.severity}
-                    </span>
-                  )}
-                </label>
-
-                {/* Search */}
-                <div className="relative mb-3">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-500" />
-                  <input
-                    type="text"
-                    value={searchFilter}
-                    onChange={e => setSearchFilter(e.target.value)}
-                    placeholder={t('vulnLab.searchPlaceholder')}
-                    disabled={isRunning}
-                    className="w-full pl-10 pr-4 py-2.5 bg-dark-900 border border-dark-600 rounded-lg text-white text-sm placeholder-dark-500 focus:outline-none focus:border-purple-500 disabled:opacity-50 transition-colors"
-                  />
-                  {searchFilter && (
-                    <button
-                      onClick={() => setSearchFilter('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-500 hover:text-white transition-colors"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-
-                {/* Selected indicator */}
-                {selectedInfo && (
-                  <div
-                    className="mb-3 p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg flex items-center justify-between"
-                    style={{ animation: 'fadeSlideIn 0.2s ease-out' }}
-                  >
-                    <div>
-                      <span className="text-purple-400 font-medium">{selectedInfo.title}</span>
-                      {selectedInfo.cwe_id && (
-                        <span className="ml-2 text-dark-500 text-xs">{selectedInfo.cwe_id}</span>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => setSelectedVulnType('')}
+      {activeTab === 'test' && (
+        <Row gutter={[16, 16]}>
+          <Col xs={24} lg={12}>
+            <ProCard bordered title={t('vulnLab.newTest')}>
+              <Form form={form} layout="vertical" requiredMark={false} onValuesChange={(_, values) => setSelectedVulnType(values.vuln_type || '')}>
+                <Form.Item name="target_url" label={t('vulnLab.targetUrl')} rules={[{ required: true, message: t('vulnLab.targetPlaceholder') }]}>
+                  <Input size="large" prefix={<GlobalOutlined />} placeholder={t('vulnLab.targetPlaceholder')} disabled={isRunning} />
+                </Form.Item>
+                <Form.Item name="challenge_name" label={t('vulnLab.challengeName')}>
+                  <Input placeholder={t('vulnLab.challengePlaceholder')} disabled={isRunning} />
+                </Form.Item>
+                <Form.Item label={t('vulnLab.vulnType')} required>
+                  <Input prefix={<SearchOutlined />} value={searchFilter} onChange={event => setSearchFilter(event.target.value)} placeholder={t('vulnLab.searchPlaceholder')} disabled={isRunning} style={{ marginBottom: 12 }} />
+                  <Form.Item name="vuln_type" noStyle rules={[{ required: true, message: t('vulnLab.vulnType') }]}>
+                    <Select
+                      showSearch
                       disabled={isRunning}
-                      className="text-dark-500 hover:text-white text-xs transition-colors"
-                    >
-                      {t('vulnLab.clear')}
-                    </button>
-                  </div>
-                )}
-
-                {/* Category accordion */}
-                <div className="max-h-80 overflow-y-auto border border-dark-600 rounded-xl bg-dark-900">
-                  {filteredCategories.length === 0 ? (
-                    <div className="p-8 text-center">
-                      <Search className="w-8 h-8 mx-auto text-dark-600 mb-2" />
-                      <p className="text-dark-500 text-sm">{t('vulnLab.noMatches')}</p>
-                    </div>
-                  ) : (
-                    filteredCategories.map(cat => (
-                      <div key={cat.key} className="border-b border-dark-700 last:border-b-0">
-                        <button
-                          onClick={() => setExpandedCat(expandedCat === cat.key ? null : cat.key)}
-                          disabled={isRunning}
-                          className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-dark-300 hover:text-white hover:bg-dark-800 transition-colors disabled:opacity-50"
-                        >
-                          <span>{cat.label} ({cat.types.length})</span>
-                          {expandedCat === cat.key ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                        </button>
-                        {expandedCat === cat.key && (
-                          <div className="px-2 pb-2">
-                            {cat.types.map(vtype => (
-                              <button
-                                key={vtype.key}
-                                onClick={() => setSelectedVulnType(vtype.key)}
-                                disabled={isRunning}
-                                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all disabled:opacity-50 ${
-                                  selectedVulnType === vtype.key
-                                    ? 'bg-purple-500/20 text-purple-400 border border-purple-500/20'
-                                    : 'text-dark-400 hover:bg-dark-800 hover:text-white border border-transparent'
-                                }`}
-                              >
-                                <span className="text-left">{vtype.title}</span>
-                                <div className="flex items-center gap-2">
-                                  {vtype.cwe_id && <span className="text-dark-600 text-xs">{vtype.cwe_id}</span>}
-                                  <span className={`w-2 h-2 rounded-full ${SEVERITY_COLORS[vtype.severity]}`} />
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {/* Auth Section */}
-              <div className="mb-6">
-                <button
-                  onClick={() => setShowAuth(!showAuth)}
-                  disabled={isRunning}
-                  className="flex items-center gap-2 text-sm text-dark-400 hover:text-white transition-colors disabled:opacity-50"
-                >
-                  <Lock className="w-4 h-4" />
-                  <span>{t('vulnLab.authOptional')}</span>
-                  {showAuth ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </button>
-                {showAuth && (
-                  <div
-                    className="mt-3 space-y-3 pl-6"
-                    style={{ animation: 'fadeSlideIn 0.2s ease-out' }}
-                  >
-                    <select
-                      value={authType}
-                      onChange={e => setAuthType(e.target.value)}
-                      disabled={isRunning}
-                      className="w-full px-3 py-2 bg-dark-900 border border-dark-600 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500 transition-colors"
-                    >
-                      <option value="">{t('vulnLab.noAuth')}</option>
-                      <option value="bearer">{t('vulnLab.bearerToken')}</option>
-                      <option value="cookie">{t('vulnLab.cookie')}</option>
-                      <option value="basic">{t('vulnLab.basicAuth')}</option>
-                      <option value="header">{t('vulnLab.customHeader')}</option>
-                    </select>
-                    {authType && (
-                      <input
-                        type="text"
-                        value={authValue}
-                        onChange={e => setAuthValue(e.target.value)}
-                        disabled={isRunning}
-                        placeholder={
-                          authType === 'bearer' ? 'eyJhbGciOiJIUzI1NiIs...' :
-                          authType === 'cookie' ? 'session=abc123; token=xyz' :
-                          authType === 'basic' ? 'admin:password123' :
-                          'X-API-Key:your-api-key'
-                        }
-                        className="w-full px-3 py-2 bg-dark-900 border border-dark-600 rounded-lg text-white text-sm placeholder-dark-500 focus:outline-none focus:border-purple-500 transition-colors"
-                      />
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Notes */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-dark-300 mb-2">{t('vulnLab.notes')}</label>
-                <textarea
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                  rows={2}
-                  disabled={isRunning}
-                  placeholder={t('vulnLab.notesPlaceholder')}
-                  className="w-full px-4 py-3 bg-dark-900 border border-dark-600 rounded-xl text-white placeholder-dark-500 focus:outline-none focus:border-purple-500 disabled:opacity-50 transition-colors"
-                />
-              </div>
-
-              {/* Error */}
-              {error && (
-                <div
-                  className="mb-6 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2"
-                  style={{ animation: 'fadeSlideIn 0.2s ease-out' }}
-                >
-                  <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
-                  <span className="text-red-400 text-sm">{error}</span>
-                </div>
-              )}
-
-              {/* Start/Stop */}
-              {!isRunning ? (
-                <button
-                  onClick={handleStart}
-                  disabled={!targetUrl.trim() || !selectedVulnType}
-                  className="w-full py-4 bg-purple-500 hover:bg-purple-600 disabled:bg-dark-600 disabled:text-dark-400 text-white font-bold text-lg rounded-xl transition-all flex items-center justify-center gap-3 hover:shadow-lg hover:shadow-purple-500/20"
-                >
-                  <FlaskConical className="w-6 h-6" />
-                  {t('vulnLab.startTest')}
-                </button>
-              ) : (
-                <button
-                  onClick={handleStop}
-                  className="w-full py-4 bg-red-500 hover:bg-red-600 text-white font-bold text-lg rounded-xl transition-all flex items-center justify-center gap-3 hover:shadow-lg hover:shadow-red-500/20"
-                >
-                  <Square className="w-6 h-6" />
-                  {t('vulnLab.stopTest')}
-                </button>
-              )}
-            </div>
-
-            {/* Running Progress + Live Logs */}
-            {runningStatus && (
-              <div
-                className="mt-6 space-y-4"
-                style={{ animation: 'fadeSlideIn 0.3s ease-out' }}
-              >
-                {/* Status Card */}
-                <div className="bg-dark-800 border border-dark-700 rounded-2xl p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-white font-semibold flex items-center gap-2">
-                      {runningStatus.status === 'running' && <Loader2 className="w-5 h-5 animate-spin text-purple-400" />}
-                      {runningStatus.status === 'completed' && <CheckCircle2 className="w-5 h-5 text-green-400" />}
-                      {['failed', 'error'].includes(runningStatus.status) && <XCircle className="w-5 h-5 text-red-400" />}
-                      {runningStatus.status === 'stopped' && <Square className="w-5 h-5 text-orange-400" />}
-                      {selectedInfo?.title || selectedVulnType}
-                    </h3>
-                    <span className="text-sm text-dark-400 tabular-nums">{runningStatus.progress || 0}%</span>
-                  </div>
-
-                  {/* Progress bar */}
-                  <div className="w-full bg-dark-900 rounded-full h-2.5 mb-4">
-                    <div
-                      className={`h-2.5 rounded-full transition-all duration-500 ${
-                        runningStatus.status === 'completed' ? 'bg-green-500' :
-                        runningStatus.status === 'error' || runningStatus.status === 'failed' ? 'bg-red-500' :
-                        'bg-purple-500'
-                      }`}
-                      style={{ width: `${runningStatus.progress || 0}%` }}
+                      placeholder={t('vulnLab.vulnType')}
+                      optionFilterProp="label"
+                      options={filteredCategories.flatMap(category => category.types.map(type => ({
+                        label: `${type.title} ${type.cwe_id ? `(${type.cwe_id})` : ''}`,
+                        value: type.key,
+                        category: category.label,
+                      })))}
                     />
+                  </Form.Item>
+                </Form.Item>
+                {selectedInfo && <Alert style={{ marginBottom: 16 }} type="info" showIcon message={<Space><Tag color={severityColors[selectedInfo.severity]}>{selectedInfo.severity}</Tag>{selectedInfo.title}{selectedInfo.cwe_id && <Tag>{selectedInfo.cwe_id}</Tag>}</Space>} description={selectedInfo.description} />}
+                <Button style={{ marginBottom: 16 }} icon={<LockOutlined />} onClick={() => setShowAuth(!showAuth)}>{t('vulnLab.authOptional')}</Button>
+                {showAuth && (
+                  <Row gutter={12}>
+                    <Col span={8}>
+                      <Form.Item name="auth_type" label={t('vulnLab.authOptional')}>
+                        <Select allowClear options={[
+                          { value: 'bearer', label: t('vulnLab.bearerToken') },
+                          { value: 'cookie', label: t('vulnLab.cookie') },
+                          { value: 'basic', label: t('vulnLab.basicAuth') },
+                          { value: 'header', label: t('vulnLab.customHeader') },
+                        ]} />
+                      </Form.Item>
+                    </Col>
+                    <Col span={16}>
+                      <Form.Item name="auth_value" label="Value"><Input.Password /></Form.Item>
+                    </Col>
+                  </Row>
+                )}
+                <Form.Item name="notes" label={t('vulnLab.notes')}>
+                  <TextArea rows={3} placeholder={t('vulnLab.notesPlaceholder')} disabled={isRunning} />
+                </Form.Item>
+                {error && <Alert style={{ marginBottom: 16 }} type="error" showIcon message={error} />}
+                {isRunning ? (
+                  <Button danger size="large" block icon={<StopOutlined />} onClick={handleStop}>{t('vulnLab.stopTest')}</Button>
+                ) : (
+                  <Button type="primary" size="large" block icon={<ExperimentOutlined />} onClick={handleStart}>{t('vulnLab.startTest')}</Button>
+                )}
+              </Form>
+            </ProCard>
+          </Col>
+
+          <Col xs={24} lg={12}>
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              {runningStatus ? (
+                <ProCard bordered title={<Space><BugOutlined />{selectedInfo?.title || runningStatus.vuln_type || selectedVulnType}</Space>} extra={<Tag color={statusColors[runningStatus.status]}>{statusLabel(runningStatus.status, t)}</Tag>}>
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <Progress percent={runningStatus.progress || 0} status={runningStatus.status === 'error' || runningStatus.status === 'failed' ? 'exception' : runningStatus.status === 'completed' ? 'success' : 'active'} />
+                    <Descriptions size="small" column={2} bordered>
+                      <Descriptions.Item label={t('agent.phaseToast', { phase: '' })}>{runningStatus.phase || '-'}</Descriptions.Item>
+                      <Descriptions.Item label={t('vulnLab.findings')}>{runningStatus.findings_count || 0}</Descriptions.Item>
+                      <Descriptions.Item label={t('vulnLab.logs')}>{runningLogs.length}</Descriptions.Item>
+                      <Descriptions.Item label={t('vulnLab.resultLabel')}>{runningStatus.result ? resultLabel(runningStatus.result, t) : '-'}</Descriptions.Item>
+                    </Descriptions>
+                    {runningStatus.error && <Alert type="error" showIcon message={runningStatus.error} />}
+                    {runningStatus.scan_id && <Button icon={<EyeOutlined />} onClick={() => navigate(`/scan/${runningStatus.scan_id}`)}>{t('vulnLab.viewScanDetails')}</Button>}
+                    {runningStatus.findings?.length ? (
+                      <Collapse items={runningStatus.findings.slice(-5).map((finding: any, index: number) => ({
+                        key: String(index),
+                        label: <Space><Tag color={severityColors[finding.severity || 'medium']}>{finding.severity || 'medium'}</Tag>{finding.title || finding.vulnerability_type || t('vulnLab.finding')}</Space>,
+                        children: <Descriptions size="small" column={1} bordered>{finding.affected_endpoint && <Descriptions.Item label={t('agent.endpointLabel')}>{finding.affected_endpoint}</Descriptions.Item>}{finding.payload && <Descriptions.Item label={t('vulnLab.payload')}><Text code>{finding.payload}</Text></Descriptions.Item>}{finding.evidence && <Descriptions.Item label={t('vulnLab.evidence')}>{finding.evidence}</Descriptions.Item>}</Descriptions>,
+                      }))} />
+                    ) : null}
+                  </Space>
+                </ProCard>
+              ) : <ProCard bordered><Empty description={t('vulnLab.startFirstChallenge')} /></ProCard>}
+
+              <ProCard bordered title={<Space><CodeOutlined />{t('vulnLab.liveAgentLogs')}<Tag>{runningLogs.length}</Tag></Space>}>
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <Space wrap>{(['all', 'info', 'warning', 'error'] as const).map(level => <Button key={level} size="small" type={logFilter === level ? 'primary' : 'default'} onClick={() => setLogFilter(level)}>{t(`vulnLab.logLevel.${level}`)}</Button>)}</Space>
+                  <div ref={logScrollRef} onScroll={event => { autoScrollRef.current = isLogContainerNearBottom(event.currentTarget) }} style={{ maxHeight: 320, overflow: 'auto', padding: 12, background: '#0f172a', borderRadius: 8 }}>
+                    {filteredLogs.length ? <Timeline items={filteredLogs.map(log => ({ color: log.level === 'error' ? 'red' : log.level === 'warning' ? 'orange' : log.source === 'llm' ? 'purple' : 'blue', children: <Space direction="vertical" size={2}><Text style={{ color: '#94a3b8' }}>{log.time ? new Date(log.time).toLocaleTimeString() : ''} <Tag>{log.level}</Tag>{log.source === 'llm' && <Tag color="purple">AI</Tag>}</Text><Text style={{ color: '#e2e8f0', whiteSpace: 'pre-wrap' }}>{log.message}</Text></Space> }))} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('vulnLab.waitingLogs')} />}
                   </div>
+                </Space>
+              </ProCard>
+            </Space>
+          </Col>
+        </Row>
+      )}
 
-                  {/* Info row */}
-                  <div className="flex items-center gap-4 text-sm text-dark-400 mb-3 flex-wrap">
-                    {runningStatus.phase && (
-                      <span className="flex items-center gap-1">
-                        <Shield className="w-3.5 h-3.5" />
-                        {runningStatus.phase}
-                      </span>
-                    )}
-                    <span className="flex items-center gap-1">
-                      <Terminal className="w-3.5 h-3.5" />
-                      {runningLogs.length} {t('vulnLab.logEntries')}
-                    </span>
-                    {(runningStatus.findings_count ?? 0) > 0 && (
-                      <span className="flex items-center gap-1 text-green-400">
-                        <AlertTriangle className="w-3.5 h-3.5" />
-                        {runningStatus.findings_count} {t('vulnLab.findings')}
-                      </span>
-                    )}
-                  </div>
+      {activeTab === 'history' && (
+        <ProCard bordered title={<Space><ClockCircleOutlined />{t('vulnLab.challengeHistory')}<Tag>{challenges.length}</Tag></Space>} extra={<Button icon={<ReloadOutlined spin={refreshing} />} onClick={handleRefresh}>{t('common.refresh')}</Button>}>
+          <ProTable<VulnLabChallenge>
+            rowKey="id"
+            search={false}
+            options={false}
+            dataSource={challenges}
+            columns={columns}
+            pagination={{ pageSize: 10 }}
+            expandable={{
+              expandedRowKeys: expandedChallenge ? [expandedChallenge] : [],
+              onExpand: (_, record) => toggleChallengeExpand(record.id),
+              expandedRowRender: () => loadingChallenge ? <Empty description={t('vulnLab.loadingDetails')} /> : expandedChallengeData ? (
+                <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                  {(expandedChallengeData.findings_detail || expandedChallengeData.findings || []).length ? (
+                    <Collapse items={(expandedChallengeData.findings_detail || expandedChallengeData.findings || []).map((finding: any, index: number) => ({
+                      key: String(index),
+                      label: <Space><Tag color={severityColors[finding.severity || 'medium']}>{finding.severity || 'medium'}</Tag>{finding.title || finding.vulnerability_type || t('vulnLab.finding')}</Space>,
+                      children: <Descriptions bordered column={1} size="small">{finding.vulnerability_type && <Descriptions.Item label={t('vulnLab.type')}>{finding.vulnerability_type}</Descriptions.Item>}{finding.affected_endpoint && <Descriptions.Item label={t('agent.endpointLabel')}>{finding.affected_endpoint}</Descriptions.Item>}{finding.payload && <Descriptions.Item label={t('vulnLab.payload')}><Text code>{finding.payload}</Text></Descriptions.Item>}{finding.evidence && <Descriptions.Item label={t('vulnLab.evidence')}>{finding.evidence}</Descriptions.Item>}</Descriptions>,
+                    }))} />
+                  ) : <Empty description={t('vulnLab.noFindings')} />}
+                  {expandedChallengeData.logs?.length ? <LogTimeline logs={expandedChallengeData.logs} /> : null}
+                  {expandedChallengeData.notes && <Alert type="info" showIcon icon={<FileTextOutlined />} message={t('vulnLab.notesTitle')} description={expandedChallengeData.notes} />}
+                </Space>
+              ) : <Empty description={t('vulnLab.failedToLoad')} />,
+            }}
+          />
+        </ProCard>
+      )}
 
-                  {/* Findings preview */}
-                  {runningStatus.findings && runningStatus.findings.length > 0 && (
-                    <div className="mb-3 space-y-2">
-                      {runningStatus.findings.slice(-3).map((f, i) => (
-                        <div
-                          key={i}
-                          className="p-2 bg-green-500/5 border border-green-500/20 rounded-lg"
-                          style={{ animation: 'fadeSlideIn 0.2s ease-out' }}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${SEVERITY_COLORS[f.severity || 'medium']} text-white`}>
-                              {(f.severity || 'medium').toUpperCase()}
-                            </span>
-                            <span className="text-sm text-green-300">{f.title || f.vulnerability_type || t('vulnLab.finding')}</span>
-                          </div>
-                          {f.affected_endpoint && (
-                            <p className="text-xs text-dark-500 mt-1 truncate">{f.affected_endpoint}</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Result badge on completion */}
-                  {runningStatus.result && (
-                    <div className="mt-4 flex items-center gap-3">
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        RESULT_BADGE[runningStatus.result]?.bg || 'bg-gray-500/20'
-                      } ${RESULT_BADGE[runningStatus.result]?.text || 'text-gray-400'}`}>
-                        {getResultLabel(RESULT_BADGE[runningStatus.result]?.labelKey || runningStatus.result)}
-                      </span>
-                      {runningStatus.scan_id && (
-                        <button
-                          onClick={() => navigate(`/scan/${runningStatus.scan_id}`)}
-                          className="text-sm text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-colors"
-                        >
-                          <Eye className="w-4 h-4" /> {t('vulnLab.viewScanDetails')}
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Error */}
-                  {runningStatus.error && (
-                    <div className="mt-3 p-2 bg-red-500/10 border border-red-500/20 rounded text-red-400 text-sm">
-                      {runningStatus.error}
-                    </div>
-                  )}
-                </div>
-
-                {/* Live Logs Panel */}
-                <div className="bg-dark-800 border border-dark-700 rounded-2xl overflow-hidden">
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-dark-700">
-                    <button
-                      onClick={() => setShowLogs(!showLogs)}
-                      className="flex items-center gap-2 text-sm font-medium text-dark-300 hover:text-white transition-colors"
-                    >
-                      <Terminal className="w-4 h-4 text-purple-400" />
-                      {t('vulnLab.liveAgentLogs')}
-                      <span className="text-dark-600 text-xs">({runningLogs.length})</span>
-                      {showLogs ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                    </button>
-                    {showLogs && (
-                      <div className="flex items-center gap-1">
-                        {(['all', 'info', 'warning', 'error'] as const).map(level => (
-                          <button
-                            key={level}
-                            onClick={() => setLogFilter(level)}
-                            className={`px-2 py-1 rounded text-xs transition-colors ${
-                              logFilter === level
-                                ? 'bg-purple-500/20 text-purple-400'
-                                : 'text-dark-500 hover:text-white'
-                            }`}
-                          >
-                            {t(`vulnLab.logLevel.${level}`)}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {showLogs && (
-                    <div
-                      ref={vulnLogsScrollRef}
-                      className="p-3 bg-dark-900 max-h-80 overflow-y-auto space-y-0.5 overscroll-y-contain"
-                      onScroll={(e) => {
-                        autoScrollRef.current = isLogContainerNearBottom(e.currentTarget)
-                      }}
-                    >
-                      {filteredLogs.length === 0 ? (
-                        <div className="py-4 text-center">
-                        <Terminal className="w-6 h-6 mx-auto text-dark-600 mb-1" />
-                        <p className="text-dark-600 text-xs font-mono">{t('vulnLab.waitingLogs')}</p>
-                      </div>
-                      ) : (
-                        filteredLogs.map((log, i) => <LogLine key={i} log={log} />)
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ========== HISTORY TAB ========== */}
-        {activeTab === 'history' && (
-          <div
-            className="w-full max-w-4xl"
-            style={{ animation: 'fadeSlideIn 0.3s ease-out 0.1s both' }}
-          >
-            <div className="bg-dark-800 border border-dark-700 rounded-2xl overflow-hidden">
-              <div className="p-4 border-b border-dark-700 flex items-center justify-between">
-                <h3 className="text-white font-semibold flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-purple-400" />
-                  {t('vulnLab.challengeHistory')}
-                  <span className="text-dark-500 text-sm font-normal">({challenges.length})</span>
-                </h3>
-                <button
-                  onClick={handleRefresh}
-                  className="p-2 rounded-lg bg-dark-900 border border-dark-700 hover:border-dark-600 text-dark-400 hover:text-white transition-all"
-                  title={t('common.refresh')}
-                >
-                  <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                </button>
-              </div>
-
-              {challenges.length === 0 ? (
-                <div className="p-12 text-center">
-                  <div className="w-16 h-16 bg-dark-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <FlaskConical className="w-8 h-8 text-dark-500" />
-                  </div>
-                  <p className="text-dark-300 font-medium">{t('vulnLab.noChallenges')}</p>
-                  <p className="text-dark-500 text-sm mt-1">{t('vulnLab.startFirstChallenge')}</p>
-                  <button
-                    onClick={() => setActiveTab('test')}
-                    className="mt-4 px-4 py-2 bg-purple-500/20 text-purple-400 rounded-lg text-sm font-medium hover:bg-purple-500/30 transition-colors"
-                  >
-                    <Play className="w-4 h-4 inline mr-1.5 -mt-0.5" />
-                    {t('vulnLab.newTestButton')}
-                  </button>
-                </div>
-              ) : (
-                <div className="divide-y divide-dark-700">
-                  {challenges.map((ch, idx) => {
-                    const statusBadge = STATUS_BADGE[ch.status] || STATUS_BADGE.pending
-                    const resultBadge = ch.result ? RESULT_BADGE[ch.result] : null
-                    const isExpanded = expandedChallenge === ch.id
-
-                    return (
-                      <div
-                        key={ch.id}
-                        style={{ animation: `fadeSlideIn 0.3s ease-out ${Math.min(idx * 0.03, 0.3)}s both` }}
-                      >
-                        {/* Challenge row */}
-                        <div
-                          className={`p-4 cursor-pointer transition-all ${
-                            isExpanded ? 'bg-dark-900/80' : 'hover:bg-dark-900/50'
-                          }`}
-                          onClick={() => toggleChallengeExpand(ch.id)}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <ChevronRight className={`w-4 h-4 text-dark-500 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-90' : ''}`} />
-                              <span className="text-white font-medium truncate">
-                                {ch.challenge_name || ch.vuln_type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                              </span>
-                              <span className={`px-2 py-0.5 rounded text-xs flex-shrink-0 ${statusBadge.bg} ${statusBadge.text}`}>
-                                {getStatusLabel(ch.status)}
-                              </span>
-                              {resultBadge && (
-                                <span className={`px-2 py-0.5 rounded text-xs flex-shrink-0 ${resultBadge.bg} ${resultBadge.text}`}>
-                                  {getResultLabel(resultBadge.labelKey)}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                              {ch.scan_id && (
-                                <button
-                                  onClick={() => navigate(`/scan/${ch.scan_id}`)}
-                                  className="p-1.5 text-dark-400 hover:text-white rounded transition-colors"
-                                  title={t('vulnLab.viewScanDetails')}
-                                >
-                                  <Eye className="w-4 h-4" />
-                                </button>
-                              )}
-                              <button
-                                onClick={() => handleDelete(ch.id)}
-                                className="p-1.5 text-dark-400 hover:text-red-400 rounded transition-colors"
-                                title={t('common.delete')}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-4 text-xs text-dark-500 ml-7 flex-wrap">
-                            <span className="flex items-center gap-1">
-                              <Target className="w-3 h-3" />
-                              {ch.target_url.length > 50 ? ch.target_url.slice(0, 50) + '...' : ch.target_url}
-                            </span>
-                            <span className="text-dark-600">|</span>
-                            <span>{ch.vuln_type}</span>
-                            {ch.vuln_category && (
-                              <>
-                                <span className="text-dark-600">|</span>
-                                <span>{ch.vuln_category}</span>
-                              </>
-                            )}
-                            <span className="text-dark-600">|</span>
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {formatDuration(ch.duration)}
-                            </span>
-                            {(ch.endpoints_count ?? 0) > 0 && (
-                              <>
-                                <span className="text-dark-600">|</span>
-                                <span className="flex items-center gap-1">
-                                  <Globe className="w-3 h-3" />
-                                  {ch.endpoints_count} {t('vulnLab.endpoints')}
-                                </span>
-                              </>
-                            )}
-                            {(ch.logs_count ?? 0) > 0 && (
-                              <>
-                                <span className="text-dark-600">|</span>
-                                <span className="flex items-center gap-1">
-                                  <Terminal className="w-3 h-3" />
-                                  {ch.logs_count} {t('vulnLab.logs')}
-                                </span>
-                              </>
-                            )}
-                          </div>
-
-                          {/* Findings summary */}
-                          {ch.findings_count > 0 && (
-                            <div className="flex gap-2 mt-2 ml-7 flex-wrap">
-                              {(['critical', 'high', 'medium', 'low', 'info'] as const).map(sev => {
-                                const count = ch[`${sev}_count` as keyof VulnLabChallenge] as number
-                                if (!count) return null
-                                return (
-                                  <span key={sev} className={`${SEVERITY_COLORS[sev]} text-white px-2 py-0.5 rounded text-xs font-bold`}>
-                                    {count} {t(`severity.${sev}`)}
-                                  </span>
-                                )
-                              })}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Expanded detail section */}
-                        {isExpanded && (
-                          <div
-                            className="border-t border-dark-700 bg-dark-900/50"
-                            style={{ animation: 'fadeSlideIn 0.2s ease-out' }}
-                          >
-                            {loadingChallenge ? (
-                              <div className="p-6 flex items-center justify-center gap-2 text-dark-400">
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                                {t('vulnLab.loadingDetails')}
-                              </div>
-                            ) : expandedChallengeData ? (
-                              <div className="p-4 space-y-4">
-                                {/* Findings Detail */}
-                                {(expandedChallengeData.findings_detail || expandedChallengeData.findings || []).length > 0 && (
-                                  <div>
-                                    <h4 className="text-sm font-medium text-dark-300 mb-2 flex items-center gap-2">
-                                      <Shield className="w-4 h-4 text-green-400" />
-                                      {t('vulnLab.findingsTitle')} ({(expandedChallengeData.findings_detail || expandedChallengeData.findings || []).length})
-                                    </h4>
-                                    <div className="space-y-2">
-                                      {(expandedChallengeData.findings_detail || expandedChallengeData.findings || []).map((f, i) => (
-                                        <div
-                                          key={i}
-                                          className="p-3 bg-dark-800 border border-dark-700 rounded-lg"
-                                          style={{ animation: `fadeSlideIn 0.2s ease-out ${i * 0.05}s both` }}
-                                        >
-                                          <div className="flex items-center gap-2 mb-1">
-                                            <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${SEVERITY_COLORS[f.severity || 'medium']} text-white`}>
-                                              {(f.severity || 'medium').toUpperCase()}
-                                            </span>
-                                            <span className="text-sm text-white font-medium">
-                                              {f.title || f.vulnerability_type || t('vulnLab.finding')}
-                                            </span>
-                                          </div>
-                                          {f.vulnerability_type && (
-                                            <p className="text-xs text-dark-500 mb-1">{t('vulnLab.type')} {f.vulnerability_type}</p>
-                                          )}
-                                          {f.affected_endpoint && (
-                                            <p className="text-xs text-dark-400 mb-1 flex items-center gap-1">
-                                              <Globe className="w-3 h-3" />
-                                              {f.affected_endpoint}
-                                            </p>
-                                          )}
-                                          {f.payload && (
-                                            <div className="mt-1">
-                                              <span className="text-xs text-dark-600">{t('vulnLab.payload')} </span>
-                                              <code className="text-xs text-purple-400 bg-dark-900 px-1.5 py-0.5 rounded break-all">
-                                                {f.payload}
-                                              </code>
-                                            </div>
-                                          )}
-                                          {f.evidence && (
-                                            <div className="mt-1">
-                                              <span className="text-xs text-dark-600">{t('vulnLab.evidence')} </span>
-                                              <span className="text-xs text-dark-400">{f.evidence.slice(0, 300)}</span>
-                                            </div>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* No findings message */}
-                                {(expandedChallengeData.findings_detail || expandedChallengeData.findings || []).length === 0 &&
-                                 expandedChallengeData.status !== 'running' && (
-                                  <div className="p-6 text-center">
-                                    <XCircle className="w-8 h-8 mx-auto text-dark-600 mb-2" />
-                                    <p className="text-dark-500 text-sm">{t('vulnLab.noFindings')}</p>
-                                  </div>
-                                )}
-
-                                {/* Agent Logs */}
-                                {(expandedChallengeData.logs || []).length > 0 && (
-                                  <ChallengeLogsViewer logs={expandedChallengeData.logs!} />
-                                )}
-
-                                {/* Notes */}
-                                {expandedChallengeData.notes && (
-                                  <div className="p-3 bg-dark-800 border border-dark-700 rounded-lg">
-                                    <h4 className="text-xs font-medium text-dark-500 mb-1 flex items-center gap-1">
-                                      <FileText className="w-3 h-3" /> {t('vulnLab.notesTitle')}
-                                    </h4>
-                                    <p className="text-sm text-dark-300">{expandedChallengeData.notes}</p>
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="p-6 text-center">
-                                <AlertTriangle className="w-8 h-8 mx-auto text-dark-600 mb-2" />
-                                <p className="text-dark-500 text-sm">{t('vulnLab.failedToLoad')}</p>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
+      {activeTab === 'stats' && (
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          {!stats ? <ProCard><Empty description={t('common.loading')} /></ProCard> : stats.total === 0 ? (
+            <ProCard bordered><Empty description={t('vulnLab.noTestData')}><Button type="primary" onClick={() => setActiveTab('test')}>{t('vulnLab.startTesting')}</Button></Empty></ProCard>
+          ) : (
+            <>
+              <StatisticCard.Group direction="row">
+                <StatisticCard statistic={{ title: t('vulnLab.totalTests'), value: stats.total, icon: <ExperimentOutlined /> }} />
+                <StatisticCard statistic={{ title: t('vulnLab.runningShort'), value: stats.running, icon: <ClockCircleOutlined /> }} />
+                <StatisticCard statistic={{ title: t('vulnLab.detectionRate'), value: `${stats.detection_rate}%`, icon: <CheckCircleOutlined /> }} />
+                <StatisticCard statistic={{ title: t('vulnLab.detectedShort'), value: stats.result_counts?.detected || 0, icon: <WarningOutlined /> }} />
+              </StatisticCard.Group>
+              {Object.keys(stats.by_category || {}).length > 0 && (
+                <ProCard bordered title={t('vulnLab.detectionByCategory')} extra={<Button icon={<ReloadOutlined spin={refreshing} />} onClick={handleRefresh}>{t('common.refresh')}</Button>}>
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    {Object.entries(stats.by_category).map(([category, data]) => {
+                      const rate = data.total > 0 ? Math.round((data.detected / data.total) * 100) : 0
+                      return <div key={category}><Row justify="space-between"><Text>{categories[category]?.label || category}</Text><Text>{data.detected}/{data.total} ({rate}%)</Text></Row><Progress percent={rate} strokeColor={rate >= 70 ? '#52c41a' : rate >= 40 ? '#faad14' : '#ff4d4f'} /></div>
+                    })}
+                  </Space>
+                </ProCard>
               )}
-            </div>
-          </div>
-        )}
-
-        {/* ========== STATS TAB ========== */}
-        {activeTab === 'stats' && (
-          <div
-            className="w-full max-w-4xl"
-            style={{ animation: 'fadeSlideIn 0.3s ease-out 0.1s both' }}
-          >
-            {!stats ? (
-              <div className="flex items-center justify-center py-16">
-                <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
-              </div>
-            ) : stats.total === 0 ? (
-              <div className="bg-dark-800 border border-dark-700 rounded-2xl p-12 text-center">
-                <div className="w-16 h-16 bg-dark-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <BarChart3 className="w-8 h-8 text-dark-500" />
-                </div>
-                <p className="text-dark-300 font-medium">{t('vulnLab.noTestData')}</p>
-                <p className="text-dark-500 text-sm mt-1">{t('vulnLab.runTestsToSeeStats')}</p>
-                <button
-                  onClick={() => setActiveTab('test')}
-                  className="mt-4 px-4 py-2 bg-purple-500/20 text-purple-400 rounded-lg text-sm font-medium hover:bg-purple-500/30 transition-colors"
-                >
-                  <Play className="w-4 h-4 inline mr-1.5 -mt-0.5" />
-                  {t('vulnLab.startTesting')}
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {/* Overview cards + donut */}
-                <div className="flex flex-col sm:flex-row gap-4">
-                  {/* Stats cards grid */}
-                  <div className="grid grid-cols-2 gap-3 flex-1">
-                    {[
-                      { label: t('vulnLab.totalTests'), value: stats.total, color: 'text-white', border: 'border-purple-500/20', iconBg: 'bg-purple-500/10', icon: FlaskConical, iconColor: 'text-purple-400' },
-                      { label: t('vulnLab.runningShort'), value: stats.running, color: 'text-blue-400', border: 'border-blue-500/20', iconBg: 'bg-blue-500/10', icon: Loader2, iconColor: 'text-blue-400' },
-                      { label: t('vulnLab.detectionRate'), value: `${stats.detection_rate}%`, color: 'text-green-400', border: 'border-green-500/20', iconBg: 'bg-green-500/10', icon: CheckCircle2, iconColor: 'text-green-400' },
-                      { label: t('vulnLab.detectedShort'), value: stats.result_counts?.detected || 0, color: 'text-green-400', border: 'border-green-500/20', iconBg: 'bg-green-500/10', icon: Shield, iconColor: 'text-green-400' },
-                    ].map((card, i) => (
-                      <div
-                        key={i}
-                        className={`bg-dark-800 border ${card.border} rounded-xl p-4`}
-                        style={{ animation: `fadeSlideIn 0.3s ease-out ${i * 0.05}s both` }}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${card.iconBg}`}>
-                            <card.icon className={`w-5 h-5 ${card.iconColor}`} />
-                          </div>
-                          <div>
-                            <div className={`text-xl font-bold ${card.color} tabular-nums`}>{card.value}</div>
-                            <div className="text-[11px] text-dark-500">{card.label}</div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Donut chart */}
-                  {statsDonutData.length > 0 && (
-                    <div
-                      className="bg-dark-800 border border-dark-700 rounded-xl p-4 flex items-center gap-4 sm:w-64"
-                      style={{ animation: 'fadeSlideIn 0.3s ease-out 0.2s both' }}
-                    >
-                      <DetectionDonut stats={stats} />
-                      <div className="flex flex-col gap-1.5">
-                        {statsDonutData.map(d => (
-                          <div key={d.name} className="flex items-center gap-2">
-                            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }} />
-                            <span className="text-xs text-dark-400">{d.name}</span>
-                            <span className="text-xs text-white font-semibold tabular-nums ml-auto">{d.value}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Refresh button */}
-                <div className="flex justify-end">
-                  <button
-                    onClick={handleRefresh}
-                    className="p-2 rounded-lg bg-dark-800 border border-dark-700 hover:border-dark-600 text-dark-400 hover:text-white transition-all"
-                    title={t('common.refresh')}
-                  >
-                    <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                  </button>
-                </div>
-
-                {/* Per-category breakdown */}
-                {Object.keys(stats.by_category).length > 0 && (
-                  <div
-                    className="bg-dark-800 border border-dark-700 rounded-2xl p-6"
-                    style={{ animation: 'fadeSlideIn 0.3s ease-out 0.15s both' }}
-                  >
-                    <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
-                      <BarChart3 className="w-4 h-4 text-purple-400" />
-                      {t('vulnLab.detectionByCategory')}
-                    </h3>
-                    <div className="space-y-3">
-                      {Object.entries(stats.by_category).map(([cat, data]) => {
-                        const rate = data.total > 0 ? Math.round(data.detected / data.total * 100) : 0
-                        const catLabel = categories[cat]?.label || cat
-                        return (
-                          <div key={cat}>
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-sm text-dark-300">{catLabel}</span>
-                              <span className="text-sm text-dark-400 tabular-nums">
-                                {data.detected}/{data.total} ({rate}%)
-                              </span>
-                            </div>
-                            <div className="w-full bg-dark-900 rounded-full h-2">
-                              <div
-                                className={`h-2 rounded-full transition-all duration-500 ${rate >= 70 ? 'bg-green-500' : rate >= 40 ? 'bg-yellow-500' : 'bg-red-500'}`}
-                                style={{ width: `${rate}%` }}
-                              />
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Per-type breakdown */}
-                {Object.keys(stats.by_type).length > 0 && (
-                  <div
-                    className="bg-dark-800 border border-dark-700 rounded-2xl p-6"
-                    style={{ animation: 'fadeSlideIn 0.3s ease-out 0.2s both' }}
-                  >
-                    <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
-                      <Target className="w-4 h-4 text-purple-400" />
-                      {t('vulnLab.detectionByType')}
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {Object.entries(stats.by_type).map(([vtype, data], idx) => {
-                        const rate = data.total > 0 ? Math.round(data.detected / data.total * 100) : 0
-                        return (
-                          <div
-                            key={vtype}
-                            className="flex items-center justify-between p-3 bg-dark-900 rounded-lg border border-dark-800 hover:border-dark-700 transition-colors"
-                            style={{ animation: `fadeSlideIn 0.2s ease-out ${Math.min(idx * 0.02, 0.3)}s both` }}
-                          >
-                            <span className="text-sm text-dark-300 truncate mr-2">{vtype.replace(/_/g, ' ')}</span>
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                              <div className="w-16 bg-dark-800 rounded-full h-1.5">
-                                <div
-                                  className={`h-1.5 rounded-full ${rate >= 70 ? 'bg-green-500' : rate >= 40 ? 'bg-yellow-500' : 'bg-red-500'}`}
-                                  style={{ width: `${rate}%` }}
-                                />
-                              </div>
-                              <span className={`text-xs font-bold tabular-nums w-8 text-right ${rate >= 70 ? 'text-green-400' : rate >= 40 ? 'text-yellow-400' : 'text-red-400'}`}>
-                                {rate}%
-                              </span>
-                              <span className="text-xs text-dark-600 tabular-nums">({data.detected}/{data.total})</span>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </>
-  )
-}
-
-
-/* ===== Challenge Logs Viewer Component ===== */
-function ChallengeLogsViewer({ logs }: { logs: VulnLabLogEntry[] }) {
-  const { t } = useTranslation()
-  const [expanded, setExpanded] = useState(false)
-  const [filter, setFilter] = useState<'all' | 'info' | 'warning' | 'error'>('all')
-
-  const filtered = useMemo(() => {
-    return filter === 'all' ? logs : logs.filter(l => l.level === filter)
-  }, [logs, filter])
-
-  const displayed = useMemo(() => {
-    return expanded ? filtered : filtered.slice(-30)
-  }, [filtered, expanded])
-
-  const errorCount = useMemo(() => logs.filter(l => l.level === 'error').length, [logs])
-  const warnCount = useMemo(() => logs.filter(l => l.level === 'warning').length, [logs])
-
-  return (
-    <div className="border border-dark-700 rounded-lg overflow-hidden">
-      <div className="flex items-center justify-between px-3 py-2 bg-dark-800 border-b border-dark-700">
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-2 text-sm font-medium text-dark-300 hover:text-white transition-colors"
-        >
-          <Terminal className="w-4 h-4 text-purple-400" />
-          {t('vulnLab.agentLogs')} ({logs.length})
-          {errorCount > 0 && <span className="text-red-400 text-xs">({errorCount} {t('vulnLab.logLevel.error')})</span>}
-          {warnCount > 0 && <span className="text-yellow-400 text-xs">({warnCount} {t('vulnLab.logLevel.warning')})</span>}
-          {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-        </button>
-        <div className="flex items-center gap-1">
-          {(['all', 'info', 'warning', 'error'] as const).map(level => (
-            <button
-              key={level}
-              onClick={() => setFilter(level)}
-              className={`px-2 py-0.5 rounded text-xs transition-colors ${
-                filter === level
-                  ? 'bg-purple-500/20 text-purple-400'
-                  : 'text-dark-600 hover:text-white'
-              }`}
-            >
-              {t(`vulnLab.logLevel.${level}`)}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className={`p-2 bg-dark-900 overflow-y-auto space-y-0.5 ${expanded ? 'max-h-96' : 'max-h-48'}`}>
-        {!expanded && filtered.length > 30 && (
-          <p className="text-dark-600 text-xs font-mono mb-1">
-            {t('vulnLab.olderEntriesHidden', { count: filtered.length - 30 })}
-          </p>
-        )}
-        {displayed.map((log, i) => <LogLine key={i} log={log} />)}
-        {displayed.length === 0 && (
-          <div className="py-3 text-center">
-            <Terminal className="w-5 h-5 mx-auto text-dark-600 mb-1" />
-            <p className="text-dark-600 text-xs font-mono">{t('vulnLab.noLogsMatch')}</p>
-          </div>
-        )}
-      </div>
-    </div>
+              {Object.keys(stats.by_type || {}).length > 0 && (
+                <ProCard bordered title={t('vulnLab.detectionByType')}>
+                  <Row gutter={[12, 12]}>
+                    {Object.entries(stats.by_type).map(([type, data]) => {
+                      const rate = data.total > 0 ? Math.round((data.detected / data.total) * 100) : 0
+                      return <Col key={type} xs={24} sm={12} lg={8}><Card size="small"><Space direction="vertical" style={{ width: '100%' }}><Text ellipsis>{type.replace(/_/g, ' ')}</Text><Progress percent={rate} size="small" /><Text type="secondary">{data.detected}/{data.total}</Text></Space></Card></Col>
+                    })}
+                  </Row>
+                </ProCard>
+              )}
+            </>
+          )}
+        </Space>
+      )}
+    </PageContainer>
   )
 }
