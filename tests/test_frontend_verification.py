@@ -173,6 +173,10 @@ class TestAppRoutes:
     ]
 
     def test_all_routes_present(self):
-        content = (FRONTEND_SRC / "App.tsx").read_text(encoding="utf-8")
-        missing = [r for r in self.EXPECTED_ROUTES if f'path="{r}"' not in content and f"path='{r}'" not in content]
-        assert len(missing) == 0, f"Missing routes in App.tsx: {missing}"
+        app_content = (FRONTEND_SRC / "App.tsx").read_text(encoding="utf-8")
+        route_config = FRONTEND_SRC / "routes" / "routeConfig.tsx"
+        content = app_content
+        if route_config.exists():
+            content += route_config.read_text(encoding="utf-8")
+        missing = [r for r in self.EXPECTED_ROUTES if f"path: '{r}'" not in content and f'path: "{r}"' not in content and f'path="{r}"' not in content and f"path='{r}'" not in content]
+        assert len(missing) == 0, f"Missing routes in App.tsx or routeConfig.tsx: {missing}"

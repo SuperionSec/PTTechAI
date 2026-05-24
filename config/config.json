@@ -55,6 +55,41 @@
         "sqlmap": "/usr/bin/sqlmap",
         "hydra": "/usr/bin/hydra"
     },
+    "sandbox": {
+        "kali": {
+            "image": "pttechai-kali:latest",
+            "max_concurrent": 5,
+            "container_ttl_minutes": 60
+        },
+        "resources": {
+            "memory_limit": "2g",
+            "cpu_limit": 2.0
+        },
+        "tools": [
+            "nuclei",
+            "naabu",
+            "nmap",
+            "httpx",
+            "subfinder",
+            "katana",
+            "dnsx",
+            "ffuf",
+            "gobuster",
+            "dalfox",
+            "nikto",
+            "sqlmap",
+            "whatweb",
+            "curl",
+            "dig",
+            "whois",
+            "masscan",
+            "dirsearch",
+            "wfuzz",
+            "arjun",
+            "wafw00f",
+            "waybackurls"
+        ]
+    },
     "output": {
         "format": "json",
         "verbose": true,
