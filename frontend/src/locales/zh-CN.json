@@ -1067,7 +1067,13 @@
     "failedToStart": "启动失败",
     "finding": "发现",
     "resultLabel": "结果",
-    "statusLabel": "状态"
+    "statusLabel": "状态",
+    "logLevel": {
+      "all": "全部",
+      "info": "信息",
+      "warning": "警告",
+      "error": "错误"
+    }
   },
   "knowledge": {
     "title": "知识库",

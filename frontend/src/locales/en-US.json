@@ -1067,7 +1067,13 @@
     "failedToStart": "Failed to start",
     "finding": "Finding",
     "resultLabel": "Result",
-    "statusLabel": "Status"
+    "statusLabel": "Status",
+    "logLevel": {
+      "all": "All",
+      "info": "Info",
+      "warning": "Warning",
+      "error": "Error"
+    }
   },
   "knowledge": {
     "title": "Knowledge Base",
