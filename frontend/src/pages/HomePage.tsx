@@ -35,6 +35,8 @@ import {
 } from '@ant-design/icons'
 import { relativeTime } from '../utils/time'
 import { dashboardApi, agentApi } from '../services/api'
+import { useAuth } from '../contexts/AuthContext'
+import { canAccessPath } from '../routes/access'
 import { useDashboardStore } from '../store'
 import type { ActivityFeedItem } from '../types'
 import type { TFunction } from 'i18next'
@@ -159,6 +161,7 @@ function ActiveAgentItem({ agent }: { agent: ActiveAgent }) {
 
 export default function HomePage() {
   const { t } = useTranslation()
+  const { userPermissions } = useAuth()
   const { notification } = AntApp.useApp()
   const {
     stats,
@@ -259,12 +262,16 @@ export default function HomePage() {
     return activityFeed.filter(activity => activity.type === activityFilter)
   }, [activityFeed, activityFilter])
 
-  const quickActions = [
-    { label: t('dashboard.autoPentest'), description: t('dashboard.streamAiTesting'), icon: <ThunderboltOutlined />, to: '/auto', color: '#52c41a' },
-    { label: t('dashboard.fullIaTesting'), description: t('dashboard.vulnTypes'), icon: <SafetyCertificateOutlined />, to: '/full-ia', color: '#ff4d4f' },
-    { label: t('sidebar.vulnLab'), description: t('dashboard.perTypeChallenges'), icon: <ExperimentOutlined />, to: '/vuln-lab', color: '#722ed1' },
-    { label: t('sidebar.terminalAgent'), description: t('dashboard.aiChatCommands'), icon: <ApiOutlined />, to: '/terminal', color: '#13c2c2' },
-  ]
+  const quickActions = useMemo(() => [
+    { label: t('dashboard.autoPentest'), description: t('dashboard.streamAiTesting'), icon: <ThunderboltOutlined />, to: '/auto', color: '#52c41a', permission: 'agent:execute' },
+    { label: t('dashboard.fullIaTesting'), description: t('dashboard.vulnTypes'), icon: <SafetyCertificateOutlined />, to: '/full-ia', color: '#ff4d4f', permission: 'agent:execute' },
+    { label: t('sidebar.vulnLab'), description: t('dashboard.perTypeChallenges'), icon: <ExperimentOutlined />, to: '/vuln-lab', color: '#722ed1', permission: 'vulnerability:read' },
+    { label: t('sidebar.terminalAgent'), description: t('dashboard.aiChatCommands'), icon: <ApiOutlined />, to: '/terminal', color: '#13c2c2', permission: 'agent:execute' },
+  ].filter(action => canAccessPath({
+    role: userPermissions?.role,
+    permissions: userPermissions?.permissions,
+    frontendPages: userPermissions?.frontend_pages,
+  }, action.to, action.permission)), [t, userPermissions])
 
   return (
     <PageContainer
