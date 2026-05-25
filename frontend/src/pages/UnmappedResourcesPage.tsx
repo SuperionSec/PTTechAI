@@ -62,7 +62,7 @@ export default function UnmappedResourcesPage() {
   const fetchUnmappedResources = async () => {
     try {
       setLoading(true)
-      const res = await api.get('/permissions/unmapped-resources')
+      const res = await api.get('/rbac/resources/unmapped')
       setUnmappedResources(res.data)
     } catch (error) {
       console.error('Failed to fetch unmapped resources:', error)
@@ -123,7 +123,7 @@ export default function UnmappedResourcesPage() {
 
     setActionLoading(mappingTarget.resource_path)
     try {
-      await api.post('/permissions/resource-mappings', {
+      await api.post('/rbac/resources/mappings', {
         permission_id: selectedPermission,
         resource_type: mappingTarget.resource_type,
         resource_path: mappingTarget.resource_path,

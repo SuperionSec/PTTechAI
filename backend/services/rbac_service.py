@@ -3,6 +3,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.core.rbac.matcher import match_api_resource
 from backend.models.permission import Permission, ResourceMapping, RolePermission
 from backend.models.user import Role, User
 from backend.schemas.rbac import MenuItemOut, PermissionOut, ResourceMappingOut, RoleDetailOut, RoleSummaryOut, UnmappedResourceOut
@@ -30,6 +31,14 @@ FRONTEND_ROUTES = [
     ("/settings", "sidebar.settings", "settings:read"),
     ("/profile", "profile.title", None),
 ]
+PUBLIC_API_RESOURCES = {
+    "GET /api/health",
+    "POST /api/v1/auth/login",
+    "POST /api/v1/auth/logout",
+    "POST /api/v1/auth/logout-all",
+    "POST /api/v1/auth/refresh",
+    "POST /api/v1/auth/register",
+}
 
 
 def permission_out(permission: Permission) -> PermissionOut:
@@ -150,16 +159,17 @@ def discover_api_routes(app) -> set[str]:
 
 
 async def list_unmapped_resources(db: AsyncSession, app) -> list[UnmappedResourceOut]:
-    registered_apis = discover_api_routes(app)
+    registered_apis = discover_api_routes(app) - PUBLIC_API_RESOURCES
     mapped_api_result = await db.execute(select(ResourceMapping.resource_path).where(ResourceMapping.resource_type == "backend_api"))
-    mapped_apis = set(mapped_api_result.scalars().all())
+    mapped_api_patterns = set(mapped_api_result.scalars().all())
 
     mapped_page_result = await db.execute(select(ResourceMapping.resource_path).where(ResourceMapping.resource_type == "frontend_page"))
     mapped_pages = set(mapped_page_result.scalars().all())
 
     unmapped = [
         UnmappedResourceOut(resource_type="backend_api", resource_path=resource, reason="No permission mapping found")
-        for resource in sorted(registered_apis - mapped_apis)
+        for resource in sorted(registered_apis)
+        if not any(match_api_resource(pattern, resource) for pattern in mapped_api_patterns)
     ]
     unmapped.extend(
         UnmappedResourceOut(resource_type="frontend_page", resource_path=path, reason="No permission mapping found")
