@@ -86,7 +86,8 @@ COPY core/ ./core/
 COPY prompts/ ./prompts/
 
 # Create data directories
-RUN mkdir -p data/reports data/scans data/recon /root/.config/nuclei
+RUN mkdir -p data/reports data/scans data/recon /root/.config/nuclei /opt/Prompts-PenTest && \
+    cp prompts/agents/Pentestfull.md /opt/Prompts-PenTest/pentestcompleto.md
 
 # Download wordlists (small subset for faster builds)
 RUN mkdir -p /opt/wordlists && \

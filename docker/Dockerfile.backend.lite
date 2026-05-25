@@ -21,7 +21,8 @@ COPY backend/ ./backend/
 COPY prompts/ ./prompts/
 
 # Create data directories
-RUN mkdir -p data/reports data/scans data/recon
+RUN mkdir -p data/reports data/scans data/recon /opt/Prompts-PenTest && \
+    cp prompts/agents/Pentestfull.md /opt/Prompts-PenTest/pentestcompleto.md
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
