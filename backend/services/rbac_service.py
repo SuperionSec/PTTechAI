@@ -2,6 +2,7 @@ import uuid
 from fastapi import HTTPException, status
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from backend.core.rbac.matcher import match_api_resource
 from backend.models.permission import Permission, ResourceMapping, RolePermission
@@ -102,7 +103,7 @@ async def update_role_permissions(db: AsyncSession, role: str, permission_ids: l
 
 
 async def list_resource_mappings(db: AsyncSession, resource_type: str | None = None, permission_id: str | None = None) -> list[ResourceMappingOut]:
-    query = select(ResourceMapping).join(Permission, ResourceMapping.permission_id == Permission.id)
+    query = select(ResourceMapping).options(selectinload(ResourceMapping.permission)).join(Permission, ResourceMapping.permission_id == Permission.id)
     if resource_type:
         query = query.where(ResourceMapping.resource_type == resource_type)
     if permission_id:

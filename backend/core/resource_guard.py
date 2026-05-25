@@ -21,14 +21,24 @@ class PermissionDenied(HTTPException):
         super().__init__(status_code=403, detail=detail)
 
 
-async def require_api_permission(current_user: User = Depends(get_current_user)) -> User:
-    """Check if user has permission to access API endpoints.
+async def require_api_permission(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    """Check if user has permission to access API endpoints."""
+    return await check_api_permission(request, current_user, db)
 
-    Legacy guard - now delegates to Permission-based checks.
-    Admin always passes. Other roles (including Service) are allowed through
-    and will be checked by the specific require_permission guards on each endpoint.
-    """
-    return current_user
+
+async def user_has_permission_name(db: AsyncSession, role: str, permission_name: str) -> bool:
+    result = await db.execute(
+        select(RolePermission)
+        .join(Permission, RolePermission.permission_id == Permission.id)
+        .where(RolePermission.role == role)
+        .where(Permission.name == permission_name)
+        .where(Permission.is_active == True)
+    )
+    return result.scalar_one_or_none() is not None
 
 
 async def check_api_permission(
@@ -37,7 +47,7 @@ async def check_api_permission(
     db: AsyncSession = Depends(get_db)
 ) -> User:
     """Dynamic API permission check based on request method and path.
-    
+
     This function checks if the current user has permission to access the requested API endpoint
     by looking up the ResourceMapping table.
     """
@@ -46,11 +56,26 @@ async def check_api_permission(
     # Admin always has access
     if current_user.role == Role.ADMIN:
         return current_user
-    
+
     # Build API pattern from request
     method = request.method
     path = request.url.path
-    
+
+    if path.startswith(("/api/v1/full-ia", "/api/v1/terminal", "/api/v1/sandbox")):
+        if await user_has_permission_name(db, user_role, "agent:execute"):
+            return current_user
+        raise PermissionDenied(detail=f"Permission denied for {method} {path}")
+
+    if path.startswith("/api/v1/mcp"):
+        if await user_has_permission_name(db, user_role, "settings:manage"):
+            return current_user
+        raise PermissionDenied(detail=f"Permission denied for {method} {path}")
+
+    if path.startswith("/api/v1/prompts"):
+        if await user_has_permission_name(db, user_role, "settings:manage"):
+            return current_user
+        raise PermissionDenied(detail=f"Permission denied for {method} {path}")
+
     # Check if there's a permission mapping for this API
     result = await db.execute(
         select(ResourceMapping.resource_path, ResourceMapping.permission_id)

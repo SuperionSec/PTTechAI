@@ -210,11 +210,11 @@ PERMISSION_BACKEND_APIS = {
         "GET /api/v1/agent", "GET /api/v1/agent/*",
         "GET /api/v1/agent-tasks", "GET /api/v1/agent-tasks/*",
         "GET /api/v1/cli-agent/methodologies",
+    ],
+    "agent:execute": [
         "GET /api/v1/full-ia", "GET /api/v1/full-ia/*",
         "GET /api/v1/terminal", "GET /api/v1/terminal/*",
         "GET /api/v1/sandbox", "GET /api/v1/sandbox/*",
-    ],
-    "agent:execute": [
         "POST /api/v1/agent", "POST /api/v1/agent/*",
         "DELETE /api/v1/agent/*",
         "POST /api/v1/agent-tasks", "DELETE /api/v1/agent-tasks/*",
