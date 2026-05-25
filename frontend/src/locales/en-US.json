@@ -96,7 +96,11 @@
     "off": "OFF",
     "tier1": "Tier 1",
     "tier2": "Tier 2 - Budget",
-    "tier3": "Tier 3 - Free"
+    "tier3": "Tier 3 - Free",
+    "backHome": "Back Home",
+    "clearFilters": "Clear filters",
+    "paused": "Paused",
+    "role_": "Role"
   },
   "sidebar": {
     "title": "PTTechAI",
@@ -176,7 +180,8 @@
     "updateSuccess": "Profile updated successfully",
     "updateFailed": "Update failed",
     "passwordChanged": "Password changed successfully",
-    "changeFailed": "Change failed"
+    "changeFailed": "Change failed",
+    "passwordSecurity": "Password security"
   },
   "usersManagement": {
     "title": "User Management",
@@ -215,7 +220,11 @@
     "generateToken": "Generate Token",
     "generateTokenFailed": "Failed to generate token",
     "accessToken": "Access Token",
-    "tokenDescription": "Use this token to authenticate API requests. Token expires in 24 hours."
+    "tokenDescription": "Use this token to authenticate API requests. Token expires in 24 hours.",
+    "createSuccess": "User created",
+    "deleteSuccess": "User deleted",
+    "fetchFailed": "Failed to fetch users",
+    "operationSuccess": "Operation succeeded"
   },
   "apiKeys": {
     "title": "API Keys",
@@ -247,7 +256,8 @@
     "interfaceLanguage": "Interface Language",
     "translationProgress": "Translation Progress",
     "lastUpdated": "Last Updated",
-    "totalKeys": "Total Translation Keys"
+    "totalKeys": "Total Translation Keys",
+    "selectedLanguage": "Selected language"
   },
   "dashboard": {
     "title": "PTTechAI Dashboard",
@@ -729,7 +739,10 @@
     "tripleCheckStarted": "Triple-check started",
     "tripleCheckFailed": "Triple-check failed",
     "enableCliAgentEnv": "Set ENABLE_CLI_AGENT=true in .env to enable CLI Agent mode",
-    "rej": "rej"
+    "rej": "rej",
+    "hide": "Hide",
+    "statusLabel": "Status",
+    "testMode": "Test Mode"
   },
   "agentStatus": {
     "title": "Agent Status",
@@ -833,7 +846,8 @@
     "failedToStartAgent": "Failed to start agent. Please try again.",
     "failedToStartAgentRetry": "Failed to start agent - please try again",
     "taskSelected": "Task selected: {{name}}",
-    "failedToParseFile": "Failed to parse file"
+    "failedToParseFile": "Failed to parse file",
+    "deepAnalysis": "Deep analysis"
   },
   "severity": {
     "critical": "Critical",
@@ -954,7 +968,8 @@
     "detectedTokens": "Detected {{count}} CLI token(s)",
     "noNewTokens": "No new CLI tokens detected",
     "detectionFailed": "Detection failed",
-    "loadEnvFailed": "Failed to load environment variables"
+    "loadEnvFailed": "Failed to load environment variables",
+    "configure": "Configure"
   },
   "languageSwitcher": {
     "label": "Language",
@@ -1008,7 +1023,6 @@
     "findings": "finding(s)",
     "detected": "Detected",
     "notDetected": "Not Detected",
-    "error": "Error",
     "viewScanDetails": "View Scan Details",
     "challengeHistory": "Challenge History",
     "noChallenges": "No challenges yet",
@@ -1049,7 +1063,11 @@
     "testCompleteNotDetected": "Test complete - not detected",
     "testCompleted": "Test completed",
     "testFailed": "Test failed",
-    "dataRefreshed": "Data refreshed"
+    "dataRefreshed": "Data refreshed",
+    "failedToStart": "Failed to start",
+    "finding": "Finding",
+    "resultLabel": "Result",
+    "statusLabel": "Status"
   },
   "knowledge": {
     "title": "Knowledge Base",
@@ -1094,7 +1112,14 @@
     "deleteDocument": "Delete document",
     "loadingEntries": "Loading knowledge entries...",
     "source": "Source",
-    "noEntriesInDoc": "No knowledge entries found in this document"
+    "noEntriesInDoc": "No knowledge entries found in this document",
+    "deleteDocumentConfirm": "Delete this document?",
+    "deleteFailed": "Delete failed",
+    "detailFailed": "Failed to load details",
+    "documentDeleted": "Document deleted",
+    "failedToFetch": "Failed to fetch knowledge base",
+    "fileSize": "File size",
+    "uploadedAt": "Uploaded at"
   },
   "mcp": {
     "title": "MCP Servers",
@@ -1162,7 +1187,10 @@
     "testFailed": "\"{{name}}\" test failed: {{message}}",
     "testRequestFailed": "Test request failed",
     "testRequestFailedName": "Test request for \"{{name}}\" failed",
-    "networkError": "Network error testing \"{{name}}\""
+    "networkError": "Network error testing \"{{name}}\"",
+    "description": "Manage Model Context Protocol server connections and tools",
+    "failedToFetch": "Failed to fetch MCP servers",
+    "failedToLoadTools": "Failed to load tools"
   },
   "scheduler": {
     "title": "Task Scheduler",
@@ -1304,17 +1332,43 @@
     "failedToDeleteReport": "Failed to delete report",
     "downloadingZip": "Downloading ZIP package",
     "aiReportGenerated": "AI report generated successfully",
-    "failedToGenerateAiReport": "Failed to generate AI report"
+    "failedToGenerateAiReport": "Failed to generate AI report",
+    "deleted": "Report deleted",
+    "formatDistribution": "Format distribution",
+    "generatedAt": "Generated at"
   },
   "sandbox": {
-    "title": "Sandbox",
+    "title": "Sandbox Containers",
+    "subtitle": "Real-time monitoring of per-scan Kali Linux containers",
+    "dataStaleRetrying": "Data may be stale. Retrying automatically...",
+    "cleanupExpired": "Cleanup Expired",
+    "cleanupOrphans": "Cleanup Orphans",
+    "activeContainers": "Active Containers",
+    "online": "Online",
+    "offline": "Offline",
+    "dockerEngine": "Docker Engine",
+    "containerTTL": "Container TTL",
+    "poolCapacity": "Pool Capacity",
+    "noContainersRunning": "No Sandbox Containers Running",
+    "noContainersDesc": "Containers are automatically created when scans start and destroyed when they complete. Start a scan to see containers here.",
+    "runningContainers": "Running Containers",
+    "scan": "Scan",
+    "running": "Running",
+    "stopped": "Stopped",
+    "uptime": "Uptime",
+    "created": "Created",
+    "installedTools": "Installed Tools",
+    "tools": "Tools",
+    "health": "Health",
+    "healthCheck": "Health Check",
+    "confirmDestroy": "Confirm Destroy",
+    "destroy": "Destroy",
+    "autoRefresh": "Auto-refreshing every 15 seconds",
     "failedToConnectBackend": "Failed to connect to backend",
     "failedToDestroyContainer": "Failed to destroy container",
     "expiredContainersCleaned": "Expired containers cleaned up",
     "orphanContainersCleaned": "Orphan containers cleaned up",
-    "cleanupFailed": "Cleanup failed",
-    "active": "Active",
-    "available": "Available"
+    "cleanupFailed": "Cleanup failed"
   },
   "taskLibrary": {
     "title": "Task Library",
@@ -1372,7 +1426,10 @@
     "tagsCommaSeparated": "Tags (comma separated)",
     "tagsPlaceholder": "pentest, api, auth, custom",
     "deleteTask": "Delete Task",
-    "deleteTaskConfirm": "Are you sure you want to delete this task? This action cannot be undone."
+    "deleteTaskConfirm": "Are you sure you want to delete this task? This action cannot be undone.",
+    "failedToLoadTasks": "Failed to load tasks",
+    "tags": "Tags",
+    "tasksRefreshed": "Tasks refreshed"
   },
   "realtimeTask": {
     "title": "Real-time Task",
@@ -1468,7 +1525,8 @@
     "evidence": "Evidence",
     "remediation": "Remediation",
     "testsExecuted": "Tests executed",
-    "failedToConnectBackend": "Failed to connect to backend"
+    "failedToConnectBackend": "Failed to connect to backend",
+    "deleteConfirm": "Delete this task?"
   },
   "terminalAgent": {
     "title": "Terminal Agent",
@@ -1568,7 +1626,8 @@
     "serverError": "Server error.",
     "invalidInput": "Invalid input.",
     "duplicateEntry": "Duplicate entry.",
-    "permissionDenied": "Permission denied."
+    "permissionDenied": "Permission denied.",
+    "forbidden": "Forbidden"
   },
   "features": {
     "dynamicVulnTesting": "Dynamic vulnerability testing driven by AI prompts",
@@ -1708,7 +1767,12 @@
     "connectionIssues": "Connection issues — retrying...",
     "aiReportGenerated": "AI Report Generated",
     "phase": "Phase",
-    "reason": "Reason"
+    "reason": "Reason",
+    "autoBest": "Auto (best available)",
+    "pentestStarted": "Pentest started",
+    "subtitle": "LLM-driven full penetration testing workflow: planning, execution, analysis, and validation.",
+    "targetPlaceholder": "https://example.com",
+    "view": "View"
   },
   "terminal": {
     "title": "Terminal Agent",
@@ -1790,7 +1854,36 @@
       "privilegeEscalationDesc": "Identify and exploit misconfigurations to elevate privileges on a host.",
       "vpnRecon": "VPN Reconnaissance",
       "vpnReconDesc": "Enumerate VPN endpoints, test credentials, and map internal networks."
-    }
+    },
+    "agentThinking": "AI agent is thinking...",
+    "askAgentPlaceholder": "Ask the AI agent...",
+    "commandExecutionFailed": "Command execution failed",
+    "commands": "Commands",
+    "connected": "Connected",
+    "deleteConfirm": "Delete this terminal session?",
+    "description": "Interactive AI terminal agent for security testing, command execution, and session management.",
+    "disconnect": "Disconnect",
+    "enterCommandPlaceholder": "Enter command to execute...",
+    "executingCommand": "Executing command...",
+    "failedToDeleteSession": "Failed to delete session",
+    "failedToDisconnectVpn": "Failed to disconnect VPN",
+    "latency": "Latency",
+    "messages": "Messages",
+    "newTerminalSession": "New terminal session",
+    "notConnected": "Not connected",
+    "selectOvpnFile": "Select .ovpn file",
+    "selectSessionToView": "Select a session to view terminal content",
+    "sessionDeleted": "Session deleted",
+    "sessionName": "Session name",
+    "sessionReadyDesc": "Session is ready. Ask the AI agent or execute commands.",
+    "sessionTemplate": "Session template",
+    "sessions": "Sessions",
+    "steps": "Steps",
+    "target": "Target",
+    "terminalSession": "Terminal session",
+    "vpnConnectionFailed": "VPN connection failed",
+    "vpnPassword": "VPN password",
+    "vpnUsername": "VPN username"
   },
   "validation": {
     "rejected": "Rejected",
@@ -1802,34 +1895,6 @@
     "vulns": "Vulns",
     "scans": "Scans",
     "reports": "Reports"
-  },
-  "sandbox": {
-    "title": "Sandbox Containers",
-    "subtitle": "Real-time monitoring of per-scan Kali Linux containers",
-    "dataStaleRetrying": "Data may be stale. Retrying automatically...",
-    "cleanupExpired": "Cleanup Expired",
-    "cleanupOrphans": "Cleanup Orphans",
-    "activeContainers": "Active Containers",
-    "online": "Online",
-    "offline": "Offline",
-    "dockerEngine": "Docker Engine",
-    "containerTTL": "Container TTL",
-    "poolCapacity": "Pool Capacity",
-    "noContainersRunning": "No Sandbox Containers Running",
-    "noContainersDesc": "Containers are automatically created when scans start and destroyed when they complete. Start a scan to see containers here.",
-    "runningContainers": "Running Containers",
-    "scan": "Scan",
-    "running": "Running",
-    "stopped": "Stopped",
-    "uptime": "Uptime",
-    "created": "Created",
-    "installedTools": "Installed Tools",
-    "tools": "Tools",
-    "health": "Health",
-    "healthCheck": "Health Check",
-    "confirmDestroy": "Confirm Destroy",
-    "destroy": "Destroy",
-    "autoRefresh": "Auto-refreshing every 15 seconds"
   },
   "agent": {
     "reconnaissance": "Reconnaissance",
@@ -1947,7 +2012,11 @@
     "confidenceLevel": "{{level}} confidence",
     "promptSent": "Prompt sent: \"{{preview}}\"",
     "skippedToPhase": "Skipped to {{phase}}",
-    "scanStoppedByUser": "Scan was stopped by user. {{count}} finding(s) discovered before stopping."
+    "scanStoppedByUser": "Scan was stopped by user. {{count}} finding(s) discovered before stopping.",
+    "confidence": "Confidence",
+    "generateReport": "Generate Report",
+    "phaseToast": "Phase update",
+    "status": "Status"
   },
   "scanDetails": {
     "scanComplete": "Scan complete!",
@@ -2059,14 +2128,16 @@
     "found": "found",
     "error": "Error",
     "phase": "Phase",
-    "tasksExecuted": "tasks executed"
+    "tasksExecuted": "tasks executed",
+    "scanInitializing": "Scan initializing"
   },
   "reportView": {
     "loadingReport": "Loading report...",
     "backToReports": "Back to Reports",
     "refreshReport": "Refresh report",
     "toggleFullscreen": "Toggle fullscreen",
-    "newTab": "New Tab"
+    "newTab": "New Tab",
+    "title": "Report Details"
   },
   "roleManagement": {
     "title": "Role Management",
@@ -2116,7 +2187,9 @@
     "updateSuccess": "Role updated successfully",
     "updateFailed": "Failed to update role",
     "deleteSuccess": "Role deleted successfully",
-    "deleteFailed": "Failed to delete role"
+    "deleteFailed": "Failed to delete role",
+    "noResourcesAssigned": "No resources assigned",
+    "resources": "Resources"
   },
   "vulnAgent": {
     "notEnabled": "Per-vulnerability agent orchestration is not enabled for this scan.",
@@ -2132,5 +2205,14 @@
     "findingCount": "finding(s)",
     "duration": "Duration",
     "error": "Error"
+  },
+  "unmappedResources": {
+    "fetchFailed": "Failed to fetch unmapped resources",
+    "reason": "Reason",
+    "resourcePath": "Resource",
+    "resourceType": "Type",
+    "subtitle": "Resources not bound to any permission. Map them to ensure proper access control.",
+    "title": "Unmapped Resources",
+    "warning": "Unmapped resources are currently governed by the server-side fallback policy."
   }
 }

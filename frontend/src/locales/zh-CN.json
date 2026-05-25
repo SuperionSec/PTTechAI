@@ -96,7 +96,11 @@
     "off": "关",
     "tier1": "等级 1",
     "tier2": "等级 2 - 经济",
-    "tier3": "等级 3 - 免费"
+    "tier3": "等级 3 - 免费",
+    "backHome": "返回首页",
+    "clearFilters": "清除筛选",
+    "paused": "已暂停",
+    "role_": "角色"
   },
   "sidebar": {
     "title": "PTTechAI",
@@ -176,7 +180,8 @@
     "updateSuccess": "个人信息已更新",
     "updateFailed": "更新失败",
     "passwordChanged": "密码已修改",
-    "changeFailed": "修改失败"
+    "changeFailed": "修改失败",
+    "passwordSecurity": "密码安全"
   },
   "usersManagement": {
     "title": "用户管理",
@@ -215,7 +220,11 @@
     "generateToken": "生成 Token",
     "generateTokenFailed": "生成 Token 失败",
     "accessToken": "访问 Token",
-    "tokenDescription": "使用此 Token 进行 API 请求认证。Token 将在 24 小时后过期。"
+    "tokenDescription": "使用此 Token 进行 API 请求认证。Token 将在 24 小时后过期。",
+    "createSuccess": "用户已创建",
+    "deleteSuccess": "用户已删除",
+    "fetchFailed": "获取用户失败",
+    "operationSuccess": "操作成功"
   },
   "apiKeys": {
     "title": "API 密钥",
@@ -247,7 +256,8 @@
     "interfaceLanguage": "界面语言",
     "translationProgress": "翻译进度",
     "lastUpdated": "最后更新",
-    "totalKeys": "翻译键总数"
+    "totalKeys": "翻译键总数",
+    "selectedLanguage": "当前语言"
   },
   "dashboard": {
     "title": "PTTechAI 仪表板",
@@ -729,7 +739,10 @@
     "tripleCheckStarted": "三重检查已启动",
     "tripleCheckFailed": "三重检查失败",
     "enableCliAgentEnv": "在 .env 中设置 ENABLE_CLI_AGENT=true 以启用 CLI 代理模式",
-    "rej": "已拒绝"
+    "rej": "已拒绝",
+    "hide": "隐藏",
+    "statusLabel": "状态",
+    "testMode": "测试模式"
   },
   "agentStatus": {
     "title": "代理状态",
@@ -833,7 +846,8 @@
     "failedToStartAgent": "启动代理失败，请重试。",
     "failedToStartAgentRetry": "启动代理失败，请重试",
     "taskSelected": "已选择任务：{{name}}",
-    "failedToParseFile": "解析文件失败"
+    "failedToParseFile": "解析文件失败",
+    "deepAnalysis": "深度分析"
   },
   "severity": {
     "critical": "严重",
@@ -954,7 +968,8 @@
     "detectedTokens": "检测到 {{count}} 个 CLI 令牌",
     "noNewTokens": "未检测到新的 CLI 令牌",
     "detectionFailed": "检测失败",
-    "loadEnvFailed": "加载环境变量失败"
+    "loadEnvFailed": "加载环境变量失败",
+    "configure": "配置"
   },
   "languageSwitcher": {
     "label": "语言",
@@ -1048,7 +1063,11 @@
     "testCompleteNotDetected": "测试完成 - 未检测",
     "testCompleted": "测试完成",
     "testFailed": "测试失败",
-    "dataRefreshed": "数据已刷新"
+    "dataRefreshed": "数据已刷新",
+    "failedToStart": "启动失败",
+    "finding": "发现",
+    "resultLabel": "结果",
+    "statusLabel": "状态"
   },
   "knowledge": {
     "title": "知识库",
@@ -1093,7 +1112,14 @@
     "deleteDocument": "删除文档",
     "loadingEntries": "加载知识条目...",
     "source": "来源",
-    "noEntriesInDoc": "此文档中未找到知识条目"
+    "noEntriesInDoc": "此文档中未找到知识条目",
+    "deleteDocumentConfirm": "确定要删除此文档吗？",
+    "deleteFailed": "删除失败",
+    "detailFailed": "加载详情失败",
+    "documentDeleted": "文档已删除",
+    "failedToFetch": "获取知识库失败",
+    "fileSize": "文件大小",
+    "uploadedAt": "上传时间"
   },
   "mcp": {
     "title": "MCP 服务器",
@@ -1161,7 +1187,10 @@
     "testFailed": "「{{name}}」测试失败：{{message}}",
     "testRequestFailed": "测试请求失败",
     "testRequestFailedName": "「{{name}}」测试请求失败",
-    "networkError": "测试「{{name}}」网络错误"
+    "networkError": "测试「{{name}}」网络错误",
+    "description": "管理 Model Context Protocol 服务器连接和工具",
+    "failedToFetch": "获取 MCP 服务器失败",
+    "failedToLoadTools": "加载工具失败"
   },
   "scheduler": {
     "title": "任务调度器",
@@ -1303,17 +1332,43 @@
     "failedToDeleteReport": "删除报告失败",
     "downloadingZip": "正在下载 ZIP 包",
     "aiReportGenerated": "AI 报告生成成功",
-    "failedToGenerateAiReport": "生成 AI 报告失败"
+    "failedToGenerateAiReport": "生成 AI 报告失败",
+    "deleted": "报告已删除",
+    "formatDistribution": "格式分布",
+    "generatedAt": "生成时间"
   },
   "sandbox": {
-    "title": "沙箱",
+    "title": "沙箱容器",
+    "subtitle": "实时监控每次扫描的 Kali Linux 容器",
+    "dataStaleRetrying": "数据可能已过期。正在自动重试...",
+    "cleanupExpired": "清理过期",
+    "cleanupOrphans": "清理孤立",
+    "activeContainers": "活跃容器",
+    "online": "在线",
+    "offline": "离线",
+    "dockerEngine": "Docker 引擎",
+    "containerTTL": "容器 TTL",
+    "poolCapacity": "池容量",
+    "noContainersRunning": "无沙箱容器运行",
+    "noContainersDesc": "容器在扫描启动时自动创建，完成时自动销毁。启动扫描以在此查看容器。",
+    "runningContainers": "运行中容器",
+    "scan": "扫描",
+    "running": "运行中",
+    "stopped": "已停止",
+    "uptime": "运行时间",
+    "created": "创建时间",
+    "installedTools": "已安装工具",
+    "tools": "工具",
+    "health": "健康状态",
+    "healthCheck": "健康检查",
+    "confirmDestroy": "确认销毁",
+    "destroy": "销毁",
+    "autoRefresh": "每 15 秒自动刷新",
     "failedToConnectBackend": "连接后端失败",
     "failedToDestroyContainer": "销毁容器失败",
     "expiredContainersCleaned": "过期容器已清理",
     "orphanContainersCleaned": "孤立容器已清理",
-    "cleanupFailed": "清理失败",
-    "active": "活跃",
-    "available": "可用"
+    "cleanupFailed": "清理失败"
   },
   "taskLibrary": {
     "title": "任务库",
@@ -1371,7 +1426,10 @@
     "tagsCommaSeparated": "标签（逗号分隔）",
     "tagsPlaceholder": "pentest, api, auth, custom",
     "deleteTask": "删除任务",
-    "deleteTaskConfirm": "确定要删除此任务吗？此操作无法撤销。"
+    "deleteTaskConfirm": "确定要删除此任务吗？此操作无法撤销。",
+    "failedToLoadTasks": "加载任务失败",
+    "tags": "标签",
+    "tasksRefreshed": "任务已刷新"
   },
   "realtimeTask": {
     "title": "实时任务",
@@ -1467,7 +1525,8 @@
     "evidence": "证据",
     "remediation": "修复建议",
     "testsExecuted": "测试已执行",
-    "failedToConnectBackend": "连接后端失败"
+    "failedToConnectBackend": "连接后端失败",
+    "deleteConfirm": "确定要删除此任务吗？"
   },
   "terminalAgent": {
     "title": "终端代理",
@@ -1567,7 +1626,8 @@
     "serverError": "服务器错误。",
     "invalidInput": "输入无效。",
     "duplicateEntry": "重复条目。",
-    "permissionDenied": "权限不足。"
+    "permissionDenied": "权限不足。",
+    "forbidden": "禁止访问"
   },
   "features": {
     "dynamicVulnTesting": "AI 提示驱动的动态漏洞测试",
@@ -1707,7 +1767,12 @@
     "connectionIssues": "连接问题 — 重试中...",
     "aiReportGenerated": "AI 报告已生成",
     "phase": "阶段",
-    "reason": "原因"
+    "reason": "原因",
+    "autoBest": "自动（最佳可用）",
+    "pentestStarted": "渗透测试已启动",
+    "subtitle": "由 LLM 驱动完整渗透测试流程：规划、执行、分析与验证。",
+    "targetPlaceholder": "https://example.com",
+    "view": "查看"
   },
   "terminal": {
     "title": "终端代理",
@@ -1789,7 +1854,36 @@
       "privilegeEscalationDesc": "识别并利用错误配置来提升主机上的权限。",
       "vpnRecon": "VPN 侦察",
       "vpnReconDesc": "枚举 VPN 端点、测试凭据并映射内部网络。"
-    }
+    },
+    "agentThinking": "AI 代理思考中...",
+    "askAgentPlaceholder": "向 AI 代理提问...",
+    "commandExecutionFailed": "命令执行失败",
+    "commands": "命令",
+    "connected": "已连接",
+    "deleteConfirm": "确定要删除此终端会话吗？",
+    "description": "交互式 AI 终端代理，用于安全测试、命令执行和会话管理。",
+    "disconnect": "断开连接",
+    "enterCommandPlaceholder": "输入要执行的命令...",
+    "executingCommand": "正在执行命令...",
+    "failedToDeleteSession": "删除会话失败",
+    "failedToDisconnectVpn": "断开 VPN 失败",
+    "latency": "延迟",
+    "messages": "消息",
+    "newTerminalSession": "新建终端会话",
+    "notConnected": "未连接",
+    "selectOvpnFile": "选择 .ovpn 文件",
+    "selectSessionToView": "选择一个会话以查看终端内容",
+    "sessionDeleted": "会话已删除",
+    "sessionName": "会话名称",
+    "sessionReadyDesc": "会话已准备就绪，可以向 AI 代理提问或执行命令。",
+    "sessionTemplate": "会话模板",
+    "sessions": "会话",
+    "steps": "步骤",
+    "target": "目标",
+    "terminalSession": "终端会话",
+    "vpnConnectionFailed": "VPN 连接失败",
+    "vpnPassword": "VPN 密码",
+    "vpnUsername": "VPN 用户名"
   },
   "validation": {
     "rejected": "已拒绝",
@@ -1801,34 +1895,6 @@
     "vulns": "漏洞",
     "scans": "扫描",
     "reports": "报告"
-  },
-  "sandbox": {
-    "title": "沙箱容器",
-    "subtitle": "实时监控每次扫描的 Kali Linux 容器",
-    "dataStaleRetrying": "数据可能已过期。正在自动重试...",
-    "cleanupExpired": "清理过期",
-    "cleanupOrphans": "清理孤立",
-    "activeContainers": "活跃容器",
-    "online": "在线",
-    "offline": "离线",
-    "dockerEngine": "Docker 引擎",
-    "containerTTL": "容器 TTL",
-    "poolCapacity": "池容量",
-    "noContainersRunning": "无沙箱容器运行",
-    "noContainersDesc": "容器在扫描启动时自动创建，完成时自动销毁。启动扫描以在此查看容器。",
-    "runningContainers": "运行中容器",
-    "scan": "扫描",
-    "running": "运行中",
-    "stopped": "已停止",
-    "uptime": "运行时间",
-    "created": "创建时间",
-    "installedTools": "已安装工具",
-    "tools": "工具",
-    "health": "健康状态",
-    "healthCheck": "健康检查",
-    "confirmDestroy": "确认销毁",
-    "destroy": "销毁",
-    "autoRefresh": "每 15 秒自动刷新"
   },
   "agent": {
     "reconnaissance": "侦察",
@@ -1946,7 +2012,11 @@
     "confidenceLevel": "{{level}} 置信度",
     "promptSent": "已发送提示：\"{{preview}}\"",
     "skippedToPhase": "已跳转到 {{phase}}",
-    "scanStoppedByUser": "扫描已由用户停止。停止前共发现 {{count}} 条结果。"
+    "scanStoppedByUser": "扫描已由用户停止。停止前共发现 {{count}} 条结果。",
+    "confidence": "置信度",
+    "generateReport": "生成报告",
+    "phaseToast": "阶段更新",
+    "status": "状态"
   },
   "scanDetails": {
     "scanComplete": "扫描完成！",
@@ -2058,14 +2128,16 @@
     "found": "发现",
     "error": "错误",
     "phase": "阶段",
-    "tasksExecuted": "个任务已执行"
+    "tasksExecuted": "个任务已执行",
+    "scanInitializing": "扫描初始化中"
   },
   "reportView": {
     "loadingReport": "加载报告中...",
     "backToReports": "返回报告列表",
     "refreshReport": "刷新报告",
     "toggleFullscreen": "切换全屏",
-    "newTab": "新标签页"
+    "newTab": "新标签页",
+    "title": "报告详情"
   },
   "roleManagement": {
     "title": "角色管理",
@@ -2115,7 +2187,9 @@
     "updateSuccess": "角色更新成功",
     "updateFailed": "更新角色失败",
     "deleteSuccess": "角色删除成功",
-    "deleteFailed": "删除角色失败"
+    "deleteFailed": "删除角色失败",
+    "noResourcesAssigned": "未分配资源",
+    "resources": "资源"
   },
   "vulnAgent": {
     "notEnabled": "此扫描未启用逐漏洞 Agent 编排。",
@@ -2131,5 +2205,14 @@
     "findingCount": "个发现",
     "duration": "耗时",
     "error": "错误"
+  },
+  "unmappedResources": {
+    "fetchFailed": "获取未映射资源失败",
+    "reason": "原因",
+    "resourcePath": "资源",
+    "resourceType": "类型",
+    "subtitle": "尚未绑定到任何权限的资源。请完成映射以确保访问控制正确。",
+    "title": "未映射资源",
+    "warning": "未映射资源当前由服务端回退策略控制。"
   }
 }
