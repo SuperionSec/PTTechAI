@@ -78,9 +78,11 @@ COPY --from=go-builder /go/bin/ /usr/local/bin/
 # Copy Python packages
 COPY --from=python-deps /root/.local /root/.local
 ENV PATH=/root/.local/bin:$PATH
+ENV PYTHONPATH=/app:/app/backend
 
 # Copy application code
 COPY backend/ ./backend/
+COPY core/ ./core/
 COPY prompts/ ./prompts/
 
 # Create data directories
