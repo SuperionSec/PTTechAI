@@ -175,7 +175,7 @@ class ScanScheduler:
                 jobs.append({
                     "id": job.id,
                     "name": job.name,
-                    "next_run": str(job.next_run_time) if job.next_run_time else None,
+                    "next_run": str(getattr(job, "next_run_time", None)) if getattr(job, "next_run_time", None) else None,
                     "target": meta.get("target", "unknown"),
                     "scan_type": meta.get("scan_type", "unknown"),
                     "schedule": meta.get("schedule", "unknown"),

@@ -2195,7 +2195,8 @@
     "deleteSuccess": "Role deleted successfully",
     "deleteFailed": "Failed to delete role",
     "noResourcesAssigned": "No resources assigned",
-    "resources": "Resources"
+    "resources": "Resources",
+    "unmappedResources": "Unmapped Resources"
   },
   "vulnAgent": {
     "notEnabled": "Per-vulnerability agent orchestration is not enabled for this scan.",

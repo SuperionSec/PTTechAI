@@ -83,6 +83,7 @@ ENV PYTHONPATH=/app:/app/backend
 # Copy application code
 COPY backend/ ./backend/
 COPY core/ ./core/
+COPY config/ ./config/
 COPY prompts/ ./prompts/
 
 # Create data directories

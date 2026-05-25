@@ -2195,7 +2195,8 @@
     "deleteSuccess": "角色删除成功",
     "deleteFailed": "删除角色失败",
     "noResourcesAssigned": "未分配资源",
-    "resources": "资源"
+    "resources": "资源",
+    "unmappedResources": "未映射资源"
   },
   "vulnAgent": {
     "notEnabled": "此扫描未启用逐漏洞 Agent 编排。",

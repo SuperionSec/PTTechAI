@@ -373,9 +373,14 @@ class KnowledgeProcessor:
         ]
 
         # Remove from vuln_type_index
+        empty_types = []
         for vt, doc_ids in self._index.get("vuln_type_index", {}).items():
             if doc_id in doc_ids:
                 doc_ids.remove(doc_id)
+            if not doc_ids:
+                empty_types.append(vt)
+        for vt in empty_types:
+            self._index["vuln_type_index"].pop(vt, None)
 
         # Delete uploaded file
         for f in UPLOADS_DIR.glob(f"{doc_id}_*"):
@@ -407,7 +412,12 @@ class KnowledgeProcessor:
         """Get knowledge base statistics."""
         docs = self._index.get("documents", [])
         total_entries = sum(len(d.get("knowledge_entries", [])) for d in docs)
-        vuln_types = list(self._index.get("vuln_type_index", {}).keys())
+        existing_doc_ids = {doc["id"] for doc in docs}
+        vuln_types = [
+            vt
+            for vt, doc_ids in self._index.get("vuln_type_index", {}).items()
+            if any(doc_id in existing_doc_ids for doc_id in doc_ids)
+        ]
 
         # Calculate storage size
         storage_bytes = 0
