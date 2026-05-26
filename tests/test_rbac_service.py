@@ -12,11 +12,13 @@ from backend.api.v1.permissions import (
     assign_permission_to_role as assign_legacy_permission_to_role,
     create_resource_mapping as create_legacy_resource_mapping,
     delete_resource_mapping as delete_legacy_resource_mapping,
+    get_my_permissions as get_legacy_my_permissions,
     list_unmapped_resources as list_legacy_unmapped_resources,
     revoke_permission_from_role as revoke_legacy_permission_from_role,
     update_role_permissions as update_legacy_role_permissions,
 )
 from backend.config import settings
+from backend.core.resource_guard import resource_guard
 from backend.db.database import Base
 import backend.models
 from backend.models.permission import Permission, PermissionAction, PermissionScope, ResourceMapping, RolePermission
@@ -203,6 +205,31 @@ async def test_get_user_permission_names_reads_custom_role_id_permissions(db_ses
     await db_session.commit()
 
     assert await get_user_permission_names(db_session, user) == ["scan:read"]
+
+
+@pytest.mark.asyncio
+async def test_resource_guard_reads_custom_role_id_permissions(db_session):
+    permission = await _seed_permission(db_session)
+    role_detail = await create_role(db_session, RoleCreate(name="auditor", display_name="Auditor", permission_ids=[permission.id]))
+    user = User(
+        id="user-id",
+        email="auditor@example.com",
+        hashed_password="hashed",
+        role="auditor",
+        role_id=role_detail.id,
+        is_active=True,
+    )
+    db_session.add_all([
+        user,
+        ResourceMapping(id="map-scan-page", permission_id=permission.id, resource_type="frontend_page", resource_path="/scan/new"),
+        ResourceMapping(id="map-scan-api", permission_id=permission.id, resource_type="backend_api", resource_path="GET /api/v1/scans"),
+    ])
+    await db_session.commit()
+
+    permissions = await get_legacy_my_permissions(db_session, user)
+    assert [permission.name for permission in permissions] == ["scan:read"]
+    assert await resource_guard.get_accessible_pages(user, db_session) == ["/scan/new"]
+    assert await resource_guard.get_accessible_apis(user, db_session) == ["GET /api/v1/scans"]
 
 
 @pytest.mark.asyncio

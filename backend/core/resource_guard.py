@@ -30,14 +30,19 @@ async def require_api_permission(
     return await check_api_permission(request, current_user, db)
 
 
-async def user_has_permission_name(db: AsyncSession, role: str, permission_name: str) -> bool:
-    result = await db.execute(
+async def user_has_permission_name(db: AsyncSession, user: User, permission_name: str) -> bool:
+    user_role = user.role.value if hasattr(user.role, 'value') else user.role
+    query = (
         select(RolePermission)
         .join(Permission, RolePermission.permission_id == Permission.id)
-        .where(RolePermission.role == role)
         .where(Permission.name == permission_name)
         .where(Permission.is_active == True)
     )
+    if user.role_id:
+        query = query.where((RolePermission.role_id == user.role_id) | (RolePermission.role == user_role))
+    else:
+        query = query.where(RolePermission.role == user_role)
+    result = await db.execute(query)
     return result.scalar_one_or_none() is not None
 
 
@@ -51,8 +56,6 @@ async def check_api_permission(
     This function checks if the current user has permission to access the requested API endpoint
     by looking up the ResourceMapping table.
     """
-    user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
-
     # Admin always has access
     if current_user.role == Role.ADMIN:
         return current_user
@@ -62,17 +65,17 @@ async def check_api_permission(
     path = request.url.path
 
     if path.startswith(("/api/v1/full-ia", "/api/v1/terminal", "/api/v1/sandbox")):
-        if await user_has_permission_name(db, user_role, "agent:execute"):
+        if await user_has_permission_name(db, current_user, "agent:execute"):
             return current_user
         raise PermissionDenied(detail=f"Permission denied for {method} {path}")
 
     if path.startswith("/api/v1/mcp"):
-        if await user_has_permission_name(db, user_role, "settings:manage"):
+        if await user_has_permission_name(db, current_user, "settings:manage"):
             return current_user
         raise PermissionDenied(detail=f"Permission denied for {method} {path}")
 
     if path.startswith("/api/v1/prompts"):
-        if await user_has_permission_name(db, user_role, "settings:manage"):
+        if await user_has_permission_name(db, current_user, "settings:manage"):
             return current_user
         raise PermissionDenied(detail=f"Permission denied for {method} {path}")
 
@@ -97,7 +100,7 @@ async def check_api_permission(
     # Check if user's role has any of the required permissions
     result = await db.execute(
         select(RolePermission)
-        .where(RolePermission.role == user_role)
+        .where(resource_guard._role_permission_filter(current_user))
         .where(RolePermission.permission_id.in_(required_perm_ids))
     )
     
@@ -111,6 +114,12 @@ async def check_api_permission(
 
 class ResourceGuard:
     """Unified resource guard: controls frontend pages and backend API access based on Permissions"""
+
+    def _role_permission_filter(self, user: User):
+        user_role = user.role.value if hasattr(user.role, 'value') else user.role
+        if user.role_id:
+            return (RolePermission.role_id == user.role_id) | (RolePermission.role == user_role)
+        return RolePermission.role == user_role
 
     async def check_api_access(
         self,
@@ -143,10 +152,9 @@ class ResourceGuard:
             return True
 
         # Check if user's role has any of the required permissions
-        user_role = user.role.value if hasattr(user.role, 'value') else user.role
         result = await db.execute(
             select(RolePermission)
-            .where(RolePermission.role == user_role)
+            .where(self._role_permission_filter(user))
             .where(RolePermission.permission_id.in_(required_perm_ids))
         )
         return result.scalar_one_or_none() is not None
@@ -162,11 +170,10 @@ class ResourceGuard:
             )
             return result.scalars().all()
 
-        user_role = user.role.value if hasattr(user.role, 'value') else user.role
         result = await db.execute(
             select(ResourceMapping.resource_path)
             .join(RolePermission, ResourceMapping.permission_id == RolePermission.permission_id)
-            .where(RolePermission.role == user_role)
+            .where(self._role_permission_filter(user))
             .where(ResourceMapping.resource_type == "frontend_page")
             .distinct()
         )
@@ -183,11 +190,10 @@ class ResourceGuard:
             )
             return result.scalars().all()
 
-        user_role = user.role.value if hasattr(user.role, 'value') else user.role
         result = await db.execute(
             select(ResourceMapping.resource_path)
             .join(RolePermission, ResourceMapping.permission_id == RolePermission.permission_id)
-            .where(RolePermission.role == user_role)
+            .where(self._role_permission_filter(user))
             .where(ResourceMapping.resource_type == "backend_api")
             .distinct()
         )
@@ -195,11 +201,10 @@ class ResourceGuard:
 
     async def get_user_permissions(self, user: User, db: AsyncSession) -> List[Permission]:
         """Get all permissions for a user"""
-        user_role = user.role.value if hasattr(user.role, 'value') else user.role
         result = await db.execute(
             select(Permission)
             .join(RolePermission, Permission.id == RolePermission.permission_id)
-            .where(RolePermission.role == user_role)
+            .where(self._role_permission_filter(user))
             .where(Permission.is_active == True)
         )
         return result.scalars().all()

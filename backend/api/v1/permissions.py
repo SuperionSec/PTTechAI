@@ -211,15 +211,8 @@ async def get_my_permissions(
     current_user: User = Depends(get_current_user)
 ):
     """Get current user's permissions"""
-    role_value = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
-    result = await db.execute(
-        select(Permission)
-        .join(RolePermission, Permission.id == RolePermission.permission_id)
-        .where(RolePermission.role == role_value)
-        .where(Permission.is_active == True)
-    )
-    permissions = result.scalars().all()
-    return [PermissionResponse(**p.to_dict()) for p in permissions]
+    permissions = await resource_guard.get_user_permissions(current_user, db)
+    return [PermissionResponse(**permission.to_dict()) for permission in permissions]
 
 
 @router.post("/roles/{role}/assign/{permission_id}")
