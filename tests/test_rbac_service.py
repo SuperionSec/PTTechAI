@@ -1,8 +1,27 @@
-import pytest
-from fastapi import HTTPException
+import uuid
 
-from backend.schemas.rbac import RoleUpdate
-from backend.services.rbac_service import _normalize_resource_mapping_input, _normalize_role_name, resolve_active_role, update_role
+import pytest
+import pytest_asyncio
+from fastapi import HTTPException
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+from backend.config import settings
+from backend.db.database import Base
+import backend.models
+from backend.models.permission import Permission, PermissionAction, PermissionScope, RolePermission
+from backend.models.user import RoleModel, User
+from backend.schemas.rbac import RoleCreate, RoleUpdate
+from backend.services.rbac_service import (
+    _normalize_resource_mapping_input,
+    _normalize_role_name,
+    create_role,
+    delete_role,
+    get_user_permission_names,
+    resolve_active_role,
+    update_role,
+    update_role_permissions,
+)
 
 
 class FakeDb:
@@ -25,6 +44,39 @@ class FakeRoleModel:
         self.description = None
         self.is_system = is_system
         self.is_active = is_active
+
+
+@pytest_asyncio.fixture
+async def db_session():
+    schema_name = f"test_rbac_{uuid.uuid4().hex}"
+    engine = create_async_engine(settings.DATABASE_URL, future=True)
+    async with engine.begin() as conn:
+        await conn.execute(text(f'CREATE SCHEMA "{schema_name}"'))
+        await conn.execute(text(f'SET search_path TO "{schema_name}"'))
+        await conn.run_sync(Base.metadata.create_all)
+
+    session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async with session_maker() as session:
+        await session.execute(text(f'SET search_path TO "{schema_name}"'))
+        yield session
+
+    async with engine.begin() as conn:
+        await conn.execute(text(f'DROP SCHEMA "{schema_name}" CASCADE'))
+    await engine.dispose()
+
+
+async def _seed_permission(db: AsyncSession, permission_id: str = "perm-scan-read") -> Permission:
+    permission = Permission(
+        id=permission_id,
+        name="scan:read",
+        description="Read scans",
+        scope=PermissionScope.SCAN,
+        action=PermissionAction.READ,
+        is_active=True,
+    )
+    db.add(permission)
+    await db.commit()
+    return permission
 
 
 def test_normalize_role_name_lowercases_and_trims():
@@ -84,7 +136,13 @@ def test_normalize_resource_mapping_input_accepts_frontend_page():
         ("backend_api", "TRACE /api/v1/scans"),
         ("backend_api", "GET /internal"),
         ("backend_api", "/api/v1/scans"),
+        ("backend_api", "GET /api/v1/scans?limit=1"),
+        ("backend_api", "GET /api/v1/scans#summary"),
+        ("backend_api", "GET /api/v1/scans bad"),
         ("frontend_page", "roles"),
+        ("frontend_page", "/roles?tab=users"),
+        ("frontend_page", "/roles#users"),
+        ("frontend_page", "/roles bad"),
         ("frontend_page", ""),
     ],
 )
@@ -93,3 +151,116 @@ def test_normalize_resource_mapping_input_rejects_invalid_values(resource_type, 
         _normalize_resource_mapping_input(resource_type, resource_path)
 
     assert exc_info.value.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_create_role_persists_custom_role_permissions(db_session):
+    permission = await _seed_permission(db_session)
+
+    detail = await create_role(
+        db_session,
+        RoleCreate(
+            name=" Security_Team ",
+            display_name="Security Team",
+            description="Custom security team",
+            permission_ids=[permission.id],
+        ),
+    )
+
+    assert detail.role == "security_team"
+    assert detail.id is not None
+    assert detail.permissions[0].name == "scan:read"
+
+    role_model = await resolve_active_role(db_session, "security_team")
+    role_permission = await db_session.scalar(select(RolePermission).where(RolePermission.role_id == role_model.id))
+    assert role_permission.role == "security_team"
+    assert role_permission.permission_id == permission.id
+
+
+@pytest.mark.asyncio
+async def test_get_user_permission_names_reads_custom_role_id_permissions(db_session):
+    permission = await _seed_permission(db_session)
+    role_detail = await create_role(db_session, RoleCreate(name="auditor", display_name="Auditor", permission_ids=[permission.id]))
+    user = User(
+        id="user-id",
+        email="auditor@example.com",
+        hashed_password="hashed",
+        role="auditor",
+        role_id=role_detail.id,
+        is_active=True,
+    )
+    db_session.add(user)
+    await db_session.commit()
+
+    assert await get_user_permission_names(db_session, user) == ["scan:read"]
+
+
+@pytest.mark.asyncio
+async def test_delete_role_rejects_role_assigned_to_user(db_session):
+    role_detail = await create_role(db_session, RoleCreate(name="auditor", display_name="Auditor"))
+    db_session.add(User(id="user-id", email="auditor@example.com", hashed_password="hashed", role="auditor", role_id=role_detail.id, is_active=True))
+    await db_session.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        await delete_role(db_session, "auditor")
+
+    assert exc_info.value.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_delete_role_removes_custom_role_and_permissions(db_session):
+    permission = await _seed_permission(db_session)
+    role_detail = await create_role(db_session, RoleCreate(name="auditor", display_name="Auditor", permission_ids=[permission.id]))
+
+    await delete_role(db_session, "auditor")
+
+    assert await db_session.get(RoleModel, role_detail.id) is None
+    assert await db_session.scalar(select(RolePermission).where(RolePermission.role_id == role_detail.id)) is None
+
+
+@pytest.mark.asyncio
+async def test_create_role_deduplicates_permission_ids(db_session):
+    permission = await _seed_permission(db_session)
+
+    role_detail = await create_role(
+        db_session,
+        RoleCreate(name="auditor", display_name="Auditor", permission_ids=[permission.id, permission.id]),
+    )
+
+    role_permissions = (await db_session.execute(select(RolePermission).where(RolePermission.role_id == role_detail.id))).scalars().all()
+    assert len(role_permissions) == 1
+    assert role_permissions[0].permission_id == permission.id
+
+
+@pytest.mark.asyncio
+async def test_update_role_permissions_replaces_and_deduplicates_permission_ids(db_session):
+    scan_read = await _seed_permission(db_session)
+    user_manage = Permission(
+        id="perm-user-manage",
+        name="user:manage",
+        description="Manage users",
+        scope=PermissionScope.USER,
+        action=PermissionAction.MANAGE,
+        is_active=True,
+    )
+    db_session.add(user_manage)
+    await db_session.commit()
+    role_detail = await create_role(db_session, RoleCreate(name="auditor", display_name="Auditor", permission_ids=[scan_read.id]))
+
+    updated = await update_role_permissions(db_session, "auditor", [user_manage.id, user_manage.id])
+
+    role_permissions = (await db_session.execute(select(RolePermission).where(RolePermission.role_id == role_detail.id))).scalars().all()
+    assert [permission.name for permission in updated.permissions] == ["user:manage"]
+    assert len(role_permissions) == 1
+    assert role_permissions[0].permission_id == user_manage.id
+
+
+@pytest.mark.asyncio
+async def test_update_role_permissions_rejects_missing_role(db_session):
+    permission = await _seed_permission(db_session)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await update_role_permissions(db_session, "missing_role", [permission.id])
+
+    assert exc_info.value.status_code == 404
+    assert await db_session.scalar(select(RolePermission)) is None

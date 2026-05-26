@@ -155,30 +155,37 @@ def _normalize_resource_mapping_input(resource_type: str, resource_path: str) ->
         raise HTTPException(status_code=400, detail="Invalid resource type")
     if not normalized_path or len(normalized_path) > 255:
         raise HTTPException(status_code=400, detail="Invalid resource path")
-    if normalized_type == "frontend_page" and not normalized_path.startswith("/"):
-        raise HTTPException(status_code=400, detail="Frontend page resources must start with /")
+    if normalized_type == "frontend_page":
+        if not normalized_path.startswith("/"):
+            raise HTTPException(status_code=400, detail="Frontend page resources must start with /")
+        if any(char.isspace() for char in normalized_path) or "?" in normalized_path or "#" in normalized_path:
+            raise HTTPException(status_code=400, detail="Resource paths must not contain whitespace, query strings, or fragments")
     if normalized_type == "backend_api":
         method, separator, path = normalized_path.partition(" ")
         if not separator or method.upper() not in API_METHODS or not path.startswith("/api"):
             raise HTTPException(status_code=400, detail="Backend API resources must use 'METHOD /api/...' format")
+        if any(char.isspace() for char in path) or "?" in path or "#" in path:
+            raise HTTPException(status_code=400, detail="Resource paths must not contain whitespace, query strings, or fragments")
         normalized_path = f"{method.upper()} {path}"
     return normalized_type, normalized_path
 
 
-async def _validate_permission_ids(db: AsyncSession, permission_ids: list[str]) -> None:
-    if permission_ids:
-        result = await db.execute(select(Permission.id).where(Permission.id.in_(permission_ids)))
+async def _validate_permission_ids(db: AsyncSession, permission_ids: list[str]) -> list[str]:
+    unique_permission_ids = list(dict.fromkeys(permission_ids))
+    if unique_permission_ids:
+        result = await db.execute(select(Permission.id).where(Permission.id.in_(unique_permission_ids)))
         found = set(result.scalars().all())
-        missing = set(permission_ids) - found
+        missing = set(unique_permission_ids) - found
         if missing:
             raise HTTPException(status_code=400, detail=f"Permission IDs not found: {sorted(missing)}")
+    return unique_permission_ids
 
 
 async def create_role(db: AsyncSession, body: RoleCreate) -> RoleDetailOut:
     role_name = _normalize_role_name(body.name)
     if await db.scalar(select(RoleModel).where(RoleModel.name == role_name)):
         raise HTTPException(status_code=400, detail="Role already exists")
-    await _validate_permission_ids(db, body.permission_ids)
+    permission_ids = await _validate_permission_ids(db, body.permission_ids)
 
     role_model = RoleModel(
         id=str(uuid.uuid4()),
@@ -190,7 +197,7 @@ async def create_role(db: AsyncSession, body: RoleCreate) -> RoleDetailOut:
     )
     db.add(role_model)
     await db.flush()
-    for permission_id in body.permission_ids:
+    for permission_id in permission_ids:
         db.add(RolePermission(id=str(uuid.uuid4()), role=role_name, role_id=role_model.id, permission_id=permission_id))
     await db.commit()
     return await get_role_detail(db, role_name)
@@ -231,19 +238,21 @@ async def delete_role(db: AsyncSession, role: str) -> None:
 
 
 async def _replace_role_permissions(db: AsyncSession, role: str, role_id: str | None, permission_ids: list[str]) -> None:
-    await _validate_permission_ids(db, permission_ids)
+    unique_permission_ids = await _validate_permission_ids(db, permission_ids)
     if role_id:
         await db.execute(delete(RolePermission).where((RolePermission.role_id == role_id) | (RolePermission.role == role)))
     else:
         await db.execute(delete(RolePermission).where(RolePermission.role == role))
-    for permission_id in permission_ids:
+    for permission_id in unique_permission_ids:
         db.add(RolePermission(id=str(uuid.uuid4()), role=role, role_id=role_id, permission_id=permission_id))
 
 
 async def update_role_permissions(db: AsyncSession, role: str, permission_ids: list[str]) -> RoleDetailOut:
     role_name = _normalize_role_name(role)
     role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role_name))
-    await _replace_role_permissions(db, role_name, role_model.id if role_model else None, permission_ids)
+    if not role_model:
+        raise HTTPException(status_code=404, detail="Role not found")
+    await _replace_role_permissions(db, role_name, role_model.id, permission_ids)
     await db.commit()
     return await get_role_detail(db, role_name)
 
