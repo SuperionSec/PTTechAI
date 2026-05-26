@@ -3,7 +3,7 @@ import uuid
 import pytest
 import pytest_asyncio
 from fastapi import HTTPException
-from sqlalchemy import select, text
+from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from backend.api.v1.permissions import (
@@ -21,7 +21,7 @@ from backend.api.v1.permissions import (
 )
 from backend.api.v1.users import get_users
 from backend.config import settings
-from backend.core.permissions import PermissionChecker, has_permission
+from backend.core.permissions import PermissionChecker, get_role_permissions as get_legacy_role_permissions, has_permission
 from backend.core.resource_guard import resource_guard
 from backend.db.database import Base
 import backend.models
@@ -255,6 +255,19 @@ async def test_legacy_permission_helpers_read_custom_role_id_permissions(db_sess
     checker = PermissionChecker(user)
     await checker.load_permissions(db_session)
     assert checker.can(PermissionScope.SCAN, PermissionAction.READ)
+
+
+@pytest.mark.asyncio
+async def test_legacy_get_role_permissions_reads_role_id_only_permissions(db_session):
+    permission = await _seed_permission(db_session)
+    role_detail = await create_role(db_session, RoleCreate(name="auditor", display_name="Auditor"))
+    await db_session.execute(delete(RolePermission).where(RolePermission.role_id == role_detail.id))
+    db_session.add(RolePermission(id="role-permission-id", role="legacy_auditor", role_id=role_detail.id, permission_id=permission.id))
+    await db_session.commit()
+
+    permissions = await get_legacy_role_permissions(db_session, "auditor")
+
+    assert [permission.name for permission in permissions] == ["scan:read"]
 
 
 @pytest.mark.asyncio

@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.database import get_db
 from backend.models.permission import Permission, RolePermission, PermissionScope, PermissionAction
-from backend.models.user import User, Role
+from backend.models.user import Role, RoleModel, User
 from backend.core.auth import get_current_user
 
 
@@ -29,13 +29,18 @@ def _role_permission_filter(user: User):
 async def get_role_permissions(db: AsyncSession, role) -> List[Permission]:
     """Get all permissions for a role"""
     role_value = role.value if hasattr(role, 'value') else role
-    result = await db.execute(
+    role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role_value))
+    query = (
         select(Permission)
         .join(RolePermission, Permission.id == RolePermission.permission_id)
-        .where(RolePermission.role == role_value)
         .where(Permission.is_active == True)
     )
-    return result.scalars().all()
+    if role_model:
+        query = query.where((RolePermission.role_id == role_model.id) | (RolePermission.role == role_value))
+    else:
+        query = query.where(RolePermission.role == role_value)
+    result = await db.execute(query)
+    return result.scalars().unique().all()
 
 
 async def get_user_permissions(db: AsyncSession, user: User) -> List[Permission]:
