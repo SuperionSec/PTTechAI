@@ -83,6 +83,7 @@ async def check_api_permission(
     )
     mapping_rows = result.all()
     matched_patterns = find_best_api_matches([row[0] for row in mapping_rows], method, path)
+    matched_patterns = matched_patterns[:1]
     required_perm_ids = [row[1] for row in mapping_rows if row[0] in matched_patterns]
 
     if not required_perm_ids:
@@ -130,6 +131,7 @@ class ResourceGuard:
         )
         mapping_rows = result.all()
         matched_patterns = find_best_api_matches([row[0] for row in mapping_rows], method, path)
+        matched_patterns = matched_patterns[:1]
         required_perm_ids = [row[1] for row in mapping_rows if row[0] in matched_patterns]
 
         if not required_perm_ids:
