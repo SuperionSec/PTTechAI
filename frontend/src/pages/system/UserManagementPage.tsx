@@ -28,10 +28,10 @@ import {
   SafetyCertificateOutlined,
   UserOutlined,
 } from '@ant-design/icons'
-import { useAuth } from '../contexts/AuthContext'
-import api from '../services/api'
-import { rbacApi } from '../services/rbac'
-import type { RoleSummary } from '../services/rbac'
+import { useAuth } from '../../contexts/AuthContext'
+import api from '../../services/api'
+import { rbacApi } from '../../services/rbac'
+import type { RoleSummary } from '../../services/rbac'
 
 const { Text } = Typography
 

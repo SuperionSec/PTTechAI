@@ -23,9 +23,9 @@ import {
   ReloadOutlined,
   WarningOutlined,
 } from '@ant-design/icons'
-import { useAuth } from '../contexts/AuthContext'
-import { rbacApi } from '../services/rbac'
-import type { Permission, UnmappedResource } from '../services/rbac'
+import { useAuth } from '../../contexts/AuthContext'
+import { rbacApi } from '../../services/rbac'
+import type { Permission, UnmappedResource } from '../../services/rbac'
 
 const { Text } = Typography
 

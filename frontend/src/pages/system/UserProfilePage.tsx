@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next'
 import { PageContainer, ProCard } from '@ant-design/pro-components'
 import { Alert, App as AntApp, Avatar, Button, Descriptions, Form, Input, Space, Spin, Tag, Typography } from 'antd'
 import { EditOutlined, LockOutlined, SaveOutlined, UserOutlined } from '@ant-design/icons'
-import i18n from '../locales'
-import { useAuth } from '../contexts/AuthContext'
-import api from '../services/api'
+import i18n from '../../locales'
+import { useAuth } from '../../contexts/AuthContext'
+import api from '../../services/api'
 
 const { Text } = Typography
 

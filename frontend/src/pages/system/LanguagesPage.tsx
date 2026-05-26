@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { PageContainer, ProCard, StatisticCard } from '@ant-design/pro-components'
 import { App as AntApp, Button, Descriptions, Radio, Space, Tag, Typography } from 'antd'
 import { CheckOutlined, GlobalOutlined, SaveOutlined, TranslationOutlined } from '@ant-design/icons'
-import { useUIStore } from '../store'
-import i18n from '../locales'
+import { useUIStore } from '../../store'
+import i18n from '../../locales'
 
 const { Text } = Typography
 

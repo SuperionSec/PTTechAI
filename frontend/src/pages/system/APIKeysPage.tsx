@@ -24,7 +24,7 @@ import {
   PlusOutlined,
   SafetyCertificateOutlined,
 } from '@ant-design/icons'
-import api from '../services/api'
+import api from '../../services/api'
 
 const { Text } = Typography
 

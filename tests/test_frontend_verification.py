@@ -38,9 +38,8 @@ class TestFrontendStructure:
 class TestFrontendPages:
     """Test that all page components exist."""
 
-    EXPECTED_PAGES = [
+    PENTEST_PAGES = [
         "HomePage.tsx",
-        "LoginPage.tsx",
         "NewScanPage.tsx",
         "ScanDetailsPage.tsx",
         "AgentStatusPage.tsx",
@@ -55,15 +54,42 @@ class TestFrontendPages:
         "MCPManagementPage.tsx",
         "ProvidersPage.tsx",
         "FullIATestingPage.tsx",
+    ]
+
+    SYSTEM_PAGES = [
+        "LanguagesPage.tsx",
         "UserManagementPage.tsx",
         "UserProfilePage.tsx",
         "RoleManagementPage.tsx",
+        "UnmappedResourcesPage.tsx",
+        "APIKeysPage.tsx",
     ]
 
-    @pytest.mark.parametrize("page_file", EXPECTED_PAGES)
-    def test_page_exists(self, page_file):
+    @pytest.mark.parametrize("page_file", PENTEST_PAGES)
+    def test_pentest_page_exists_in_pages_root(self, page_file):
         page_path = FRONTEND_SRC / "pages" / page_file
-        assert page_path.exists(), f"Page component {page_file} should exist"
+        assert page_path.exists(), f"Pentest page component {page_file} should exist in pages root"
+
+    @pytest.mark.parametrize("page_file", SYSTEM_PAGES)
+    def test_system_page_exists_in_system_directory(self, page_file):
+        page_path = FRONTEND_SRC / "pages" / "system" / page_file
+        assert page_path.exists(), f"System page component {page_file} should exist in pages/system"
+
+    def test_route_config_imports_system_pages_from_system_directory(self):
+        content = (FRONTEND_SRC / "routes" / "routeConfig.tsx").read_text(encoding="utf-8")
+        for page in ["LanguagesPage", "UserManagementPage", "APIKeysPage", "UserProfilePage", "UnmappedResourcesPage", "RoleManagementPage"]:
+            assert f"../pages/system/{page}" in content
+
+    def test_visible_system_menu_is_limited_to_five_items(self):
+        content = (FRONTEND_SRC / "routes" / "routeConfig.tsx").read_text(encoding="utf-8")
+        assert "path: '/languages'" in content and "group: 'system'" in content
+        assert "path: '/users'" in content and "group: 'system'" in content
+        assert "path: '/api-keys'" in content and "group: 'system'" in content
+        assert "path: '/profile'" in content and "group: 'system'" in content
+        assert "path: '/unmapped-resources'" in content and "group: 'system'" in content
+        roles_line = next(line for line in content.splitlines() if "path: '/roles'" in line)
+        assert "hideInMenu: true" in roles_line
+        assert "group: 'system'" not in roles_line
 
 
 class TestFrontendServices:
