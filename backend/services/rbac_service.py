@@ -98,11 +98,12 @@ async def list_roles(db: AsyncSession) -> list[RoleSummaryOut]:
 
 
 async def get_role_detail(db: AsyncSession, role: str) -> RoleDetailOut:
-    role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role))
+    role_name = _normalize_role_name(role)
+    role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role_name))
     query = (
         select(Permission)
         .join(RolePermission, Permission.id == RolePermission.permission_id)
-        .where(RolePermission.role == role)
+        .where(RolePermission.role == role_name)
         .where(Permission.is_active == True)
         .order_by(Permission.scope, Permission.action, Permission.name)
     )
@@ -110,18 +111,18 @@ async def get_role_detail(db: AsyncSession, role: str) -> RoleDetailOut:
         query = (
             select(Permission)
             .join(RolePermission, Permission.id == RolePermission.permission_id)
-            .where((RolePermission.role_id == role_model.id) | (RolePermission.role == role))
+            .where((RolePermission.role_id == role_model.id) | (RolePermission.role == role_name))
             .where(Permission.is_active == True)
             .order_by(Permission.scope, Permission.action, Permission.name)
         )
     result = await db.execute(query)
     permissions = [permission_out(permission) for permission in result.scalars().unique().all()]
     return RoleDetailOut(
-        role=role,
+        role=role_name,
         id=role_model.id if role_model else None,
         display_name=role_model.display_name if role_model else None,
         description=role_model.description if role_model else None,
-        is_system=role_model.is_system if role_model else role in SYSTEM_ROLES,
+        is_system=role_model.is_system if role_model else role_name in SYSTEM_ROLES,
         is_active=role_model.is_active if role_model else True,
         permissions=permissions,
         total=len(permissions),
@@ -168,7 +169,8 @@ async def create_role(db: AsyncSession, body: RoleCreate) -> RoleDetailOut:
 
 
 async def update_role(db: AsyncSession, role: str, body: RoleUpdate) -> RoleDetailOut:
-    role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role))
+    role_name = _normalize_role_name(role)
+    role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role_name))
     if not role_model:
         raise HTTPException(status_code=404, detail="Role not found")
     if body.display_name is not None:
@@ -176,23 +178,26 @@ async def update_role(db: AsyncSession, role: str, body: RoleUpdate) -> RoleDeta
     if body.description is not None:
         role_model.description = body.description
     if body.is_active is not None:
+        if role_model.is_system and not body.is_active:
+            raise HTTPException(status_code=403, detail="Cannot deactivate system role")
         role_model.is_active = body.is_active
     if body.permission_ids is not None:
-        await _replace_role_permissions(db, role, role_model.id, body.permission_ids)
+        await _replace_role_permissions(db, role_name, role_model.id, body.permission_ids)
     await db.commit()
-    return await get_role_detail(db, role)
+    return await get_role_detail(db, role_name)
 
 
 async def delete_role(db: AsyncSession, role: str) -> None:
-    role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role))
+    role_name = _normalize_role_name(role)
+    role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role_name))
     if not role_model:
         raise HTTPException(status_code=404, detail="Role not found")
     if role_model.is_system:
         raise HTTPException(status_code=403, detail="Cannot delete system role")
-    user_count = await db.scalar(select(func.count(User.id)).where((User.role_id == role_model.id) | (User.role == role))) or 0
+    user_count = await db.scalar(select(func.count(User.id)).where((User.role_id == role_model.id) | (User.role == role_name))) or 0
     if user_count > 0:
         raise HTTPException(status_code=400, detail="Role is assigned to users")
-    await db.execute(delete(RolePermission).where((RolePermission.role_id == role_model.id) | (RolePermission.role == role)))
+    await db.execute(delete(RolePermission).where((RolePermission.role_id == role_model.id) | (RolePermission.role == role_name)))
     await db.delete(role_model)
     await db.commit()
 
@@ -208,10 +213,11 @@ async def _replace_role_permissions(db: AsyncSession, role: str, role_id: str | 
 
 
 async def update_role_permissions(db: AsyncSession, role: str, permission_ids: list[str]) -> RoleDetailOut:
-    role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role))
-    await _replace_role_permissions(db, role, role_model.id if role_model else None, permission_ids)
+    role_name = _normalize_role_name(role)
+    role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role_name))
+    await _replace_role_permissions(db, role_name, role_model.id if role_model else None, permission_ids)
     await db.commit()
-    return await get_role_detail(db, role)
+    return await get_role_detail(db, role_name)
 
 
 async def list_resource_mappings(db: AsyncSession, resource_type: str | None = None, permission_id: str | None = None) -> list[ResourceMappingOut]:
