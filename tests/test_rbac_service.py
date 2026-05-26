@@ -13,6 +13,7 @@ from backend.api.v1.permissions import (
     create_resource_mapping as create_legacy_resource_mapping,
     delete_resource_mapping as delete_legacy_resource_mapping,
     get_my_permissions as get_legacy_my_permissions,
+    get_recommended_mappings,
     list_unmapped_resources as list_legacy_unmapped_resources,
     revoke_permission_from_role as revoke_legacy_permission_from_role,
     update_role_permissions as update_legacy_role_permissions,
@@ -432,3 +433,10 @@ async def test_legacy_revoke_permission_updates_persistent_role_permissions(db_s
 
     role_permissions = (await db_session.execute(select(RolePermission).where(RolePermission.role_id == role_detail.id))).scalars().all()
     assert [role_permission.permission_id for role_permission in role_permissions] == [user_manage.id]
+
+
+@pytest.mark.asyncio
+async def test_legacy_recommended_mappings_use_shared_frontend_routes():
+    recommendations = await get_recommended_mappings("api_key:read", current_user=None)
+
+    assert recommendations["frontend_pages"] == ["/api-keys"]

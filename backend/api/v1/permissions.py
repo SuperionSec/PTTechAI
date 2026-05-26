@@ -312,28 +312,9 @@ async def get_recommended_mappings(
     scope, action = parts
 
     recommendations = {
-        "frontend_pages": [],
+        "frontend_pages": [path for path, _name, permission in rbac_service.FRONTEND_ROUTES if permission == permission_name],
         "backend_apis": []
     }
-
-    # Recommend frontend pages based on scope
-    scope_page_map = {
-        "scan": ["/scan/new", "/scan/:scanId"],
-        "target": ["/scan/new", "/scan/:scanId"],
-        "report": ["/reports", "/reports/:reportId"],
-        "vulnerability": ["/vuln-lab"],
-        "dashboard": ["/"],
-        "settings": ["/settings", "/languages"],
-        "user": ["/users", "/profile", "/roles"],
-        "api_key": ["/settings"],
-        "provider": ["/providers"],
-        "agent": ["/agent/:agentId", "/tasks", "/realtime", "/auto"],
-        "scheduler": ["/scheduler"],
-        "knowledge": ["/knowledge"],
-    }
-
-    if scope in scope_page_map:
-        recommendations["frontend_pages"] = scope_page_map[scope]
 
     # Recommend backend APIs based on scope and action
     action_method_map = {
