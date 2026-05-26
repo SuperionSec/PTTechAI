@@ -176,6 +176,14 @@ class TestAlembicConfig:
         assert "UPDATE users" in content
         assert "UPDATE role_permissions" in content
 
+    def test_role_permission_role_length_migration_exists(self):
+        migration_path = PROJECT_ROOT / "backend" / "migrations" / "versions" / "20260526_0002_widen_role_permission_role.py"
+        content = migration_path.read_text(encoding="utf-8")
+        assert migration_path.exists()
+        assert '"role_permissions"' in content
+        assert '"role"' in content
+        assert "sa.String(length=50)" in content
+
 
 class TestRbacFrontendRouteConsistency:
     """Test frontend routes stay aligned with RBAC frontend resources."""

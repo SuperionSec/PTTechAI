@@ -194,6 +194,18 @@ async def test_create_role_persists_custom_role_permissions(db_session):
 
 
 @pytest.mark.asyncio
+async def test_create_role_accepts_max_length_custom_role_name(db_session):
+    permission = await _seed_permission(db_session)
+    role_name = "a" * 50
+
+    role_detail = await create_role(db_session, RoleCreate(name=role_name, display_name="Long Role", permission_ids=[permission.id]))
+
+    role_permission = await db_session.scalar(select(RolePermission).where(RolePermission.role_id == role_detail.id))
+    assert role_detail.role == role_name
+    assert role_permission.role == role_name
+
+
+@pytest.mark.asyncio
 async def test_get_user_permission_names_reads_custom_role_id_permissions(db_session):
     permission = await _seed_permission(db_session)
     role_detail = await create_role(db_session, RoleCreate(name="auditor", display_name="Auditor", permission_ids=[permission.id]))

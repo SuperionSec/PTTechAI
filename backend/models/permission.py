@@ -72,7 +72,7 @@ class RolePermission(Base):
     __tablename__ = "role_permissions"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    role: Mapped[str] = mapped_column(String(20), nullable=False, index=True)  # legacy role name
+    role: Mapped[str] = mapped_column(String(50), nullable=False, index=True)  # legacy role name
     role_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("roles.id"), nullable=True)
     permission_id: Mapped[str] = mapped_column(String(36), ForeignKey("permissions.id", ondelete="CASCADE"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
