@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from backend.db.database import get_db
-from backend.models.user import User, Role
+from backend.models.user import User
 from backend.schemas.auth import UserResponse, UserUpdate, UserCreate
 from backend.core.auth import get_current_user, get_password_hash, get_user_by_id, get_user
 from backend.core.permissions import require_user_manage, require_user_read, require_user_create, require_user_update, require_user_delete
@@ -82,7 +82,7 @@ async def get_users(
     skip: int = 0,
     limit: int = 100,
     is_active: Optional[bool] = None,
-    role: Optional[Role] = None,
+    role: Optional[str] = None,
     current_user: User = Depends(require_user_read()),
     db: AsyncSession = Depends(get_db)
 ):
@@ -92,7 +92,8 @@ async def get_users(
     if is_active is not None:
         query = query.where(User.is_active == is_active)
     if role is not None:
-        query = query.where(User.role == role)
+        role_model = await resolve_active_role(db, role)
+        query = query.where((User.role_id == role_model.id) | (User.role == role_model.name))
     
     query = query.offset(skip).limit(limit)
     result = await db.execute(query)

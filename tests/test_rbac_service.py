@@ -19,6 +19,7 @@ from backend.api.v1.permissions import (
     revoke_permission_from_role as revoke_legacy_permission_from_role,
     update_role_permissions as update_legacy_role_permissions,
 )
+from backend.api.v1.users import get_users
 from backend.config import settings
 from backend.core.permissions import PermissionChecker, has_permission
 from backend.core.resource_guard import resource_guard
@@ -254,6 +255,32 @@ async def test_legacy_permission_helpers_read_custom_role_id_permissions(db_sess
     checker = PermissionChecker(user)
     await checker.load_permissions(db_session)
     assert checker.can(PermissionScope.SCAN, PermissionAction.READ)
+
+
+@pytest.mark.asyncio
+async def test_get_users_filters_custom_persistent_roles(db_session):
+    role_detail = await create_role(db_session, RoleCreate(name="auditor", display_name="Auditor"))
+    auditor = User(
+        id="auditor-user-id",
+        email="auditor@example.com",
+        hashed_password="hashed",
+        role="auditor",
+        role_id=role_detail.id,
+        is_active=True,
+    )
+    other = User(
+        id="other-user-id",
+        email="other@example.com",
+        hashed_password="hashed",
+        role="viewer",
+        is_active=True,
+    )
+    db_session.add_all([auditor, other])
+    await db_session.commit()
+
+    users = await get_users(role="auditor", current_user=None, db=db_session)
+
+    assert [user.id for user in users] == ["auditor-user-id"]
 
 
 @pytest.mark.asyncio
