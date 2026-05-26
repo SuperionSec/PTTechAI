@@ -464,14 +464,7 @@ async def delete_resource_mapping(
     current_user: User = Depends(require_role(Role.ADMIN))
 ):
     """Delete a resource mapping (admin only)"""
-    result = await db.execute(select(ResourceMapping).where(ResourceMapping.id == mapping_id))
-    rm = result.scalar_one_or_none()
-    if not rm:
-        raise HTTPException(status_code=404, detail="Resource mapping not found")
-
-    await db.delete(rm)
-    await db.commit()
-
+    await rbac_service.delete_resource_mapping(db, mapping_id)
     return None
 
 
@@ -605,61 +598,10 @@ async def list_unmapped_resources(
     current_user: User = Depends(require_role(Role.ADMIN))
 ):
     """List all resources (frontend pages and backend APIs) that are not mapped to any permission.
-    
+
     This helps identify new pages/APIs that need permission binding.
     """
     from backend.main import app
-    
-    unmapped = []
-    
-    # Get all registered API routes
-    registered_apis = set()
-    for route in app.routes:
-        if hasattr(route, 'methods') and hasattr(route, 'path'):
-            methods = list(route.methods - {'HEAD'})
-            for method in methods:
-                registered_apis.add(f"{method} {route.path}")
-    
-    # Get all mapped APIs from database
-    result = await db.execute(
-        select(ResourceMapping).where(ResourceMapping.resource_type == "backend_api")
-    )
-    mapped_apis = {m.resource_path for m in result.scalars().all()}
-    
-    # Find unmapped APIs
-    for api_path in registered_apis:
-        if api_path not in mapped_apis:
-            unmapped.append(UnmappedResourceResponse(
-                resource_type="backend_api",
-                resource_path=api_path,
-                reason="No permission mapping found"
-            ))
-    
-    # Get all frontend pages from resource mappings
-    result = await db.execute(
-        select(ResourceMapping).where(ResourceMapping.resource_type == "frontend_page")
-    )
-    mapped_pages = {m.resource_path for m in result.scalars().all()}
-    
-    # Known frontend routes that should have mappings
-    known_pages = [
-        "/", "/scan/new", "/scan/:scanId",
-        "/reports", "/reports/:reportId",
-        "/vuln-lab",
-        "/settings", "/languages",
-        "/users", "/profile", "/roles",
-        "/providers",
-        "/agent/:agentId", "/tasks", "/realtime", "/auto",
-        "/scheduler",
-        "/knowledge",
-    ]
-    
-    for page in known_pages:
-        if page not in mapped_pages:
-            unmapped.append(UnmappedResourceResponse(
-                resource_type="frontend_page",
-                resource_path=page,
-                reason="No permission mapping found"
-            ))
-    
-    return unmapped
+
+    unmapped = await rbac_service.list_unmapped_resources(db, app)
+    return [UnmappedResourceResponse(**resource.model_dump()) for resource in unmapped]

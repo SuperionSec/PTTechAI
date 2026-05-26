@@ -6,11 +6,16 @@ from fastapi import HTTPException
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from backend.api.v1.permissions import CreateResourceMappingRequest, create_resource_mapping as create_legacy_resource_mapping
+from backend.api.v1.permissions import (
+    CreateResourceMappingRequest,
+    create_resource_mapping as create_legacy_resource_mapping,
+    delete_resource_mapping as delete_legacy_resource_mapping,
+    list_unmapped_resources as list_legacy_unmapped_resources,
+)
 from backend.config import settings
 from backend.db.database import Base
 import backend.models
-from backend.models.permission import Permission, PermissionAction, PermissionScope, RolePermission
+from backend.models.permission import Permission, PermissionAction, PermissionScope, ResourceMapping, RolePermission
 from backend.models.user import RoleModel, User
 from backend.schemas.rbac import RoleCreate, RoleUpdate
 from backend.services.rbac_service import (
@@ -300,3 +305,29 @@ async def test_legacy_create_resource_mapping_normalizes_backend_method(db_sessi
     )
 
     assert mapping.resource_path == "GET /api/v1/scans/*"
+
+
+@pytest.mark.asyncio
+async def test_legacy_delete_resource_mapping_uses_shared_not_found_behavior(db_session):
+    with pytest.raises(HTTPException) as exc_info:
+        await delete_legacy_resource_mapping("missing-mapping-id", db_session, current_user=None)
+
+    assert exc_info.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_legacy_unmapped_resources_honors_wildcard_backend_mappings(db_session):
+    permission = await _seed_permission(db_session)
+    db_session.add(
+        ResourceMapping(
+            id="wildcard-api-mapping",
+            permission_id=permission.id,
+            resource_type="backend_api",
+            resource_path="GET /api/v1/permissions/*",
+        )
+    )
+    await db_session.commit()
+
+    unmapped = await list_legacy_unmapped_resources(db_session, current_user=None)
+
+    assert "GET /api/v1/permissions/roles/{role}" not in {resource.resource_path for resource in unmapped}
