@@ -163,12 +163,18 @@ export default function APIKeysPage() {
   }
 
   return (
-    <PageContainer
-      title={t('apiKeys.title')}
-      subTitle={t('apiKeys.subtitle')}
-      extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>{t('apiKeys.createKey')}</Button>}
-    >
+    <PageContainer title={t('apiKeys.title')} subTitle={t('apiKeys.subtitle')}>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <ProCard bordered>
+          <Space style={{ width: '100%', justifyContent: 'space-between' }} align="center" wrap>
+            <Space direction="vertical" size={4}>
+              <Text strong>{t('apiKeys.title')}</Text>
+              <Text type="secondary">{t('apiKeys.subtitle')}</Text>
+            </Space>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>{t('apiKeys.createKey')}</Button>
+          </Space>
+        </ProCard>
+
         <StatisticCard.Group direction="row">
           <StatisticCard statistic={{ title: t('apiKeys.myKeys'), value: keys.length, icon: <KeyOutlined /> }} />
           <StatisticCard statistic={{ title: t('common.enabled'), value: activeKeys, icon: <SafetyCertificateOutlined /> }} />
