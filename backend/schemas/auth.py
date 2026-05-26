@@ -17,7 +17,7 @@ class UserCreate(BaseModel):
     email: EmailStr = Field(..., description="User email")
     password: str = Field(..., min_length=6, description="User password (min 6 chars)")
     full_name: Optional[str] = Field(None, description="User full name")
-    role: Optional[str] = Field(None, description="User role (admin/user/viewer/service)")
+    role: Optional[str] = Field(None, description="User role name")
 
 
 class UserUpdate(BaseModel):
