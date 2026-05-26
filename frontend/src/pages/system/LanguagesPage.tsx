@@ -46,13 +46,37 @@ export default function LanguagesPage() {
       subTitle={t('languageManagement.description', 'Manage interface language and translation settings')}
     >
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <ProCard bordered>
+          <Space style={{ width: '100%', justifyContent: 'space-between' }} align="center" wrap>
+            <Space direction="vertical" size={4}>
+              <Text strong>{t('languageManagement.title', 'Language Management')}</Text>
+              <Text type="secondary">{t('languageManagement.description', 'Manage interface language and translation settings')}</Text>
+            </Space>
+            <Tag color="green" icon={<CheckOutlined />}>100%</Tag>
+          </Space>
+        </ProCard>
+
         <StatisticCard.Group direction="row">
           <StatisticCard statistic={{ title: t('languageManagement.interfaceLanguage', 'Interface Language'), value: currentLanguage.nativeName, icon: <GlobalOutlined /> }} />
           <StatisticCard statistic={{ title: t('languageManagement.translationProgress', 'Translation Progress'), value: '100%', icon: <TranslationOutlined /> }} />
           <StatisticCard statistic={{ title: t('languageManagement.lastUpdated', 'Last Updated'), value: '2026-05-03', icon: <CheckOutlined /> }} />
         </StatisticCard.Group>
 
-        <ProCard bordered title={<Space><GlobalOutlined />{t('languageManagement.selectLanguage', 'Select Language')}</Space>}>
+        <ProCard
+          bordered
+          title={<Space><GlobalOutlined />{t('languageManagement.selectLanguage', 'Select Language')}</Space>}
+          extra={(
+            <Button
+              type="primary"
+              icon={<SaveOutlined />}
+              loading={isSaving}
+              disabled={selectedLang === i18n.language}
+              onClick={handleSave}
+            >
+              {t('common.save', 'Save')}
+            </Button>
+          )}
+        >
           <Radio.Group value={selectedLang} onChange={event => setSelectedLang(event.target.value)} style={{ width: '100%' }}>
             <Space direction="vertical" size="middle" style={{ width: '100%' }}>
               {availableLanguages.map(lang => (
@@ -80,21 +104,6 @@ export default function LanguagesPage() {
               ))}
             </Space>
           </Radio.Group>
-
-          <Space style={{ marginTop: 24, width: '100%', justifyContent: 'space-between' }} wrap>
-            <Text type="secondary">
-              {t('languageManagement.currentLanguage', 'Current Language')}: <Text strong>{currentLanguage.nativeName}</Text>
-            </Text>
-            <Button
-              type="primary"
-              icon={<SaveOutlined />}
-              loading={isSaving}
-              disabled={selectedLang === i18n.language}
-              onClick={handleSave}
-            >
-              {t('common.save', 'Save')}
-            </Button>
-          </Space>
         </ProCard>
 
         <ProCard bordered title={<Space><TranslationOutlined />{t('languageManagement.languageStatus', 'Language Status')}</Space>}>
