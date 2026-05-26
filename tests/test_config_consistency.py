@@ -5,6 +5,7 @@ Verifies that configuration files are consistent after the brand rename,
 including pyproject.toml, config.json, package.json, .env.example, etc.
 """
 import json
+import os
 import re
 import pytest
 from pathlib import Path
@@ -114,6 +115,43 @@ class TestPostgreSqlRuntimeConfig:
             if path.is_file() and path.suffix.lower() in suffixes:
                 database_files.append(str(path.relative_to(PROJECT_ROOT)))
         assert database_files == []
+
+
+class TestRbacPolicyDefaults:
+    """Test RBAC migration-safe policy defaults."""
+
+    def test_unmapped_api_policy_defaults_to_allow(self):
+        from backend.core.rbac.policies import UnmappedApiPolicy, get_unmapped_api_policy
+
+        original = os.environ.pop("RBAC_UNMAPPED_API_POLICY", None)
+        try:
+            assert get_unmapped_api_policy() == UnmappedApiPolicy.ALLOW
+        finally:
+            if original is not None:
+                os.environ["RBAC_UNMAPPED_API_POLICY"] = original
+
+    def test_invalid_unmapped_api_policy_falls_back_to_allow(self):
+        from backend.core.rbac.policies import UnmappedApiPolicy, get_unmapped_api_policy
+
+        original = os.environ.get("RBAC_UNMAPPED_API_POLICY")
+        os.environ["RBAC_UNMAPPED_API_POLICY"] = "invalid"
+        try:
+            assert get_unmapped_api_policy() == UnmappedApiPolicy.ALLOW
+        finally:
+            if original is None:
+                os.environ.pop("RBAC_UNMAPPED_API_POLICY", None)
+            else:
+                os.environ["RBAC_UNMAPPED_API_POLICY"] = original
+
+    def test_role_permission_reset_defaults_to_disabled(self):
+        from backend.core.rbac.policies import should_reset_role_permissions_on_startup
+
+        original = os.environ.pop("RBAC_RESET_ON_STARTUP", None)
+        try:
+            assert should_reset_role_permissions_on_startup() is False
+        finally:
+            if original is not None:
+                os.environ["RBAC_RESET_ON_STARTUP"] = original
 
 
 class TestAlembicConfig:
