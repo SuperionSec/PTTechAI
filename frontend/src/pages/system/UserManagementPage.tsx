@@ -30,8 +30,8 @@ import {
 } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import api from '../../services/api'
-import { rbacApi } from '../../services/rbac'
-import type { RoleSummary } from '../../services/rbac'
+import { rbacApi } from '../../services/system'
+import type { RoleSummary } from '../../services/system'
 
 const { Text } = Typography
 

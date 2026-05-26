@@ -32,8 +32,8 @@ import {
   TeamOutlined,
 } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContext'
-import { rbacApi } from '../../services/rbac'
-import type { Permission, ResourceMapping, RoleSummary } from '../../services/rbac'
+import { rbacApi } from '../../services/system'
+import type { Permission, ResourceMapping, RoleSummary } from '../../services/system'
 
 const { Text } = Typography
 const SYSTEM_ROLES = ['admin', 'user', 'viewer', 'service']
