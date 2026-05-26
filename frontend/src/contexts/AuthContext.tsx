@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
+import { rbacApi } from '../services/rbac'
 
 interface User {
   id: string
@@ -117,8 +118,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUserPermissions = useCallback(async () => {
     try {
-      const res = await axios.get('/api/v1/permissions/me/detail')
-      setUserPermissions(res.data)
+      const data = await rbacApi.me()
+      setUserPermissions(data)
     } catch (error) {
       console.error('Failed to fetch user permissions:', error)
       setUserPermissions(null)

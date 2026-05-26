@@ -191,6 +191,11 @@ class TestRbacEndpoints:
             assert response.status_code in (401, 403), \
                 f"RBAC permissions should require auth, got {response.status_code}"
 
+    def test_rbac_me_response_model_has_frontend_contract_fields(self):
+        from backend.schemas.rbac import RbacMeOut
+
+        assert set(RbacMeOut.model_fields) == {"role", "permissions", "frontend_pages", "backend_apis", "access", "menus"}
+
 
 class TestVulnLabEndpoints:
     """Test vulnerability lab endpoints."""

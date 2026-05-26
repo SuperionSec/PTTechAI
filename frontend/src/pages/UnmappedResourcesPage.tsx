@@ -24,23 +24,10 @@ import {
   WarningOutlined,
 } from '@ant-design/icons'
 import { useAuth } from '../contexts/AuthContext'
-import api from '../services/api'
+import { rbacApi } from '../services/rbac'
+import type { Permission, UnmappedResource } from '../services/rbac'
 
 const { Text } = Typography
-
-interface UnmappedResource {
-  resource_type: string
-  resource_path: string
-  reason: string
-}
-
-interface Permission {
-  id: string
-  name: string
-  description?: string
-  scope: string
-  action: string
-}
 
 export default function UnmappedResourcesPage() {
   const { t } = useTranslation()
@@ -62,8 +49,8 @@ export default function UnmappedResourcesPage() {
   const fetchUnmappedResources = async () => {
     try {
       setLoading(true)
-      const res = await api.get('/rbac/resources/unmapped')
-      setUnmappedResources(res.data)
+      const data = await rbacApi.unmappedResources()
+      setUnmappedResources(data)
     } catch (error) {
       console.error('Failed to fetch unmapped resources:', error)
       notify(t('unmappedResources.fetchFailed', 'Failed to fetch unmapped resources'), 'error')
@@ -74,8 +61,8 @@ export default function UnmappedResourcesPage() {
 
   const fetchPermissions = async () => {
     try {
-      const res = await api.get('/permissions')
-      setPermissions(res.data)
+      const data = await rbacApi.permissions()
+      setPermissions(data)
     } catch (error) {
       console.error('Failed to fetch permissions:', error)
     }
@@ -123,7 +110,7 @@ export default function UnmappedResourcesPage() {
 
     setActionLoading(mappingTarget.resource_path)
     try {
-      await api.post('/rbac/resources/mappings', {
+      await rbacApi.createResourceMapping({
         permission_id: selectedPermission,
         resource_type: mappingTarget.resource_type,
         resource_path: mappingTarget.resource_path,

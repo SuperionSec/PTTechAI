@@ -6,6 +6,7 @@ export interface RbacProfile {
   frontend_pages: string[]
   backend_apis: string[]
   access?: Record<string, boolean>
+  menus?: Array<{ path: string; name: string; permission?: string | null }>
 }
 
 export interface Permission {
@@ -49,8 +50,14 @@ export interface ResourceMapping {
   updated_at?: string | null
 }
 
+export interface UnmappedResource {
+  resource_type: string
+  resource_path: string
+  reason: string
+}
+
 export const rbacApi = {
-  me: () => get<RbacProfile>('/permissions/me/detail'),
+  me: () => get<RbacProfile>('/rbac/me'),
   roles: () => get<RoleSummary[]>('/rbac/roles'),
   role: (role: string) => get<RoleDetail>(`/rbac/roles/${role}`),
   createRole: (data: { name: string; display_name: string; description?: string; permission_ids: string[] }) => post<RoleDetail>('/rbac/roles', data),
@@ -59,4 +66,6 @@ export const rbacApi = {
   deleteRole: (role: string) => del<void>(`/rbac/roles/${role}`),
   permissions: () => get<Permission[]>('/rbac/permissions'),
   resourceMappings: () => get<ResourceMapping[]>('/rbac/resources'),
+  unmappedResources: () => get<UnmappedResource[]>('/rbac/resources/unmapped'),
+  createResourceMapping: (data: { permission_id: string; resource_type: string; resource_path: string }) => post<ResourceMapping>('/rbac/resources/mappings', data),
 }

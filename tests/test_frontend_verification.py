@@ -80,7 +80,9 @@ class TestFrontendServices:
 
     def test_rbac_service_has_role_apis(self):
         content = (FRONTEND_SRC / "services" / "rbac.ts").read_text(encoding="utf-8")
-        for method in ["roles", "role", "createRole", "updateRolePermissions", "deleteRole"]:
+        assert "me: () => get<RbacProfile>('/rbac/me')" in content
+        assert "menus?:" in content
+        for method in ["roles", "role", "createRole", "updateRolePermissions", "deleteRole", "unmappedResources", "createResourceMapping"]:
             assert f"{method}:" in content, f"rbacApi should expose {method}"
 
 
