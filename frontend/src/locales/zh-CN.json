@@ -624,6 +624,7 @@
     "startTripleCheck": "开始三重检查",
     "slots": "槽位",
     "autoPentest": "自动渗透测试",
+    "kaliResearcher": "Kali 沙箱 + AI 研究员",
     "cliAgent": "CLI 代理",
     "cliAgentConfig": "CLI 代理配置",
     "cliProvider": "CLI 提供商",

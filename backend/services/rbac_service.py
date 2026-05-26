@@ -6,8 +6,8 @@ from sqlalchemy.orm import selectinload
 
 from backend.core.rbac.matcher import match_api_resource
 from backend.models.permission import Permission, ResourceMapping, RolePermission
-from backend.models.user import Role, User
-from backend.schemas.rbac import MenuItemOut, PermissionOut, ResourceMappingOut, RoleDetailOut, RoleSummaryOut, UnmappedResourceOut
+from backend.models.user import Role, RoleModel, User
+from backend.schemas.rbac import MenuItemOut, PermissionOut, ResourceMappingOut, RoleCreate, RoleDetailOut, RoleSummaryOut, RoleUpdate, UnmappedResourceOut
 
 SYSTEM_ROLES = {"admin", "user", "viewer", "service"}
 FRONTEND_ROUTES = [
@@ -63,31 +63,70 @@ async def list_permissions(db: AsyncSession, scope: str | None = None) -> list[P
 
 
 async def list_roles(db: AsyncSession) -> list[RoleSummaryOut]:
+    role_rows = await db.execute(select(RoleModel).order_by(RoleModel.is_system.desc(), RoleModel.name))
+    role_models = list(role_rows.scalars().all())
+
+    existing_names = {role.name for role in role_models}
     db_roles_result = await db.execute(select(RolePermission.role).distinct())
     user_roles_result = await db.execute(select(User.role).distinct())
-    roles = set(db_roles_result.scalars().all()) | set(user_roles_result.scalars().all()) | SYSTEM_ROLES
+    legacy_names = (set(db_roles_result.scalars().all()) | set(user_roles_result.scalars().all()) | SYSTEM_ROLES) - existing_names
 
     summaries = []
-    for role in sorted(roles):
+    for role in role_models:
+        user_count = await db.scalar(select(func.count(User.id)).where((User.role_id == role.id) | (User.role == role.name))) or 0
+        permission_count = await db.scalar(select(func.count(RolePermission.id)).where((RolePermission.role_id == role.id) | (RolePermission.role == role.name))) or 0
+        summaries.append(
+            RoleSummaryOut(
+                role=role.name,
+                id=role.id,
+                display_name=role.display_name,
+                description=role.description,
+                is_system=role.is_system,
+                is_active=role.is_active,
+                user_count=user_count,
+                permission_count=permission_count,
+            )
+        )
+
+    for role in sorted(legacy_names):
         user_count = await db.scalar(select(func.count(User.id)).where(User.role == role)) or 0
         permission_count = await db.scalar(select(func.count(RolePermission.id)).where(RolePermission.role == role)) or 0
-        summaries.append(RoleSummaryOut(role=role, user_count=user_count, permission_count=permission_count))
+        summaries.append(RoleSummaryOut(role=role, is_system=role in SYSTEM_ROLES, user_count=user_count, permission_count=permission_count))
     return summaries
 
 
 async def get_role_detail(db: AsyncSession, role: str) -> RoleDetailOut:
-    result = await db.execute(
+    role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role))
+    query = (
         select(Permission)
         .join(RolePermission, Permission.id == RolePermission.permission_id)
         .where(RolePermission.role == role)
         .where(Permission.is_active == True)
         .order_by(Permission.scope, Permission.action, Permission.name)
     )
-    permissions = [permission_out(permission) for permission in result.scalars().all()]
-    return RoleDetailOut(role=role, permissions=permissions, total=len(permissions))
+    if role_model:
+        query = (
+            select(Permission)
+            .join(RolePermission, Permission.id == RolePermission.permission_id)
+            .where((RolePermission.role_id == role_model.id) | (RolePermission.role == role))
+            .where(Permission.is_active == True)
+            .order_by(Permission.scope, Permission.action, Permission.name)
+        )
+    result = await db.execute(query)
+    permissions = [permission_out(permission) for permission in result.scalars().unique().all()]
+    return RoleDetailOut(
+        role=role,
+        id=role_model.id if role_model else None,
+        display_name=role_model.display_name if role_model else None,
+        description=role_model.description if role_model else None,
+        is_system=role_model.is_system if role_model else role in SYSTEM_ROLES,
+        is_active=role_model.is_active if role_model else True,
+        permissions=permissions,
+        total=len(permissions),
+    )
 
 
-async def update_role_permissions(db: AsyncSession, role: str, permission_ids: list[str]) -> RoleDetailOut:
+async def _validate_permission_ids(db: AsyncSession, permission_ids: list[str]) -> None:
     if permission_ids:
         result = await db.execute(select(Permission.id).where(Permission.id.in_(permission_ids)))
         found = set(result.scalars().all())
@@ -95,9 +134,74 @@ async def update_role_permissions(db: AsyncSession, role: str, permission_ids: l
         if missing:
             raise HTTPException(status_code=400, detail=f"Permission IDs not found: {sorted(missing)}")
 
-    await db.execute(delete(RolePermission).where(RolePermission.role == role))
+
+async def create_role(db: AsyncSession, body: RoleCreate) -> RoleDetailOut:
+    role_name = body.name.strip().lower()
+    if not role_name:
+        raise HTTPException(status_code=400, detail="Role name is required")
+    if await db.scalar(select(RoleModel).where(RoleModel.name == role_name)):
+        raise HTTPException(status_code=400, detail="Role already exists")
+    await _validate_permission_ids(db, body.permission_ids)
+
+    role_model = RoleModel(
+        id=str(uuid.uuid4()),
+        name=role_name,
+        display_name=body.display_name,
+        description=body.description,
+        is_system=False,
+        is_active=body.is_active,
+    )
+    db.add(role_model)
+    await db.flush()
+    for permission_id in body.permission_ids:
+        db.add(RolePermission(id=str(uuid.uuid4()), role=role_name, role_id=role_model.id, permission_id=permission_id))
+    await db.commit()
+    return await get_role_detail(db, role_name)
+
+
+async def update_role(db: AsyncSession, role: str, body: RoleUpdate) -> RoleDetailOut:
+    role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role))
+    if not role_model:
+        raise HTTPException(status_code=404, detail="Role not found")
+    if body.display_name is not None:
+        role_model.display_name = body.display_name
+    if body.description is not None:
+        role_model.description = body.description
+    if body.is_active is not None:
+        role_model.is_active = body.is_active
+    if body.permission_ids is not None:
+        await _replace_role_permissions(db, role, role_model.id, body.permission_ids)
+    await db.commit()
+    return await get_role_detail(db, role)
+
+
+async def delete_role(db: AsyncSession, role: str) -> None:
+    role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role))
+    if not role_model:
+        raise HTTPException(status_code=404, detail="Role not found")
+    if role_model.is_system:
+        raise HTTPException(status_code=403, detail="Cannot delete system role")
+    user_count = await db.scalar(select(func.count(User.id)).where((User.role_id == role_model.id) | (User.role == role))) or 0
+    if user_count > 0:
+        raise HTTPException(status_code=400, detail="Role is assigned to users")
+    await db.execute(delete(RolePermission).where((RolePermission.role_id == role_model.id) | (RolePermission.role == role)))
+    await db.delete(role_model)
+    await db.commit()
+
+
+async def _replace_role_permissions(db: AsyncSession, role: str, role_id: str | None, permission_ids: list[str]) -> None:
+    await _validate_permission_ids(db, permission_ids)
+    if role_id:
+        await db.execute(delete(RolePermission).where((RolePermission.role_id == role_id) | (RolePermission.role == role)))
+    else:
+        await db.execute(delete(RolePermission).where(RolePermission.role == role))
     for permission_id in permission_ids:
-        db.add(RolePermission(id=str(uuid.uuid4()), role=role, permission_id=permission_id))
+        db.add(RolePermission(id=str(uuid.uuid4()), role=role, role_id=role_id, permission_id=permission_id))
+
+
+async def update_role_permissions(db: AsyncSession, role: str, permission_ids: list[str]) -> RoleDetailOut:
+    role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role))
+    await _replace_role_permissions(db, role, role_model.id if role_model else None, permission_ids)
     await db.commit()
     return await get_role_detail(db, role)
 
@@ -181,18 +285,26 @@ async def list_unmapped_resources(db: AsyncSession, app) -> list[UnmappedResourc
 
 
 async def get_user_permission_names(db: AsyncSession, user: User) -> list[str]:
-    if user.role == Role.ADMIN:
+    role = user.role.value if hasattr(user.role, "value") else user.role
+    if role == Role.ADMIN.value:
         result = await db.execute(select(Permission.name).where(Permission.is_active == True))
         return sorted(result.scalars().all())
 
-    role = user.role.value if hasattr(user.role, "value") else user.role
-    result = await db.execute(
+    query = (
         select(Permission.name)
         .join(RolePermission, Permission.id == RolePermission.permission_id)
         .where(RolePermission.role == role)
         .where(Permission.is_active == True)
     )
-    return sorted(result.scalars().all())
+    if user.role_id:
+        query = (
+            select(Permission.name)
+            .join(RolePermission, Permission.id == RolePermission.permission_id)
+            .where((RolePermission.role_id == user.role_id) | (RolePermission.role == role))
+            .where(Permission.is_active == True)
+        )
+    result = await db.execute(query)
+    return sorted(set(result.scalars().all()))
 
 
 def build_access_map(permission_names: list[str], role: str) -> dict[str, bool]:

@@ -7,7 +7,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.database import get_db
-from backend.models.user import User, Role
+from backend.models.user import User, Role, RoleModel
 from backend.schemas.auth import (
     UserLogin,
     UserCreate,
@@ -69,11 +69,14 @@ async def register(
     # Create new user
     hashed_password = get_password_hash(user_data.password)
     role_value = Role(user_data.role) if user_data.role else Role.USER
+    role_name = role_value.value if hasattr(role_value, "value") else role_value
+    role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role_name))
     db_user = User(
         email=user_data.email,
         hashed_password=hashed_password,
         full_name=user_data.full_name,
         role=role_value,
+        role_id=role_model.id if role_model else None,
         is_active=True,
     )
     db.add(db_user)

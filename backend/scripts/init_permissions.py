@@ -4,9 +4,10 @@ PTTechAI v0.1.0 - RBAC Permission System
 """
 import uuid
 import asyncio
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, update
 from backend.db.database import async_session_factory
 from backend.models.permission import Permission, RolePermission, ResourceMapping, PermissionScope, PermissionAction
+from backend.models.user import RoleModel, User
 from backend.core.rbac.policies import should_reset_role_permissions_on_startup
 
 
@@ -74,6 +75,13 @@ DEFAULT_PERMISSIONS = [
 ]
 
 # Role-Permission mappings
+DEFAULT_ROLES = {
+    "admin": {"display_name": "Administrator", "description": "Full system administrator"},
+    "user": {"display_name": "Standard User", "description": "Standard authenticated user"},
+    "viewer": {"display_name": "Viewer", "description": "Read-only user"},
+    "service": {"display_name": "Service Account", "description": "API-only service account"},
+}
+
 ROLE_PERMISSIONS = {
     "admin": [
         "scan:create", "scan:read", "scan:update", "scan:delete", "scan:execute",
@@ -234,6 +242,31 @@ PERMISSION_BACKEND_APIS = {
 async def init_permissions():
     """Initialize default permissions and role mappings"""
     async with async_session_factory() as db:
+        role_map = {}
+        for role_name, role_data in DEFAULT_ROLES.items():
+            result = await db.execute(select(RoleModel).where(RoleModel.name == role_name))
+            existing_role = result.scalar_one_or_none()
+            if not existing_role:
+                existing_role = RoleModel(
+                    id=str(uuid.uuid4()),
+                    name=role_name,
+                    display_name=role_data["display_name"],
+                    description=role_data["description"],
+                    is_system=True,
+                    is_active=True,
+                )
+                db.add(existing_role)
+                await db.flush()
+                print(f"[ROLE] Created: {role_name}")
+            else:
+                existing_role.display_name = role_data["display_name"]
+                existing_role.description = role_data["description"]
+                existing_role.is_system = True
+                existing_role.is_active = True
+            role_map[role_name] = existing_role.id
+
+        await db.commit()
+
         # Create permissions
         permission_map = {}
         for perm_data in DEFAULT_PERMISSIONS:
@@ -281,10 +314,19 @@ async def init_permissions():
                     rp = RolePermission(
                         id=str(uuid.uuid4()),
                         role=role,
+                        role_id=role_map.get(role),
                         permission_id=perm_id,
                     )
                     db.add(rp)
                     print(f"[ROLE_PERMISSION] Created: {role} -> {perm_name}")
+                elif existing.role_id is None:
+                    existing.role_id = role_map.get(role)
+
+        await db.commit()
+
+        for role_name, role_id in role_map.items():
+            await db.execute(update(User).where(User.role == role_name, User.role_id.is_(None)).values(role_id=role_id))
+            await db.execute(update(RolePermission).where(RolePermission.role == role_name, RolePermission.role_id.is_(None)).values(role_id=role_id))
 
         await db.commit()
 

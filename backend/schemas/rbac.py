@@ -13,12 +13,41 @@ class PermissionOut(BaseModel):
 
 class RoleSummaryOut(BaseModel):
     role: str
+    id: Optional[str] = None
+    display_name: Optional[str] = None
+    description: Optional[str] = None
+    is_system: bool = False
+    is_active: bool = True
     user_count: int
     permission_count: int
 
 
+class RoleCreate(BaseModel):
+    name: str
+    display_name: str
+    description: Optional[str] = None
+    is_active: bool = True
+    permission_ids: list[str] = []
+
+
+class RoleUpdate(BaseModel):
+    display_name: Optional[str] = None
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+    permission_ids: Optional[list[str]] = None
+
+
+class RolePermissionsUpdate(BaseModel):
+    permission_ids: list[str]
+
+
 class RoleDetailOut(BaseModel):
     role: str
+    id: Optional[str] = None
+    display_name: Optional[str] = None
+    description: Optional[str] = None
+    is_system: bool = False
+    is_active: bool = True
     permissions: list[PermissionOut]
     total: int
 

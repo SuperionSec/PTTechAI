@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Request, status, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.auth import get_current_user, require_role
@@ -10,8 +10,11 @@ from backend.schemas.rbac import (
     RbacMeOut,
     ResourceMappingCreate,
     ResourceMappingOut,
+    RoleCreate,
     RoleDetailOut,
+    RolePermissionsUpdate,
     RoleSummaryOut,
+    RoleUpdate,
     UnmappedResourceOut,
 )
 from backend.services import rbac_service
@@ -63,8 +66,46 @@ async def list_roles(
     return await rbac_service.list_roles(db)
 
 
+@router.post("/roles", response_model=RoleDetailOut, status_code=status.HTTP_201_CREATED)
+async def create_role(
+    body: RoleCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(Role.ADMIN)),
+):
+    return await rbac_service.create_role(db, body)
+
+
 @router.get("/roles/{role}", response_model=RoleDetailOut)
 async def get_role(
+    role: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(Role.ADMIN)),
+):
+    return await rbac_service.get_role_detail(db, role)
+
+
+@router.put("/roles/{role}", response_model=RoleDetailOut)
+async def update_role(
+    role: str,
+    body: RoleUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(Role.ADMIN)),
+):
+    return await rbac_service.update_role(db, role, body)
+
+
+@router.delete("/roles/{role}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_role(
+    role: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(Role.ADMIN)),
+):
+    await rbac_service.delete_role(db, role)
+    return None
+
+
+@router.get("/roles/{role}/permissions", response_model=RoleDetailOut)
+async def get_role_permissions(
     role: str,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(Role.ADMIN)),
@@ -75,10 +116,11 @@ async def get_role(
 @router.put("/roles/{role}/permissions", response_model=RoleDetailOut)
 async def update_role_permissions(
     role: str,
-    permission_ids: list[str],
+    body: RolePermissionsUpdate | list[str] = Body(...),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(Role.ADMIN)),
 ):
+    permission_ids = body.permission_ids if isinstance(body, RolePermissionsUpdate) else body
     return await rbac_service.update_role_permissions(db, role, permission_ids)
 
 

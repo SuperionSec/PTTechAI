@@ -10,6 +10,7 @@ from sqlalchemy import Column, String, DateTime, ForeignKey, Table, Enum as SQLE
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from backend.db.database import Base
+from backend.models.user import RoleModel
 
 
 class PermissionScope(str, Enum):
@@ -71,17 +72,20 @@ class RolePermission(Base):
     __tablename__ = "role_permissions"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    role: Mapped[str] = mapped_column(String(20), nullable=False, index=True)  # admin, user, viewer
+    role: Mapped[str] = mapped_column(String(20), nullable=False, index=True)  # legacy role name
+    role_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("roles.id"), nullable=True)
     permission_id: Mapped[str] = mapped_column(String(36), ForeignKey("permissions.id", ondelete="CASCADE"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Relationships
     permission: Mapped["Permission"] = relationship("Permission", back_populates="role_permissions")
+    role_ref: Mapped[Optional["RoleModel"]] = relationship("RoleModel")
 
     def to_dict(self):
         return {
             "id": self.id,
             "role": self.role,
+            "role_id": self.role_id,
             "permission_id": self.permission_id,
             "permission": self.permission.to_dict() if self.permission else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,

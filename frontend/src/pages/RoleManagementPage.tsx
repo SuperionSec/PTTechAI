@@ -32,47 +32,11 @@ import {
   TeamOutlined,
 } from '@ant-design/icons'
 import { useAuth } from '../contexts/AuthContext'
-import api from '../services/api'
+import { rbacApi } from '../services/rbac'
+import type { Permission, ResourceMapping, RoleSummary } from '../services/rbac'
 
 const { Text } = Typography
 const SYSTEM_ROLES = ['admin', 'user', 'viewer', 'service']
-
-interface RoleSummary {
-  role: string
-  user_count: number
-  permission_count: number
-}
-
-interface Permission {
-  id: string
-  name: string
-  description?: string
-  scope?: string
-  action?: string
-  is_active?: boolean
-}
-
-interface RolePermissionItem {
-  id: string
-  name: string
-  description?: string
-  scope: string
-  action: string
-  is_active: boolean
-}
-
-interface RolePermissions {
-  role: string
-  permissions: RolePermissionItem[]
-  total: number
-}
-
-interface ResourceMapping {
-  id: string
-  permission_id: string
-  resource_type: string
-  resource_path: string
-}
 
 interface RoleFormValues {
   role: string
@@ -92,7 +56,7 @@ export default function RoleManagementPage() {
   const [editRole, setEditRole] = useState<string | null>(null)
   const [viewRole, setViewRole] = useState<string | null>(null)
   const [selectedPermissions, setSelectedPermissions] = useState<Set<string>>(new Set())
-  const [viewRolePermissions, setViewRolePermissions] = useState<RolePermissionItem[]>([])
+  const [viewRolePermissions, setViewRolePermissions] = useState<Permission[]>([])
   const [viewResourceMappings, setViewResourceMappings] = useState<ResourceMapping[]>([])
   const [viewLoading, setViewLoading] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -119,8 +83,8 @@ export default function RoleManagementPage() {
   const fetchRoles = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await api.get('/permissions/roles')
-      setRoles(res.data)
+      const data = await rbacApi.roles()
+      setRoles(data)
     } catch (error) {
       console.error('Failed to fetch roles:', error)
       notify(t('roleManagement.fetchFailed') || 'Failed to fetch roles', 'error')
@@ -131,8 +95,8 @@ export default function RoleManagementPage() {
 
   const fetchPermissions = useCallback(async () => {
     try {
-      const res = await api.get('/permissions')
-      setPermissions(res.data)
+      const data = await rbacApi.permissions()
+      setPermissions(data)
     } catch (error) {
       console.error('Failed to fetch permissions:', error)
     }
@@ -184,8 +148,7 @@ export default function RoleManagementPage() {
     setFormError(null)
     setActionLoading(true)
     try {
-      const res = await api.get(`/permissions/roles/${role}`)
-      const data: RolePermissions = res.data
+      const data = await rbacApi.role(role)
       setSelectedPermissions(new Set(data.permissions.map(permission => permission.id) || []))
     } catch (error) {
       console.error('Failed to fetch role permissions:', error)
@@ -200,14 +163,12 @@ export default function RoleManagementPage() {
     setViewRole(role)
     setViewLoading(true)
     try {
-      const [roleRes, mappingRes] = await Promise.all([
-        api.get(`/permissions/roles/${role}`),
-        api.get('/permissions/resource-mappings'),
+      const [data, allMappings] = await Promise.all([
+        rbacApi.role(role),
+        rbacApi.resourceMappings(),
       ])
-      const data: RolePermissions = roleRes.data
       setViewRolePermissions(data.permissions || [])
       const rolePermissionIds = new Set(data.permissions.map(permission => permission.id))
-      const allMappings: ResourceMapping[] = mappingRes.data
       setViewResourceMappings(allMappings.filter(mapping => rolePermissionIds.has(mapping.permission_id)))
     } catch (error) {
       console.error('Failed to fetch role permissions:', error)
@@ -228,8 +189,9 @@ export default function RoleManagementPage() {
     setActionLoading(true)
     setFormError(null)
     try {
-      await api.post('/permissions/roles', {
-        role: values.role,
+      await rbacApi.createRole({
+        name: values.role,
+        display_name: roleLabels[values.role] || values.role,
         permission_ids: Array.from(selectedPermissions),
       })
       setCreateOpen(false)
@@ -248,9 +210,7 @@ export default function RoleManagementPage() {
     setActionLoading(true)
     setFormError(null)
     try {
-      await api.put(`/permissions/roles/${editRole}`, {
-        permission_ids: Array.from(selectedPermissions),
-      })
+      await rbacApi.updateRolePermissions(editRole, Array.from(selectedPermissions))
       setEditRole(null)
       resetForm()
       await fetchRoles()
@@ -266,7 +226,7 @@ export default function RoleManagementPage() {
     if (role.user_count > 0) return
     setActionLoading(true)
     try {
-      await api.delete(`/permissions/roles/${role.role}`)
+      await rbacApi.deleteRole(role.role)
       await fetchRoles()
       notify(t('roleManagement.deleteSuccess') || 'Role deleted successfully', 'success')
     } catch (error: any) {

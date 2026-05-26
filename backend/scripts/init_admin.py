@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from sqlalchemy import select
 from backend.db.database import async_session_factory
-from backend.models.user import User, Role
+from backend.models.user import User, Role, RoleModel
 from backend.core.auth import get_password_hash, verify_password
 
 
@@ -17,10 +17,27 @@ async def init_admin():
     admin_name = os.getenv("ADMIN_NAME", "Admin")
 
     async with async_session_factory() as db:
+        role_model = await db.scalar(select(RoleModel).where(RoleModel.name == "admin"))
+        if not role_model:
+            role_model = RoleModel(
+                name="admin",
+                display_name="Administrator",
+                description="Full system administrator",
+                is_system=True,
+                is_active=True,
+            )
+            db.add(role_model)
+            await db.flush()
+
         result = await db.execute(select(User).where(User.email == admin_email))
         existing = result.scalar_one_or_none()
 
         if existing:
+            role_model = await db.scalar(select(RoleModel).where(RoleModel.name == "admin"))
+            if role_model and existing.role_id is None:
+                existing.role_id = role_model.id
+                await db.commit()
+
             # Check if password matches .env config; update if changed
             if not verify_password(admin_password, existing.hashed_password):
                 print(f"[INFO] Admin user '{admin_email}' password mismatch, updating...")
@@ -36,6 +53,7 @@ async def init_admin():
             hashed_password=get_password_hash(admin_password),
             full_name=admin_name,
             role="admin",
+            role_id=role_model.id,
             is_active=True,
         )
         db.add(admin)

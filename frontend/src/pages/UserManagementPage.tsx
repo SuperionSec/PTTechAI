@@ -30,6 +30,8 @@ import {
 } from '@ant-design/icons'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
+import { rbacApi } from '../services/rbac'
+import type { RoleSummary } from '../services/rbac'
 
 const { Text } = Typography
 
@@ -41,12 +43,6 @@ interface User {
   is_active: boolean
   created_at: string
   last_login: string | null
-}
-
-interface RoleSummary {
-  role: string
-  user_count: number
-  permission_count: number
 }
 
 interface CreateUserForm {
@@ -107,8 +103,8 @@ export default function UserManagementPage() {
 
   const fetchAvailableRoles = async () => {
     try {
-      const res = await api.get('/permissions/roles')
-      setAvailableRoles(res.data)
+      const data = await rbacApi.roles()
+      setAvailableRoles(data.filter(role => role.is_active !== false))
     } catch (error) {
       console.error('Failed to fetch roles:', error)
     }

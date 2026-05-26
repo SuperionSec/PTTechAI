@@ -4,6 +4,7 @@ PostgreSQL only
 """
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy import text
 from sqlalchemy.orm import DeclarativeBase
 from backend.config import settings
 
@@ -50,12 +51,35 @@ async def get_db() -> AsyncSession:
             await session.close()
 
 
+_rbac_schema_checked = False
+
+
+async def ensure_rbac_role_schema(conn) -> None:
+    await conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS roles (
+            id VARCHAR(36) PRIMARY KEY,
+            name VARCHAR(50) UNIQUE NOT NULL,
+            display_name VARCHAR(100) NOT NULL,
+            description VARCHAR(255),
+            is_system BOOLEAN DEFAULT false NOT NULL,
+            is_active BOOLEAN DEFAULT true NOT NULL,
+            created_at TIMESTAMP DEFAULT now() NOT NULL,
+            updated_at TIMESTAMP DEFAULT now() NOT NULL
+        )
+    """))
+    await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS role_id VARCHAR(36)"))
+    await conn.execute(text("ALTER TABLE role_permissions ADD COLUMN IF NOT EXISTS role_id VARCHAR(36)"))
+
+
 async def init_db():
     """Initialize database tables"""
     async with engine.begin() as conn:
         logger.info("Using PostgreSQL database")
         # Create all tables from models
         await conn.run_sync(Base.metadata.create_all)
+        await ensure_rbac_role_schema(conn)
+        global _rbac_schema_checked
+        _rbac_schema_checked = True
 
 
 async def close_db():

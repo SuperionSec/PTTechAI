@@ -13,7 +13,7 @@ from sqlalchemy import select, func, delete
 
 from backend.db.database import get_db
 from backend.models.permission import Permission, RolePermission, ResourceMapping, PermissionScope, PermissionAction
-from backend.models.user import User, Role
+from backend.models.user import User, Role, RoleModel
 from backend.core.auth import get_current_user, require_role
 from backend.core.resource_guard import resource_guard
 
@@ -198,12 +198,26 @@ async def create_role(
         if missing:
             raise HTTPException(status_code=400, detail=f"Permission IDs not found: {missing}")
 
+    role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role_name))
+    if not role_model:
+        role_model = RoleModel(
+            id=str(uuid.uuid4()),
+            name=role_name,
+            display_name=role_name.title(),
+            description=None,
+            is_system=False,
+            is_active=True,
+        )
+        db.add(role_model)
+        await db.flush()
+
     # Create RolePermission entries for each permission
     created_permissions = []
     for perm_id in request.permission_ids:
         rp = RolePermission(
             id=str(uuid.uuid4()),
             role=role_name,
+            role_id=role_model.id,
             permission_id=perm_id,
         )
         db.add(rp)
@@ -247,12 +261,15 @@ async def update_role_permissions(
         delete(RolePermission).where(RolePermission.role == role)
     )
 
+    role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role))
+
     # Create new RolePermission entries
     created_permissions = []
     for perm_id in request.permission_ids:
         rp = RolePermission(
             id=str(uuid.uuid4()),
             role=role,
+            role_id=role_model.id if role_model else None,
             permission_id=perm_id,
         )
         db.add(rp)
@@ -364,9 +381,11 @@ async def assign_permission_to_role(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Permission already assigned to role")
 
+    role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role))
     rp = RolePermission(
         id=str(uuid.uuid4()),
         role=role,
+        role_id=role_model.id if role_model else None,
         permission_id=permission_id,
     )
     db.add(rp)

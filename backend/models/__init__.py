@@ -6,7 +6,7 @@ from backend.models.vulnerability import Vulnerability, VulnerabilityTest
 from backend.models.report import Report
 from backend.models.agent_task import AgentTask
 from backend.models.vuln_lab import VulnLabChallenge
-from backend.models.user import User, APIKey, Role
+from backend.models.user import User, APIKey, Role, RoleModel
 from backend.models.permission import Permission, RolePermission, ResourceMapping, PermissionScope, PermissionAction
 
 __all__ = [
@@ -22,6 +22,7 @@ __all__ = [
     "User",
     "APIKey",
     "Role",
+    "RoleModel",
     "Permission",
     "RolePermission",
     "ResourceMapping",

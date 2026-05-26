@@ -624,6 +624,7 @@
     "startTripleCheck": "Start Triple-Check",
     "slots": "slots",
     "autoPentest": "Auto Pentest",
+    "kaliResearcher": "Kali Sandbox + AI Researcher",
     "cliAgent": "CLI Agent",
     "cliAgentConfig": "CLI Agent Configuration",
     "cliProvider": "CLI Provider",
