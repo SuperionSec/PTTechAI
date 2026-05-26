@@ -347,29 +347,21 @@ async def list_system_apis(
     """
     from backend.main import app
     
-    apis = []
-    for route in app.routes:
-        if hasattr(route, 'methods') and hasattr(route, 'path'):
-            # Skip HEAD methods
-            methods = list(route.methods - {'HEAD'})
-            if not methods:
-                continue
-            
-            # Extract permission requirement from dependencies if available
-            permission_required = None
-            if hasattr(route, 'dependencies'):
-                for dep in route.dependencies:
-                    if hasattr(dep, 'dependency') and hasattr(dep.dependency, '_permission_required'):
-                        permission_required = dep.dependency._permission_required
-            
-            apis.append(APIEndpointInfo(
-                methods=methods,
-                path=route.path,
-                summary=getattr(route, 'summary', None),
-                tags=route.tags if hasattr(route, 'tags') else []
-            ))
-    
-    # Sort by path for consistent output
+    apis_by_path = {}
+    for resource in rbac_service.discover_api_routes(app):
+        method, path = resource.split(" ", 1)
+        apis_by_path.setdefault(path, []).append(method)
+
+    apis = [
+        APIEndpointInfo(
+            methods=sorted(methods),
+            path=path,
+            summary=None,
+            tags=[],
+        )
+        for path, methods in apis_by_path.items()
+    ]
+
     apis.sort(key=lambda x: x.path)
     return apis
 

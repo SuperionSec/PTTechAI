@@ -14,6 +14,7 @@ from backend.api.v1.permissions import (
     delete_resource_mapping as delete_legacy_resource_mapping,
     get_my_permissions as get_legacy_my_permissions,
     get_recommended_mappings,
+    list_system_apis,
     list_unmapped_resources as list_legacy_unmapped_resources,
     revoke_permission_from_role as revoke_legacy_permission_from_role,
     update_role_permissions as update_legacy_role_permissions,
@@ -440,3 +441,13 @@ async def test_legacy_recommended_mappings_use_shared_frontend_routes():
     recommendations = await get_recommended_mappings("api_key:read", current_user=None)
 
     assert recommendations["frontend_pages"] == ["/api-keys"]
+
+
+@pytest.mark.asyncio
+async def test_legacy_system_apis_reuses_shared_route_discovery():
+    apis = await list_system_apis(current_user=None)
+    api_by_path = {api.path: api for api in apis}
+
+    assert "/api/v1/permissions/system/apis" in api_by_path
+    assert "GET" in api_by_path["/api/v1/permissions/system/apis"].methods
+    assert all("OPTIONS" not in api.methods for api in apis)
