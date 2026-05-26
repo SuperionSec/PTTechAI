@@ -16,6 +16,7 @@ from backend.models.permission import Permission, RolePermission, ResourceMappin
 from backend.models.user import User, Role, RoleModel
 from backend.core.auth import get_current_user, require_role
 from backend.core.resource_guard import resource_guard
+from backend.services import rbac_service
 
 router = APIRouter()
 
@@ -447,33 +448,13 @@ async def create_resource_mapping(
     current_user: User = Depends(require_role(Role.ADMIN))
 ):
     """Create a new resource mapping (admin only)"""
-    # Check if permission exists
-    perm_result = await db.execute(select(Permission).where(Permission.id == request.permission_id))
-    if not perm_result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Permission not found")
-
-    # Check if mapping already exists
-    existing = await db.execute(
-        select(ResourceMapping).where(
-            ResourceMapping.permission_id == request.permission_id,
-            ResourceMapping.resource_type == request.resource_type,
-            ResourceMapping.resource_path == request.resource_path
-        )
+    mapping = await rbac_service.create_resource_mapping(
+        db,
+        request.permission_id,
+        request.resource_type,
+        request.resource_path,
     )
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Resource mapping already exists")
-
-    rm = ResourceMapping(
-        id=str(uuid.uuid4()),
-        permission_id=request.permission_id,
-        resource_type=request.resource_type,
-        resource_path=request.resource_path,
-    )
-    db.add(rm)
-    await db.commit()
-    await db.refresh(rm)
-
-    return ResourceMappingResponse(**rm.to_dict())
+    return ResourceMappingResponse(**mapping.model_dump())
 
 
 @router.delete("/resource-mappings/{mapping_id}", status_code=status.HTTP_204_NO_CONTENT)

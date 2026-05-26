@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from backend.api.v1.permissions import CreateResourceMappingRequest, create_resource_mapping as create_legacy_resource_mapping
 from backend.config import settings
 from backend.db.database import Base
 import backend.models
@@ -264,3 +265,38 @@ async def test_update_role_permissions_rejects_missing_role(db_session):
 
     assert exc_info.value.status_code == 404
     assert await db_session.scalar(select(RolePermission)) is None
+
+
+@pytest.mark.asyncio
+async def test_legacy_create_resource_mapping_reuses_rbac_validation(db_session):
+    permission = await _seed_permission(db_session)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await create_legacy_resource_mapping(
+            CreateResourceMappingRequest(
+                permission_id=permission.id,
+                resource_type="backend_api",
+                resource_path="GET /api/v1/scans?limit=1",
+            ),
+            db_session,
+            current_user=None,
+        )
+
+    assert exc_info.value.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_legacy_create_resource_mapping_normalizes_backend_method(db_session):
+    permission = await _seed_permission(db_session)
+
+    mapping = await create_legacy_resource_mapping(
+        CreateResourceMappingRequest(
+            permission_id=permission.id,
+            resource_type="backend_api",
+            resource_path="get /api/v1/scans/*",
+        ),
+        db_session,
+        current_user=None,
+    )
+
+    assert mapping.resource_path == "GET /api/v1/scans/*"
