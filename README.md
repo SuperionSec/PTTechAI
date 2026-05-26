@@ -602,7 +602,7 @@ LMSTUDIO_BASE_URL=http://localhost:1234
 OPENROUTER_API_KEY=your-key
 
 # Database
-DATABASE_URL=sqlite+aiosqlite:///./data/bctechai.db
+DATABASE_URL=postgresql+asyncpg://pttechai:pttechai@localhost:5432/pttechai
 
 # Admin User (v0.1.0)
 ADMIN_EMAIL=admin@bctech.ai

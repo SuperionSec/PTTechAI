@@ -7,16 +7,22 @@ Supports cron expressions and interval-based scheduling for:
 - Vulnerability validation
 - Re-analysis of previous findings
 
-Uses APScheduler with SQLite persistence so jobs survive restarts.
+Uses APScheduler with PostgreSQL persistence so jobs survive restarts.
 """
 
 import json
 import logging
 from datetime import datetime
 from typing import Dict, List, Optional
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+
+def _default_database_url() -> str:
+    from backend.config import settings
+
+    return settings.DATABASE_URL
+
 
 _SCHEDULER_REGISTRY: Dict[str, "ScanScheduler"] = {}
 
@@ -44,7 +50,7 @@ except ImportError:
 class ScanScheduler:
     """Manages recurring scan jobs via APScheduler."""
 
-    def __init__(self, config: Dict, database_url: str = "sqlite:///./data/pttechai_scheduler.db", scheduler_key: str = "default"):
+    def __init__(self, config: Dict, database_url: str | None = None, scheduler_key: str = "default"):
         self.config = config
         self.scheduler_config = config.get('scheduler', {})
         self.enabled = self.scheduler_config.get('enabled', False)
@@ -59,7 +65,7 @@ class ScanScheduler:
             return
 
         jobstores = {
-            'default': SQLAlchemyJobStore(url=database_url)
+            'default': SQLAlchemyJobStore(url=database_url or _default_database_url())
         }
         self.scheduler = AsyncIOScheduler(jobstores=jobstores)
 

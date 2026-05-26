@@ -548,7 +548,7 @@ ENABLE_RESEARCHER_AI=true
 #TOKEN_BUDGET=100000
 
 # Database
-DATABASE_URL=sqlite+aiosqlite:///./data/PTTechAI.db
+DATABASE_URL=postgresql+asyncpg://pttechai:pttechai@localhost:5432/pttechai
 
 # Server
 HOST=0.0.0.0
@@ -611,7 +611,7 @@ python -m uvicorn backend.main:app --reload --port 8000
 ### Backend Dependencies
 
 - **Framework**: FastAPI, Uvicorn, Pydantic
-- **Database**: SQLAlchemy (async), aiosqlite
+- **Database**: SQLAlchemy (async), asyncpg
 - **HTTP**: aiohttp
 - **LLM**: anthropic, openai
 - **Reports**: Jinja2, WeasyPrint
