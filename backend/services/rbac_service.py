@@ -137,6 +137,14 @@ def _normalize_role_name(name: str) -> str:
     return role_name
 
 
+async def resolve_active_role(db: AsyncSession, role: str | None) -> RoleModel:
+    role_name = _normalize_role_name(role or "user")
+    role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role_name, RoleModel.is_active == True))
+    if not role_model:
+        raise HTTPException(status_code=400, detail="Role not found or inactive")
+    return role_model
+
+
 async def _validate_permission_ids(db: AsyncSession, permission_ids: list[str]) -> None:
     if permission_ids:
         result = await db.execute(select(Permission.id).where(Permission.id.in_(permission_ids)))

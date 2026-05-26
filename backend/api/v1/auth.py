@@ -7,7 +7,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.database import get_db
-from backend.models.user import User, Role, RoleModel
+from backend.models.user import User, Role
 from backend.schemas.auth import (
     UserLogin,
     UserCreate,
@@ -29,6 +29,7 @@ from backend.core.auth import (
     security,
 )
 from backend.core.token_manager import store_token, revoke_token, is_token_revoked
+from backend.services.rbac_service import resolve_active_role
 from backend.config import settings
 
 
@@ -68,15 +69,13 @@ async def register(
 
     # Create new user
     hashed_password = get_password_hash(user_data.password)
-    role_value = Role(user_data.role) if user_data.role else Role.USER
-    role_name = role_value.value if hasattr(role_value, "value") else role_value
-    role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role_name))
+    role_model = await resolve_active_role(db, user_data.role)
     db_user = User(
         email=user_data.email,
         hashed_password=hashed_password,
         full_name=user_data.full_name,
-        role=role_value,
-        role_id=role_model.id if role_model else None,
+        role=role_model.name,
+        role_id=role_model.id,
         is_active=True,
     )
     db.add(db_user)

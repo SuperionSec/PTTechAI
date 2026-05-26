@@ -8,10 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from backend.db.database import get_db
-from backend.models.user import User, Role, RoleModel
+from backend.models.user import User, Role
 from backend.schemas.auth import UserResponse, UserUpdate, UserCreate
-from backend.core.auth import get_current_user, require_role, get_password_hash, get_user_by_id, get_user, create_access_token
+from backend.core.auth import get_current_user, get_password_hash, get_user_by_id, get_user
 from backend.core.permissions import require_user_manage, require_user_read, require_user_create, require_user_update, require_user_delete
+from backend.services.rbac_service import resolve_active_role
 
 router = APIRouter()
 
@@ -35,14 +36,13 @@ async def create_user(
         )
     
     hashed_password = get_password_hash(user_data.password)
-    role_value = user_data.role if user_data.role else "user"
-    role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role_value))
+    role_model = await resolve_active_role(db, user_data.role)
     db_user = User(
         email=user_data.email,
         hashed_password=hashed_password,
         full_name=user_data.full_name,
-        role=role_value,
-        role_id=role_model.id if role_model else None,
+        role=role_model.name,
+        role_id=role_model.id,
         is_active=True,
     )
     db.add(db_user)
@@ -171,9 +171,9 @@ async def update_user(
         user.is_active = user_data.is_active
     
     if user_data.role is not None:
-        user.role = user_data.role
-        role_model = await db.scalar(select(RoleModel).where(RoleModel.name == user_data.role))
-        user.role_id = role_model.id if role_model else None
+        role_model = await resolve_active_role(db, user_data.role)
+        user.role = role_model.name
+        user.role_id = role_model.id
 
     await db.commit()
     await db.refresh(user)

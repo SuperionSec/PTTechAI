@@ -2,7 +2,7 @@ import pytest
 from fastapi import HTTPException
 
 from backend.schemas.rbac import RoleUpdate
-from backend.services.rbac_service import _normalize_role_name, update_role
+from backend.services.rbac_service import _normalize_role_name, resolve_active_role, update_role
 
 
 class FakeDb:
@@ -18,12 +18,13 @@ class FakeDb:
 
 
 class FakeRoleModel:
-    id = "role-id"
-    name = "admin"
-    display_name = "Administrator"
-    description = None
-    is_system = True
-    is_active = True
+    def __init__(self, name="admin", is_system=True, is_active=True):
+        self.id = "role-id"
+        self.name = name
+        self.display_name = "Administrator"
+        self.description = None
+        self.is_system = is_system
+        self.is_active = is_active
 
 
 def test_normalize_role_name_lowercases_and_trims():
@@ -47,3 +48,22 @@ async def test_update_role_rejects_deactivating_system_role():
 
     assert exc_info.value.status_code == 403
     assert not db.committed
+
+
+@pytest.mark.asyncio
+async def test_resolve_active_role_defaults_to_user_role():
+    db = FakeDb(FakeRoleModel(name="user", is_system=True, is_active=True))
+
+    role_model = await resolve_active_role(db, None)
+
+    assert role_model.name == "user"
+
+
+@pytest.mark.asyncio
+async def test_resolve_active_role_rejects_missing_role():
+    db = FakeDb(None)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await resolve_active_role(db, "unknown")
+
+    assert exc_info.value.status_code == 400
