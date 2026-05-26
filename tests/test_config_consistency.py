@@ -103,6 +103,29 @@ class TestAlembicConfig:
         assert "UPDATE role_permissions" in content
 
 
+class TestRbacFrontendRouteConsistency:
+    """Test frontend routes stay aligned with RBAC frontend resources."""
+
+    def _frontend_menu_paths(self):
+        content = (PROJECT_ROOT / "frontend" / "src" / "routes" / "routeConfig.tsx").read_text(encoding="utf-8")
+        paths = []
+        for line in content.splitlines():
+            match = re.search(r"path: '([^']+)'", line)
+            if match and "hideInMenu: true" not in line and "public: true" not in line and match.group(1) != "*":
+                paths.append(match.group(1))
+        return paths
+
+    def test_menu_routes_are_registered_in_rbac_service(self):
+        rbac_service = (PROJECT_ROOT / "backend" / "services" / "rbac_service.py").read_text(encoding="utf-8")
+        missing = [path for path in self._frontend_menu_paths() if f'("{path}",' not in rbac_service]
+        assert missing == [], f"Menu routes missing from RBAC frontend route registry: {missing}"
+
+    def test_menu_routes_have_seeded_frontend_resource_mappings(self):
+        init_permissions = (PROJECT_ROOT / "backend" / "scripts" / "init_permissions.py").read_text(encoding="utf-8")
+        missing = [path for path in self._frontend_menu_paths() if f'"{path}"' not in init_permissions]
+        assert missing == [], f"Menu routes missing from seeded frontend resource mappings: {missing}"
+
+
 class TestFrontendPackageJson:
     """Test frontend/package.json consistency."""
 

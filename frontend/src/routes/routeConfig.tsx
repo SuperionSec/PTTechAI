@@ -83,7 +83,7 @@ export const appRoutes: AppRoute[] = [
   { path: '/roles', name: 'roleManagement.title', element: <RoleManagementPage />, icon: <UserSwitchOutlined />, permission: 'user:manage' },
   { path: '/unmapped-resources', name: 'roleManagement.unmappedResources', element: <UnmappedResourcesPage />, icon: <UserSwitchOutlined />, permission: 'user:manage' },
   { path: '/settings', name: 'sidebar.settings', element: <SettingsPage />, icon: <SettingOutlined />, permission: 'settings:read' },
-  { path: '/api-keys', name: 'apiKeys.title', element: <APIKeysPage />, icon: <KeyOutlined /> },
+  { path: '/api-keys', name: 'apiKeys.title', element: <APIKeysPage />, icon: <KeyOutlined />, permission: 'api_key:read' },
   { path: '/profile', name: 'profile.title', element: <UserProfilePage />, icon: <UserOutlined /> },
   { path: '*', name: 'pages.notFound', element: <NotFound />, public: true, hideInMenu: true },
 ]

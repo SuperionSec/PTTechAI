@@ -197,6 +197,18 @@ class TestRbacEndpoints:
         assert set(RbacMeOut.model_fields) == {"role", "permissions", "frontend_pages", "backend_apis", "access", "menus"}
 
 
+    def test_default_backend_resource_mappings_cover_registered_apis(self, app):
+        from backend.core.rbac.matcher import match_api_resource
+        from backend.scripts.init_permissions import PERMISSION_BACKEND_APIS
+        from backend.services.rbac_service import PUBLIC_API_RESOURCES, discover_api_routes
+
+        registered = discover_api_routes(app) - PUBLIC_API_RESOURCES
+        patterns = {pattern for api_patterns in PERMISSION_BACKEND_APIS.values() for pattern in api_patterns}
+        unmapped = [resource for resource in sorted(registered) if not any(match_api_resource(pattern, resource) for pattern in patterns)]
+
+        assert unmapped == []
+
+
 class TestVulnLabEndpoints:
     """Test vulnerability lab endpoints."""
 

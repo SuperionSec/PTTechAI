@@ -34,6 +34,7 @@ FRONTEND_ROUTES = [
     ("/roles", "roleManagement.title", "user:manage"),
     ("/unmapped-resources", "roleManagement.unmappedResources", "user:manage"),
     ("/settings", "sidebar.settings", "settings:read"),
+    ("/api-keys", "apiKeys.title", "api_key:read"),
     ("/profile", "profile.title", None),
 ]
 PUBLIC_API_RESOURCES = {
