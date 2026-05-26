@@ -80,6 +80,42 @@ class TestConfigJson:
         assert len(data["agent_roles"]) > 0, "Should have at least one agent role"
 
 
+class TestPostgreSqlRuntimeConfig:
+    """Test runtime database configuration stays on PostgreSQL."""
+
+    def test_runtime_files_do_not_reintroduce_sqlite(self):
+        checked_paths = [
+            PROJECT_ROOT / "pyproject.toml",
+            PROJECT_ROOT / "backend" / "requirements.txt",
+            PROJECT_ROOT / "backend" / "config.py",
+            PROJECT_ROOT / "backend" / "tests" / "conftest.py",
+            PROJECT_ROOT / "config" / "config.json",
+            PROJECT_ROOT / "core" / "scheduler.py",
+            PROJECT_ROOT / "docker" / "Dockerfile.backend",
+            PROJECT_ROOT / "docker" / "Dockerfile.backend.lite",
+            PROJECT_ROOT / "tests" / "test_rbac_service.py",
+        ]
+        forbidden = ["sqlite" + "+aiosqlite", "sqlite" + ":///", "aiosqlite", "pttechai_scheduler" + ".db"]
+        offenders = []
+        for path in checked_paths:
+            content = path.read_text(encoding="utf-8")
+            for token in forbidden:
+                if token in content:
+                    offenders.append(f"{path.relative_to(PROJECT_ROOT)} contains {token}")
+        assert offenders == []
+
+    def test_no_local_sqlite_database_files(self):
+        skipped_dirs = {".git", ".qoder", ".pytest_cache", "__pycache__", "node_modules", "dist", "build", ".venv", "venv"}
+        suffixes = {".db", ".sqlite", ".sqlite3"}
+        database_files = []
+        for path in PROJECT_ROOT.rglob("*"):
+            if any(part in skipped_dirs for part in path.parts):
+                continue
+            if path.is_file() and path.suffix.lower() in suffixes:
+                database_files.append(str(path.relative_to(PROJECT_ROOT)))
+        assert database_files == []
+
+
 class TestAlembicConfig:
     """Test database migration configuration."""
 
