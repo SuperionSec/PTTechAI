@@ -18,6 +18,7 @@ from backend.api.v1.permissions import (
     update_role_permissions as update_legacy_role_permissions,
 )
 from backend.config import settings
+from backend.core.permissions import PermissionChecker, has_permission
 from backend.core.resource_guard import resource_guard
 from backend.db.database import Base
 import backend.models
@@ -230,6 +231,27 @@ async def test_resource_guard_reads_custom_role_id_permissions(db_session):
     assert [permission.name for permission in permissions] == ["scan:read"]
     assert await resource_guard.get_accessible_pages(user, db_session) == ["/scan/new"]
     assert await resource_guard.get_accessible_apis(user, db_session) == ["GET /api/v1/scans"]
+
+
+@pytest.mark.asyncio
+async def test_legacy_permission_helpers_read_custom_role_id_permissions(db_session):
+    permission = await _seed_permission(db_session)
+    role_detail = await create_role(db_session, RoleCreate(name="auditor", display_name="Auditor", permission_ids=[permission.id]))
+    user = User(
+        id="user-id",
+        email="auditor@example.com",
+        hashed_password="hashed",
+        role="auditor",
+        role_id=role_detail.id,
+        is_active=True,
+    )
+    db_session.add(user)
+    await db_session.commit()
+
+    assert await has_permission(db_session, user, PermissionScope.SCAN, PermissionAction.READ)
+    checker = PermissionChecker(user)
+    await checker.load_permissions(db_session)
+    assert checker.can(PermissionScope.SCAN, PermissionAction.READ)
 
 
 @pytest.mark.asyncio

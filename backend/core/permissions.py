@@ -19,6 +19,13 @@ class PermissionDenied(HTTPException):
         super().__init__(status_code=403, detail=detail)
 
 
+def _role_permission_filter(user: User):
+    role_value = user.role.value if hasattr(user.role, 'value') else user.role
+    if user.role_id:
+        return (RolePermission.role_id == user.role_id) | (RolePermission.role == role_value)
+    return RolePermission.role == role_value
+
+
 async def get_role_permissions(db: AsyncSession, role) -> List[Permission]:
     """Get all permissions for a role"""
     role_value = role.value if hasattr(role, 'value') else role
@@ -26,6 +33,17 @@ async def get_role_permissions(db: AsyncSession, role) -> List[Permission]:
         select(Permission)
         .join(RolePermission, Permission.id == RolePermission.permission_id)
         .where(RolePermission.role == role_value)
+        .where(Permission.is_active == True)
+    )
+    return result.scalars().all()
+
+
+async def get_user_permissions(db: AsyncSession, user: User) -> List[Permission]:
+    """Get all permissions for a user"""
+    result = await db.execute(
+        select(Permission)
+        .join(RolePermission, Permission.id == RolePermission.permission_id)
+        .where(_role_permission_filter(user))
         .where(Permission.is_active == True)
     )
     return result.scalars().all()
@@ -46,7 +64,7 @@ async def has_permission(
     result = await db.execute(
         select(Permission)
         .join(RolePermission, Permission.id == RolePermission.permission_id)
-        .where(RolePermission.role == (user.role.value if hasattr(user.role, 'value') else user.role))
+        .where(_role_permission_filter(user))
         .where(Permission.scope == scope)
         .where(Permission.action == action)
         .where(Permission.is_active == True)
@@ -143,7 +161,7 @@ class PermissionChecker:
 
     async def load_permissions(self, db: AsyncSession):
         """Load permissions from database"""
-        self._permissions = await get_role_permissions(db, self.user.role)
+        self._permissions = await get_user_permissions(db, self.user)
 
     def can(self, scope: PermissionScope, action: PermissionAction) -> bool:
         """Check if user can perform an action"""
