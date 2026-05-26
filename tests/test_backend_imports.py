@@ -75,6 +75,7 @@ class TestBackendSchemasImport:
         "backend.schemas.report",
         "backend.schemas.prompt",
         "backend.schemas.agent_task",
+        "backend.schemas.rbac",
     ])
     def test_schema_import(self, module_name):
         mod = importlib.import_module(module_name)
@@ -113,6 +114,7 @@ class TestBackendCoreModulesImport:
         "backend.core.exploit_generator",
         "backend.core.poc_generator",
         "backend.core.poc_validator",
+        "backend.services.rbac_service",
     ])
     def test_core_module_import(self, module_name):
         mod = importlib.import_module(module_name)

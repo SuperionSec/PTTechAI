@@ -80,6 +80,29 @@ class TestConfigJson:
         assert len(data["agent_roles"]) > 0, "Should have at least one agent role"
 
 
+class TestAlembicConfig:
+    """Test database migration configuration."""
+
+    def test_alembic_ini_exists(self):
+        assert (PROJECT_ROOT / "alembic.ini").exists(), "alembic.ini should exist"
+
+    def test_alembic_uses_backend_migrations(self):
+        content = (PROJECT_ROOT / "alembic.ini").read_text(encoding="utf-8")
+        assert "script_location = backend/migrations" in content
+
+    def test_initial_roles_migration_exists(self):
+        migration_path = PROJECT_ROOT / "backend" / "migrations" / "versions" / "20260526_0001_add_roles_table_and_role_foreign_keys.py"
+        assert migration_path.exists(), "Initial roles migration should exist"
+
+    def test_initial_roles_migration_backfills_role_ids(self):
+        migration_path = PROJECT_ROOT / "backend" / "migrations" / "versions" / "20260526_0001_add_roles_table_and_role_foreign_keys.py"
+        content = migration_path.read_text(encoding="utf-8")
+        assert "op.create_table(" in content
+        assert '"roles"' in content
+        assert "UPDATE users" in content
+        assert "UPDATE role_permissions" in content
+
+
 class TestFrontendPackageJson:
     """Test frontend/package.json consistency."""
 

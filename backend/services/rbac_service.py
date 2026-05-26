@@ -1,3 +1,4 @@
+import re
 import uuid
 from fastapi import HTTPException, status
 from sqlalchemy import delete, func, select
@@ -10,6 +11,7 @@ from backend.models.user import Role, RoleModel, User
 from backend.schemas.rbac import MenuItemOut, PermissionOut, ResourceMappingOut, RoleCreate, RoleDetailOut, RoleSummaryOut, RoleUpdate, UnmappedResourceOut
 
 SYSTEM_ROLES = {"admin", "user", "viewer", "service"}
+ROLE_NAME_PATTERN = re.compile(r"^[a-z0-9_]{1,50}$")
 FRONTEND_ROUTES = [
     ("/", "sidebar.dashboard", "dashboard:read"),
     ("/auto", "sidebar.autoPentest", "agent:execute"),
@@ -125,6 +127,14 @@ async def get_role_detail(db: AsyncSession, role: str) -> RoleDetailOut:
         total=len(permissions),
     )
 
+def _normalize_role_name(name: str) -> str:
+    role_name = name.strip().lower()
+    if not role_name:
+        raise HTTPException(status_code=400, detail="Role name is required")
+    if not ROLE_NAME_PATTERN.fullmatch(role_name):
+        raise HTTPException(status_code=400, detail="Role name must contain only lowercase letters, numbers, and underscores")
+    return role_name
+
 
 async def _validate_permission_ids(db: AsyncSession, permission_ids: list[str]) -> None:
     if permission_ids:
@@ -136,9 +146,7 @@ async def _validate_permission_ids(db: AsyncSession, permission_ids: list[str]) 
 
 
 async def create_role(db: AsyncSession, body: RoleCreate) -> RoleDetailOut:
-    role_name = body.name.strip().lower()
-    if not role_name:
-        raise HTTPException(status_code=400, detail="Role name is required")
+    role_name = _normalize_role_name(body.name)
     if await db.scalar(select(RoleModel).where(RoleModel.name == role_name)):
         raise HTTPException(status_code=400, detail="Role already exists")
     await _validate_permission_ids(db, body.permission_ids)

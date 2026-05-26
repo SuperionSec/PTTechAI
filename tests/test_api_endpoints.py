@@ -56,6 +56,7 @@ class TestRouterRegistration:
         "/api/v1/providers",
         "/api/v1/full-ia",
         "/api/v1/permissions",
+        "/api/v1/rbac",
     ]
 
     def test_all_routers_registered(self, app):
@@ -161,6 +162,34 @@ class TestDashboardEndpoints:
             response = await client.get("/api/v1/dashboard/stats")
             assert response.status_code in (401, 403), \
                 f"Dashboard should require auth, got {response.status_code}"
+
+
+class TestRbacEndpoints:
+    """Test RBAC API endpoints."""
+
+    @pytest.mark.asyncio
+    async def test_rbac_me_requires_auth(self, app):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get("/api/v1/rbac/me")
+            assert response.status_code in (401, 403), \
+                f"RBAC profile should require auth, got {response.status_code}"
+
+    @pytest.mark.asyncio
+    async def test_rbac_roles_requires_auth(self, app):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get("/api/v1/rbac/roles")
+            assert response.status_code in (401, 403), \
+                f"RBAC roles should require auth, got {response.status_code}"
+
+    @pytest.mark.asyncio
+    async def test_rbac_permissions_requires_auth(self, app):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get("/api/v1/rbac/permissions")
+            assert response.status_code in (401, 403), \
+                f"RBAC permissions should require auth, got {response.status_code}"
 
 
 class TestVulnLabEndpoints:

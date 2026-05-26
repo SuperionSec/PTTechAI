@@ -75,6 +75,31 @@ class TestFrontendServices:
     def test_websocket_service_exists(self):
         assert (FRONTEND_SRC / "services" / "websocket.ts").exists(), "websocket.ts should exist"
 
+    def test_rbac_service_exists(self):
+        assert (FRONTEND_SRC / "services" / "rbac.ts").exists(), "rbac.ts should exist"
+
+    def test_rbac_service_has_role_apis(self):
+        content = (FRONTEND_SRC / "services" / "rbac.ts").read_text(encoding="utf-8")
+        for method in ["roles", "role", "createRole", "updateRolePermissions", "deleteRole"]:
+            assert f"{method}:" in content, f"rbacApi should expose {method}"
+
+
+class TestAutoPentestOptions:
+    """Test Auto Pentest mode options."""
+
+    def test_kali_researcher_mode_is_present(self):
+        content = (FRONTEND_SRC / "pages" / "AutoPentestPage.tsx").read_text(encoding="utf-8")
+        assert "kali_researcher" in content
+        assert "isKaliResearcherMode" in content
+        assert "enable_kali_sandbox" in content
+
+    def test_kali_researcher_i18n_keys_exist(self):
+        with open(FRONTEND_SRC / "locales" / "en-US.json", encoding="utf-8") as f:
+            en = json.load(f)
+        with open(FRONTEND_SRC / "locales" / "zh-CN.json", encoding="utf-8") as f:
+            zh = json.load(f)
+        assert en["autoPentest"]["kaliResearcher"] == "Kali Sandbox + AI Researcher"
+        assert zh["autoPentest"]["kaliResearcher"] == "Kali 沙箱 + AI 研究员"
 
 class TestFrontendI18n:
     """Test internationalization files."""
