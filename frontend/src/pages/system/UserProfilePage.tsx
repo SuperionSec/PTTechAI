@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { PageContainer, ProCard } from '@ant-design/pro-components'
+import { PageContainer, ProCard, StatisticCard } from '@ant-design/pro-components'
 import { Alert, App as AntApp, Avatar, Button, Descriptions, Form, Input, Space, Spin, Tag, Typography } from 'antd'
 import { EditOutlined, LockOutlined, SaveOutlined, UserOutlined } from '@ant-design/icons'
 import i18n from '../../locales'
@@ -101,17 +101,26 @@ export default function UserProfilePage() {
     <PageContainer title={t('profile.title')} subTitle={t('profile.subtitle')}>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <ProCard bordered>
-          <Space align="center" size="large" wrap>
-            <Avatar size={72} icon={<UserOutlined />} style={{ backgroundColor: '#1677ff' }}>
-              {displayName[0]?.toUpperCase()}
-            </Avatar>
-            <Space direction="vertical" size={0}>
-              <Text strong style={{ fontSize: 20 }}>{displayName}</Text>
-              <Text type="secondary">{user.email}</Text>
-              <Tag color={roleColors[user.role]} style={{ marginTop: 8 }}>{roleLabels[user.role] || user.role}</Tag>
+          <Space style={{ width: '100%', justifyContent: 'space-between' }} align="center" wrap>
+            <Space align="center" size="large" wrap>
+              <Avatar size={72} icon={<UserOutlined />} style={{ backgroundColor: '#1677ff' }}>
+                {displayName[0]?.toUpperCase()}
+              </Avatar>
+              <Space direction="vertical" size={0}>
+                <Text strong style={{ fontSize: 20 }}>{displayName}</Text>
+                <Text type="secondary">{user.email}</Text>
+                <Tag color={roleColors[user.role]} style={{ marginTop: 8 }}>{roleLabels[user.role] || user.role}</Tag>
+              </Space>
             </Space>
+            <Text type="secondary">{t('profile.subtitle')}</Text>
           </Space>
         </ProCard>
+
+        <StatisticCard.Group direction="row">
+          <StatisticCard statistic={{ title: t('usersManagement.role'), value: roleLabels[user.role] || user.role, icon: <UserOutlined /> }} />
+          <StatisticCard statistic={{ title: t('login.email'), value: user.email, icon: <EditOutlined /> }} />
+          <StatisticCard statistic={{ title: t('usersManagement.createdAt'), value: new Date(user.created_at).toLocaleDateString(i18n.language === 'zh-CN' ? 'zh-CN' : 'en-US'), icon: <LockOutlined /> }} />
+        </StatisticCard.Group>
 
         <ProCard
           bordered
