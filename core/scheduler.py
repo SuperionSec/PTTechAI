@@ -18,6 +18,18 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+_SCHEDULER_REGISTRY: Dict[str, "ScanScheduler"] = {}
+
+
+async def _run_scheduled_scan(scheduler_key: str, job_id: str, target: str, scan_type: str,
+                              agent_role: Optional[str], llm_profile: Optional[str]):
+    scheduler = _SCHEDULER_REGISTRY.get(scheduler_key)
+    if not scheduler:
+        logger.warning(f"Scheduled scan skipped; scheduler registry missing key: {scheduler_key}")
+        return None
+    return await scheduler._execute_scheduled_scan(job_id, target, scan_type, agent_role, llm_profile)
+
+
 try:
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
     from apscheduler.triggers.cron import CronTrigger
@@ -38,6 +50,8 @@ class ScanScheduler:
         self.enabled = self.scheduler_config.get('enabled', False)
         self.jobs_meta: Dict[str, Dict] = {}  # job_id -> metadata
         self._scan_callback = None
+        self._registry_key = str(id(self))
+        _SCHEDULER_REGISTRY[self._registry_key] = self
 
         if not HAS_APSCHEDULER:
             self.enabled = False
@@ -102,10 +116,10 @@ class ScanScheduler:
             return {"error": "Provide either cron_expression or interval_minutes"}
 
         self.scheduler.add_job(
-            self._execute_scheduled_scan,
+            _run_scheduled_scan,
             trigger=trigger,
             id=job_id,
-            args=[target, scan_type, agent_role, llm_profile],
+            args=[self._registry_key, job_id, target, scan_type, agent_role, llm_profile],
             replace_existing=True,
             name=f"scan_{target}_{scan_type}"
         )
@@ -185,11 +199,10 @@ class ScanScheduler:
                 })
         return jobs
 
-    async def _execute_scheduled_scan(self, target: str, scan_type: str,
+    async def _execute_scheduled_scan(self, job_id: str, target: str, scan_type: str,
                                        agent_role: Optional[str],
                                        llm_profile: Optional[str]):
         """Execute a scheduled scan. Called by APScheduler."""
-        job_id = f"scan_{target}_{scan_type}"
         logger.info(f"Executing scheduled scan: {target} ({scan_type})")
 
         if job_id in self.jobs_meta:
@@ -217,3 +230,4 @@ class ScanScheduler:
         if self.scheduler and self.scheduler.running:
             self.scheduler.shutdown(wait=False)
             logger.info("Scheduler stopped")
+        _SCHEDULER_REGISTRY.pop(self._registry_key, None)

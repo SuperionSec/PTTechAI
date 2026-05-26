@@ -90,6 +90,10 @@
             "waybackurls"
         ]
     },
+    "scheduler": {
+        "enabled": true,
+        "jobs": []
+    },
     "output": {
         "format": "json",
         "verbose": true,
