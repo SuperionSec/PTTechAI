@@ -9,13 +9,14 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, delete
+from sqlalchemy import select
 
 from backend.db.database import get_db
 from backend.models.permission import Permission, RolePermission, ResourceMapping, PermissionScope, PermissionAction
 from backend.models.user import User, Role, RoleModel
 from backend.core.auth import get_current_user, require_role
 from backend.core.resource_guard import resource_guard
+from backend.schemas.rbac import RoleCreate as RbacRoleCreate
 from backend.services import rbac_service
 
 router = APIRouter()
@@ -103,10 +104,6 @@ class APIEndpointInfo(BaseModel):
     tags: List[str]
 
 
-# System roles that cannot be modified/deleted
-SYSTEM_ROLES = {"admin", "user", "viewer", "service"}
-
-
 class UnmappedResourceResponse(BaseModel):
     resource_type: str
     resource_path: str
@@ -134,38 +131,14 @@ async def list_roles(
     current_user: User = Depends(require_role(Role.ADMIN))
 ):
     """List all roles with user count and permission count (admin only)"""
-    # Query all distinct roles from RolePermission
-    role_result = await db.execute(select(RolePermission.role).distinct())
-    db_roles = set(role_result.scalars().all())
-
-    user_role_result = await db.execute(select(User.role).distinct())
-    user_roles = set(user_role_result.scalars().all())
-
-    all_roles = db_roles | user_roles | SYSTEM_ROLES
-
-    # Count users per role
-    user_counts = {}
-    for role in all_roles:
-        count_result = await db.execute(
-            select(func.count(User.id)).where(User.role == role)
-        )
-        user_counts[role] = count_result.scalar() or 0
-
-    # Count permissions per role
-    perm_counts = {}
-    for role in all_roles:
-        count_result = await db.execute(
-            select(func.count(RolePermission.id)).where(RolePermission.role == role)
-        )
-        perm_counts[role] = count_result.scalar() or 0
-
+    roles = await rbac_service.list_roles(db)
     return [
         RoleSummary(
-            role=role,
-            user_count=user_counts.get(role, 0),
-            permission_count=perm_counts.get(role, 0)
+            role=role.role,
+            user_count=role.user_count,
+            permission_count=role.permission_count,
         )
-        for role in sorted(all_roles)
+        for role in roles
     ]
 
 
@@ -176,66 +149,18 @@ async def create_role(
     current_user: User = Depends(require_role(Role.ADMIN))
 ):
     """Create a new role with permissions (admin only)"""
-    role_name = request.role.strip()
-
-    # Check role doesn't already exist in RolePermission
-    existing = await db.execute(
-        select(RolePermission).where(RolePermission.role == role_name)
+    detail = await rbac_service.create_role(
+        db,
+        RbacRoleCreate(
+            name=request.role,
+            display_name=request.role.strip().title(),
+            permission_ids=request.permission_ids,
+        ),
     )
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Role already exists")
-
-    # Also check if it's a known system role
-    if role_name in SYSTEM_ROLES:
-        raise HTTPException(status_code=400, detail="Cannot create system role")
-
-    # Check all permission_ids exist in Permission table
-    if request.permission_ids:
-        perm_result = await db.execute(
-            select(Permission).where(Permission.id.in_(request.permission_ids))
-        )
-        found_perms = {p.id for p in perm_result.scalars().all()}
-        missing = set(request.permission_ids) - found_perms
-        if missing:
-            raise HTTPException(status_code=400, detail=f"Permission IDs not found: {missing}")
-
-    role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role_name))
-    if not role_model:
-        role_model = RoleModel(
-            id=str(uuid.uuid4()),
-            name=role_name,
-            display_name=role_name.title(),
-            description=None,
-            is_system=False,
-            is_active=True,
-        )
-        db.add(role_model)
-        await db.flush()
-
-    # Create RolePermission entries for each permission
-    created_permissions = []
-    for perm_id in request.permission_ids:
-        rp = RolePermission(
-            id=str(uuid.uuid4()),
-            role=role_name,
-            role_id=role_model.id,
-            permission_id=perm_id,
-        )
-        db.add(rp)
-
-    await db.commit()
-
-    # Fetch created permissions for response
-    if request.permission_ids:
-        perm_result = await db.execute(
-            select(Permission).where(Permission.id.in_(request.permission_ids))
-        )
-        created_permissions = perm_result.scalars().all()
-
     return RoleDetailResponse(
-        role=role_name,
-        permissions=[PermissionResponse(**p.to_dict()) for p in created_permissions],
-        total=len(created_permissions)
+        role=detail.role,
+        permissions=[PermissionResponse(**permission.model_dump()) for permission in detail.permissions],
+        total=detail.total,
     )
 
 
@@ -247,47 +172,11 @@ async def update_role_permissions(
     current_user: User = Depends(require_role(Role.ADMIN))
 ):
     """Update role permissions (admin only)"""
-    # Check all permission_ids exist in Permission table
-    if request.permission_ids:
-        perm_result = await db.execute(
-            select(Permission).where(Permission.id.in_(request.permission_ids))
-        )
-        found_perms = {p.id for p in perm_result.scalars().all()}
-        missing = set(request.permission_ids) - found_perms
-        if missing:
-            raise HTTPException(status_code=400, detail=f"Permission IDs not found: {missing}")
-
-    # Delete all existing RolePermission for this role
-    await db.execute(
-        delete(RolePermission).where(RolePermission.role == role)
-    )
-
-    role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role))
-
-    # Create new RolePermission entries
-    created_permissions = []
-    for perm_id in request.permission_ids:
-        rp = RolePermission(
-            id=str(uuid.uuid4()),
-            role=role,
-            role_id=role_model.id if role_model else None,
-            permission_id=perm_id,
-        )
-        db.add(rp)
-
-    await db.commit()
-
-    # Fetch updated permissions for response
-    if request.permission_ids:
-        perm_result = await db.execute(
-            select(Permission).where(Permission.id.in_(request.permission_ids))
-        )
-        created_permissions = perm_result.scalars().all()
-
+    detail = await rbac_service.update_role_permissions(db, role, request.permission_ids)
     return RoleDetailResponse(
-        role=role,
-        permissions=[PermissionResponse(**p.to_dict()) for p in created_permissions],
-        total=len(created_permissions)
+        role=detail.role,
+        permissions=[PermissionResponse(**permission.model_dump()) for permission in detail.permissions],
+        total=detail.total,
     )
 
 
@@ -298,25 +187,7 @@ async def delete_role(
     current_user: User = Depends(require_role(Role.ADMIN))
 ):
     """Delete a custom role (admin only)"""
-    # Protect system roles
-    if role in SYSTEM_ROLES:
-        raise HTTPException(status_code=403, detail="Cannot delete system role")
-
-    # Check if any User has this role
-    user_result = await db.execute(
-        select(func.count(User.id)).where(User.role == role)
-    )
-    user_count = user_result.scalar() or 0
-    if user_count > 0:
-        raise HTTPException(status_code=400, detail="Role is assigned to users")
-
-    # Delete all RolePermission entries for this role
-    await db.execute(
-        delete(RolePermission).where(RolePermission.role == role)
-    )
-
-    await db.commit()
-
+    await rbac_service.delete_role(db, role)
     return None
 
 
@@ -327,17 +198,11 @@ async def get_role_permissions(
     current_user: User = Depends(require_role(Role.ADMIN))
 ):
     """Get permissions for a specific role (admin only)"""
-    result = await db.execute(
-        select(Permission)
-        .join(RolePermission, Permission.id == RolePermission.permission_id)
-        .where(RolePermission.role == role)
-        .where(Permission.is_active == True)
-    )
-    permissions = result.scalars().all()
+    detail = await rbac_service.get_role_detail(db, role)
     return RolePermissionsSummary(
-        role=role,
-        permissions=[PermissionResponse(**p.to_dict()) for p in permissions],
-        total=len(permissions)
+        role=detail.role,
+        permissions=[PermissionResponse(**permission.model_dump()) for permission in detail.permissions],
+        total=detail.total,
     )
 
 

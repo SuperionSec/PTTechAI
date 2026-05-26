@@ -8,9 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from backend.api.v1.permissions import (
     CreateResourceMappingRequest,
+    UpdateRoleRequest,
     create_resource_mapping as create_legacy_resource_mapping,
     delete_resource_mapping as delete_legacy_resource_mapping,
     list_unmapped_resources as list_legacy_unmapped_resources,
+    update_role_permissions as update_legacy_role_permissions,
 )
 from backend.config import settings
 from backend.db.database import Base
@@ -331,3 +333,19 @@ async def test_legacy_unmapped_resources_honors_wildcard_backend_mappings(db_ses
     unmapped = await list_legacy_unmapped_resources(db_session, current_user=None)
 
     assert "GET /api/v1/permissions/roles/{role}" not in {resource.resource_path for resource in unmapped}
+
+
+@pytest.mark.asyncio
+async def test_legacy_update_role_permissions_rejects_missing_role_without_orphans(db_session):
+    permission = await _seed_permission(db_session)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await update_legacy_role_permissions(
+            "missing_role",
+            UpdateRoleRequest(permission_ids=[permission.id]),
+            db_session,
+            current_user=None,
+        )
+
+    assert exc_info.value.status_code == 404
+    assert await db_session.scalar(select(RolePermission)) is None
