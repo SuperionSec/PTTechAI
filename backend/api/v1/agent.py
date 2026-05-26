@@ -24,23 +24,13 @@ from backend.db.database import async_session_factory
 from backend.models import Scan, Target, Vulnerability, Endpoint, Report
 
 from backend.core.auth import get_current_user
-from backend.models.user import User, Role
+from backend.models.user import User
 from backend.core.resource_guard import require_api_permission
 from backend.core.permissions import require_agent_read, require_agent_execute
 from fastapi import Request
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
 
-
-async def require_service_or_user_role(current_user: User = Depends(get_current_user)) -> User:
-    """Allow user, admin, and service roles for agent run/status/logs endpoints"""
-    user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
-    if user_role not in [Role.ADMIN.value, Role.USER.value, Role.SERVICE.value]:
-        raise HTTPException(
-            status_code=403,
-            detail="Not enough permissions. Requires user, admin, or service role."
-        )
-    return current_user
 
 # Store for agent results (in-memory cache for real-time status)
 agent_results: Dict[str, Dict] = {}
@@ -167,7 +157,7 @@ class TaskResponse(BaseModel):
     estimated_tokens: int
 
 
-@router.post("/run", response_model=AgentResponse, dependencies=[Depends(require_service_or_user_role)])
+@router.post("/run", response_model=AgentResponse, dependencies=[Depends(require_agent_execute())])
 async def run_agent(request: AgentRequest, background_tasks: BackgroundTasks):
     """
     Run the Autonomous AI Security Agent
@@ -768,7 +758,7 @@ async def get_agent_by_scan(scan_id: str):
     raise HTTPException(status_code=404, detail="Agent data no longer in memory")
 
 
-@router.get("/status/{agent_id}", dependencies=[Depends(require_service_or_user_role)])
+@router.get("/status/{agent_id}", dependencies=[Depends(require_agent_read())])
 async def get_agent_status(agent_id: str):
     """Get the status and results of an agent run - with database fallback"""
     # Check in-memory cache first
@@ -1491,7 +1481,7 @@ async def get_agent_logs(agent_id: str, limit: int = 100):
     }
 
 
-@router.get("/findings/{agent_id}", dependencies=[Depends(require_service_or_user_role)])
+@router.get("/findings/{agent_id}", dependencies=[Depends(require_agent_read())])
 async def get_agent_findings(agent_id: str):
     """Get the findings from an agent run with full details"""
     if agent_id not in agent_results:

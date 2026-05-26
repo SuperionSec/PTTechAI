@@ -208,6 +208,17 @@ class TestRbacEndpoints:
 
         assert unmapped == []
 
+    def test_agent_run_and_status_use_permission_dependencies(self, app):
+        routes = {route.path: route for route in app.routes if hasattr(route, "path") and route.path.startswith("/api/v1/agent")}
+
+        run_dependencies = [dependency.call for dependency in routes["/api/v1/agent/run"].dependant.dependencies]
+        status_dependencies = [dependency.call for dependency in routes["/api/v1/agent/status/{agent_id}"].dependant.dependencies]
+
+        assert all(getattr(dependency, "__name__", "") != "require_service_or_user_role" for dependency in run_dependencies)
+        assert all(getattr(dependency, "__name__", "") != "require_service_or_user_role" for dependency in status_dependencies)
+        assert any(getattr(dependency, "__name__", "") == "_check_permission" for dependency in run_dependencies)
+        assert any(getattr(dependency, "__name__", "") == "_check_permission" for dependency in status_dependencies)
+
 
 class TestVulnLabEndpoints:
     """Test vulnerability lab endpoints."""
