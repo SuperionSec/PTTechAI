@@ -2,14 +2,15 @@
 Resource Guard - Unified permission-based access control
 PTTechAI v0.1.0 - RBAC with Resource Mapping
 """
-from typing import List, Optional
+from typing import List
 from fastapi import HTTPException, Depends, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.permission import Permission, RolePermission, ResourceMapping
-from backend.models.user import User, Role
+from backend.models.user import User
 from backend.core.auth import get_current_user
+from backend.core.rbac.access_helpers import is_admin_role, role_permission_filter
 from backend.core.rbac.matcher import find_best_api_matches
 from backend.core.rbac.policies import UnmappedApiPolicy, get_unmapped_api_policy
 from backend.db.database import get_db
@@ -31,17 +32,13 @@ async def require_api_permission(
 
 
 async def user_has_permission_name(db: AsyncSession, user: User, permission_name: str) -> bool:
-    user_role = user.role.value if hasattr(user.role, 'value') else user.role
     query = (
         select(RolePermission)
         .join(Permission, RolePermission.permission_id == Permission.id)
         .where(Permission.name == permission_name)
         .where(Permission.is_active == True)
+        .where(role_permission_filter(user))
     )
-    if user.role_id:
-        query = query.where((RolePermission.role_id == user.role_id) | (RolePermission.role == user_role))
-    else:
-        query = query.where(RolePermission.role == user_role)
     result = await db.execute(query)
     return result.scalar_one_or_none() is not None
 
@@ -57,7 +54,7 @@ async def check_api_permission(
     by looking up the ResourceMapping table.
     """
     # Admin always has access
-    if current_user.role == Role.ADMIN:
+    if is_admin_role(current_user):
         return current_user
 
     # Build API pattern from request
@@ -95,7 +92,7 @@ async def check_api_permission(
     # Check if user's role has any of the required permissions
     result = await db.execute(
         select(RolePermission)
-        .where(resource_guard._role_permission_filter(current_user))
+        .where(role_permission_filter(current_user))
         .where(RolePermission.permission_id.in_(required_perm_ids))
     )
     
@@ -110,12 +107,6 @@ async def check_api_permission(
 class ResourceGuard:
     """Unified resource guard: controls frontend pages and backend API access based on Permissions"""
 
-    def _role_permission_filter(self, user: User):
-        user_role = user.role.value if hasattr(user.role, 'value') else user.role
-        if user.role_id:
-            return (RolePermission.role_id == user.role_id) | (RolePermission.role == user_role)
-        return RolePermission.role == user_role
-
     async def check_api_access(
         self,
         user: User,
@@ -125,7 +116,7 @@ class ResourceGuard:
     ) -> bool:
         """Check if user has permission to access a specific API endpoint"""
         # Admin always has access
-        if user.role == Role.ADMIN:
+        if is_admin_role(user):
             return True
 
         # Find permissions required for this API
@@ -149,14 +140,14 @@ class ResourceGuard:
         # Check if user's role has any of the required permissions
         result = await db.execute(
             select(RolePermission)
-            .where(self._role_permission_filter(user))
+            .where(role_permission_filter(user))
             .where(RolePermission.permission_id.in_(required_perm_ids))
         )
         return result.scalar_one_or_none() is not None
 
     async def get_accessible_pages(self, user: User, db: AsyncSession) -> List[str]:
         """Get all frontend pages accessible by the user"""
-        if user.role == Role.ADMIN:
+        if is_admin_role(user):
             # Admin can access all pages
             result = await db.execute(
                 select(ResourceMapping.resource_path)
@@ -168,7 +159,7 @@ class ResourceGuard:
         result = await db.execute(
             select(ResourceMapping.resource_path)
             .join(RolePermission, ResourceMapping.permission_id == RolePermission.permission_id)
-            .where(self._role_permission_filter(user))
+            .where(role_permission_filter(user))
             .where(ResourceMapping.resource_type == "frontend_page")
             .distinct()
         )
@@ -176,7 +167,7 @@ class ResourceGuard:
 
     async def get_accessible_apis(self, user: User, db: AsyncSession) -> List[str]:
         """Get all backend APIs accessible by the user"""
-        if user.role == Role.ADMIN:
+        if is_admin_role(user):
             # Admin can access all APIs
             result = await db.execute(
                 select(ResourceMapping.resource_path)
@@ -188,7 +179,7 @@ class ResourceGuard:
         result = await db.execute(
             select(ResourceMapping.resource_path)
             .join(RolePermission, ResourceMapping.permission_id == RolePermission.permission_id)
-            .where(self._role_permission_filter(user))
+            .where(role_permission_filter(user))
             .where(ResourceMapping.resource_type == "backend_api")
             .distinct()
         )
@@ -199,7 +190,7 @@ class ResourceGuard:
         result = await db.execute(
             select(Permission)
             .join(RolePermission, Permission.id == RolePermission.permission_id)
-            .where(self._role_permission_filter(user))
+            .where(role_permission_filter(user))
             .where(Permission.is_active == True)
         )
         return result.scalars().all()

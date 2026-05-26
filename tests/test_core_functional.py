@@ -174,6 +174,14 @@ class TestProofOfExecution:
         assert poe is not None
 
 
+class TestKnowledgeProcessor:
+    def test_pdf_support_flag_is_defined_with_correct_name(self):
+        import backend.core.knowledge_processor as knowledge_processor
+
+        assert hasattr(knowledge_processor, "HAS_PYPDF2")
+        assert not hasattr(knowledge_processor, "HAS_PYPDKF2")
+
+
 class TestDatabaseModule:
     """Test database module."""
 

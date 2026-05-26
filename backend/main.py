@@ -1,7 +1,6 @@
 """
 PTTechAI v3 - FastAPI Main Application
 """
-import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,132 +9,17 @@ from fastapi.responses import FileResponse
 from pathlib import Path
 
 from backend.config import settings
-from backend.db.database import init_db, close_db
-from backend.api.v1 import scans, targets, prompts, reports, dashboard, vulnerabilities, settings as settings_router, agent, agent_tasks, scheduler, vuln_lab, terminal, sandbox, knowledge, mcp, providers, full_ia, cli_agent, auth, users, permissions, rbac
+from backend.api.v1.routes import register_v1_routers
 from backend.api.websocket import manager as ws_manager
-
-
-async def execute_scheduled_scan(target: str, scan_type: str, agent_role: str | None, llm_profile: str | None) -> dict:
-    from datetime import datetime
-    from urllib.parse import urlparse
-
-    from backend.db.database import async_session_factory
-    from backend.models import Scan, Target
-    from backend.services.scan_service import run_scan_task
-
-    async with async_session_factory() as db:
-        config = {}
-        if agent_role:
-            config["agent_role"] = agent_role
-        if llm_profile:
-            config["llm_profile"] = llm_profile
-
-        scan = Scan(
-            name=f"Scheduled Scan {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}",
-            scan_type=scan_type,
-            recon_enabled=True,
-            config=config,
-            status="running",
-            started_at=datetime.utcnow(),
-            current_phase="initializing",
-            progress=0,
-        )
-        db.add(scan)
-        await db.flush()
-
-        parsed = urlparse(target)
-        db.add(Target(
-            scan_id=scan.id,
-            url=target,
-            hostname=parsed.hostname or target,
-            port=parsed.port or (443 if parsed.scheme == "https" else 80),
-            protocol=parsed.scheme or "https",
-            path=parsed.path or "/",
-        ))
-        await db.commit()
-        scan_id = scan.id
-
-    asyncio.create_task(run_scan_task(scan_id))
-    return {"scan_id": scan_id, "target": target, "scan_type": scan_type}
+from backend.app_lifecycle import shutdown_app, startup_app
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler"""
-    # Startup
-    print(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
-    await init_db()
-    print("Database initialized")
-
-    # Initialize default admin user
-    try:
-        from backend.scripts.init_admin import init_admin
-        await init_admin()
-    except Exception as e:
-        print(f"Admin init warning: {e}")
-
-    # Initialize permissions and role mappings
-    try:
-        from backend.scripts.init_permissions import init_permissions
-        await init_permissions()
-    except Exception as e:
-        print(f"Permission init warning: {e}")
-
-    # Initialize scheduler
-    try:
-        import json
-        config_path = Path(__file__).parent.parent / "config" / "config.json"
-        if config_path.exists():
-            with open(config_path) as f:
-                config = json.load(f)
-            from backend.core.scheduler import ScanScheduler
-            scan_scheduler = ScanScheduler(config)
-            scan_scheduler.set_scan_callback(execute_scheduled_scan)
-            scan_scheduler.start()
-            app.state.scheduler = scan_scheduler
-            print(f"Scheduler initialized (enabled={scan_scheduler.enabled})")
-        else:
-            app.state.scheduler = None
-    except Exception as e:
-        print(f"Scheduler init skipped: {e}")
-        app.state.scheduler = None
-
-    # Cleanup orphan sandbox containers from previous crashes
-    try:
-        from backend.core.container_pool import get_pool
-        pool = get_pool()
-        await pool.cleanup_orphans()
-        print("Sandbox pool initialized (orphan cleanup done)")
-    except Exception as e:
-        print(f"Sandbox pool init skipped: {e}")
-
-    # Initialize Smart Router (provider management + OAuth)
-    try:
-        from backend.core.smart_router import init_router
-        await init_router()
-    except Exception as e:
-        print(f"Smart Router init skipped: {e}")
-
+    await startup_app(app)
     yield
-
-    # Shutdown
-    # Stop Smart Router token refresher
-    try:
-        from backend.core.smart_router import shutdown_router
-        await shutdown_router()
-    except Exception:
-        pass
-    # Destroy all per-scan sandbox containers
-    try:
-        from backend.core.container_pool import get_pool
-        await get_pool().cleanup_all()
-        print("Sandbox containers cleaned up")
-    except Exception:
-        pass
-    if hasattr(app.state, 'scheduler') and app.state.scheduler:
-        app.state.scheduler.stop()
-    print("Shutting down...")
-    await close_db()
+    await shutdown_app(app)
 
 
 # Create FastAPI app
@@ -159,28 +43,7 @@ app.add_middleware(
 )
 
 # Include API routers
-app.include_router(scans.router, prefix="/api/v1/scans", tags=["Scans"])
-app.include_router(targets.router, prefix="/api/v1/targets", tags=["Targets"])
-app.include_router(prompts.router, prefix="/api/v1/prompts", tags=["Prompts"])
-app.include_router(reports.router, prefix="/api/v1/reports", tags=["Reports"])
-app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["Dashboard"])
-app.include_router(vulnerabilities.router, prefix="/api/v1/vulnerabilities", tags=["Vulnerabilities"])
-app.include_router(settings_router.router, prefix="/api/v1/settings", tags=["Settings"])
-app.include_router(agent.router, prefix="/api/v1/agent", tags=["AI Agent"])
-app.include_router(agent_tasks.router, prefix="/api/v1/agent-tasks", tags=["Agent Tasks"])
-app.include_router(scheduler.router, prefix="/api/v1/scheduler", tags=["Scheduler"])
-app.include_router(vuln_lab.router, prefix="/api/v1/vuln-lab", tags=["Vulnerability Lab"])
-app.include_router(terminal.router, prefix="/api/v1/terminal", tags=["Terminal Agent"])
-app.include_router(sandbox.router, prefix="/api/v1/sandbox", tags=["Sandbox"])
-app.include_router(knowledge.router, prefix="/api/v1/knowledge", tags=["Knowledge"])
-app.include_router(mcp.router, prefix="/api/v1/mcp", tags=["MCP Servers"])
-app.include_router(providers.router, prefix="/api/v1/providers", tags=["Providers"])
-app.include_router(full_ia.router, prefix="/api/v1/full-ia", tags=["FULL AI Testing"])
-app.include_router(cli_agent.router)
-app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
-app.include_router(users.router, prefix="/api/v1/users", tags=["User Management"])
-app.include_router(permissions.router, prefix="/api/v1/permissions", tags=["Permissions"])
-app.include_router(rbac.router, prefix="/api/v1/rbac", tags=["RBAC"])
+register_v1_routers(app)
 
 
 @app.get("/api/health")

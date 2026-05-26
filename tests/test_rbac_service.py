@@ -169,6 +169,29 @@ def test_normalize_resource_mapping_input_rejects_invalid_values(resource_type, 
     assert exc_info.value.status_code == 400
 
 
+def test_access_helper_role_name_and_admin_detection():
+    from backend.core.rbac.access_helpers import is_admin_role, role_name_for
+    from backend.models.user import Role
+
+    admin = User(id="admin-id", email="admin@example.com", hashed_password="hashed", role=Role.ADMIN, is_active=True)
+    custom = User(id="custom-id", email="custom@example.com", hashed_password="hashed", role="auditor", is_active=True)
+
+    assert role_name_for(admin) == "admin"
+    assert role_name_for(custom) == "auditor"
+    assert is_admin_role(admin)
+    assert not is_admin_role(custom)
+
+
+def test_access_helper_role_permission_filter_includes_role_id_fallback():
+    from backend.core.rbac.access_helpers import role_permission_filter
+
+    user = User(id="user-id", email="user@example.com", hashed_password="hashed", role="auditor", role_id="role-id", is_active=True)
+    expression = str(role_permission_filter(user))
+
+    assert "role_permissions.role_id" in expression
+    assert "role_permissions.role" in expression
+
+
 @pytest.mark.asyncio
 async def test_create_role_persists_custom_role_permissions(db_session):
     permission = await _seed_permission(db_session)

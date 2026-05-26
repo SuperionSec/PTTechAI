@@ -114,6 +114,9 @@ class TestBackendCoreModulesImport:
         "backend.core.exploit_generator",
         "backend.core.poc_generator",
         "backend.core.poc_validator",
+        "backend.core.rbac.access_helpers",
+        "backend.api.v1.routes",
+        "backend.app_lifecycle",
         "backend.services.rbac_service",
     ])
     def test_core_module_import(self, module_name):

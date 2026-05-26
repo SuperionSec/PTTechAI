@@ -82,6 +82,11 @@ class TestRouterRegistration:
         ws_found = any("/ws/scan/" in p for p in registered_paths)
         assert ws_found, "WebSocket endpoint not found"
 
+    def test_cli_agent_router_keeps_own_prefix(self, app):
+        registered_paths = [r.path for r in app.routes if hasattr(r, "path")]
+        assert "/api/v1/cli-agent/providers" in registered_paths
+        assert "/api/v1/cli-agent/methodologies" in registered_paths
+
     def test_api_docs_endpoints(self, app):
         registered_paths = [r.path for r in app.routes if hasattr(r, "path")]
         assert "/api/docs" in registered_paths, "Swagger docs endpoint not found"

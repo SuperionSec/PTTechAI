@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ConfigProvider, Dropdown, Space, Spin, theme, App as AntApp } from 'antd'
 import type { MenuProps } from 'antd'
 import { ProLayout } from '@ant-design/pro-components'
-import { GlobalOutlined, LogoutOutlined, SafetyCertificateOutlined, UserOutlined } from '@ant-design/icons'
+import { GlobalOutlined, LogoutOutlined, SafetyCertificateOutlined, SettingOutlined, UserOutlined, BugOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import i18n from '../locales'
 import { useAuth } from '../contexts/AuthContext'
@@ -20,17 +20,43 @@ export default function ProAppLayout({ children }: ProAppLayoutProps) {
   const { t } = useTranslation()
   const { user, userPermissions, loading, logout } = useAuth()
 
-  const routes = useMemo(() => menuRoutes
-    .filter(route => canAccessPath({
-      role: userPermissions?.role,
-      permissions: userPermissions?.permissions,
-      frontendPages: userPermissions?.frontend_pages,
-    }, route.path, route.permission))
-    .map(route => ({
-      path: route.path,
-      name: t(route.name),
-      icon: route.icon,
-    })), [t, userPermissions])
+  const routes = useMemo(() => {
+    const accessibleRoutes = menuRoutes
+      .filter(route => canAccessPath({
+        role: userPermissions?.role,
+        permissions: userPermissions?.permissions,
+        frontendPages: userPermissions?.frontend_pages,
+      }, route.path, route.permission))
+
+    const systemRoutes = accessibleRoutes
+      .filter(route => route.group === 'system')
+      .map(route => ({
+        path: route.path,
+        name: t(route.name),
+        icon: route.icon,
+      }))
+
+    const pentestRoutes = accessibleRoutes
+      .filter(route => route.group !== 'system')
+      .map(route => ({
+        path: route.path,
+        name: t(route.name),
+        icon: route.icon,
+      }))
+
+    return [
+      {
+        name: t('sidebar.systemSettings'),
+        icon: <SettingOutlined />,
+        routes: systemRoutes,
+      },
+      {
+        name: t('sidebar.penetrationTesting'),
+        icon: <BugOutlined />,
+        routes: pentestRoutes,
+      }
+    ].filter(route => route.routes.length > 0)
+  }, [t, userPermissions])
 
   const userMenuItems: MenuProps['items'] = [
     {

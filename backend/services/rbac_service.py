@@ -5,9 +5,10 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from backend.core.rbac.access_helpers import is_admin_role, role_name_for, role_permission_filter
 from backend.core.rbac.matcher import match_api_resource
 from backend.models.permission import Permission, ResourceMapping, RolePermission
-from backend.models.user import Role, RoleModel, User
+from backend.models.user import RoleModel, User
 from backend.schemas.rbac import MenuItemOut, PermissionOut, ResourceMappingOut, RoleCreate, RoleDetailOut, RoleSummaryOut, RoleUpdate, UnmappedResourceOut
 
 SYSTEM_ROLES = {"admin", "user", "viewer", "service"}
@@ -337,24 +338,17 @@ async def list_unmapped_resources(db: AsyncSession, app) -> list[UnmappedResourc
 
 
 async def get_user_permission_names(db: AsyncSession, user: User) -> list[str]:
-    role = user.role.value if hasattr(user.role, "value") else user.role
-    if role == Role.ADMIN.value:
+    role = role_name_for(user)
+    if is_admin_role(user):
         result = await db.execute(select(Permission.name).where(Permission.is_active == True))
         return sorted(result.scalars().all())
 
     query = (
         select(Permission.name)
         .join(RolePermission, Permission.id == RolePermission.permission_id)
-        .where(RolePermission.role == role)
+        .where(role_permission_filter(user))
         .where(Permission.is_active == True)
     )
-    if user.role_id:
-        query = (
-            select(Permission.name)
-            .join(RolePermission, Permission.id == RolePermission.permission_id)
-            .where((RolePermission.role_id == user.role_id) | (RolePermission.role == role))
-            .where(Permission.is_active == True)
-        )
     result = await db.execute(query)
     return sorted(set(result.scalars().all()))
 

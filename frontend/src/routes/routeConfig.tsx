@@ -48,12 +48,15 @@ import UnmappedResourcesPage from '../pages/UnmappedResourcesPage'
 import APIKeysPage from '../pages/APIKeysPage'
 import NotFound from '../pages/Exception/NotFound'
 
+export type RouteGroup = 'system' | 'pentest'
+
 export interface AppRoute {
   path: string
   name: string
   element: ReactNode
   icon?: ReactNode
   permission?: string
+  group?: RouteGroup
   hideInMenu?: boolean
   public?: boolean
 }
@@ -61,30 +64,30 @@ export interface AppRoute {
 export const appRoutes: AppRoute[] = [
   { path: '/login', name: 'auth.login', element: <LoginPage />, public: true, hideInMenu: true },
   { path: '/register', name: 'auth.register', element: <RegisterPage />, public: true, hideInMenu: true },
-  { path: '/', name: 'sidebar.dashboard', element: <HomePage />, icon: <DashboardOutlined />, permission: 'dashboard:read' },
-  { path: '/auto', name: 'sidebar.autoPentest', element: <AutoPentestPage />, icon: <RobotOutlined />, permission: 'agent:execute' },
-  { path: '/scan/new', name: 'sidebar.aiAgent', element: <NewScanPage />, icon: <PlusCircleOutlined />, permission: 'scan:create' },
-  { path: '/realtime', name: 'sidebar.realtimeTask', element: <RealtimeTaskPage />, icon: <ThunderboltOutlined />, permission: 'agent:execute' },
-  { path: '/full-ia', name: 'sidebar.fullIaTesting', element: <FullIATestingPage />, icon: <AimOutlined />, permission: 'agent:execute' },
-  { path: '/vuln-lab', name: 'sidebar.vulnLab', element: <VulnLabPage />, icon: <ExperimentOutlined />, permission: 'vulnerability:read' },
-  { path: '/terminal', name: 'sidebar.terminalAgent', element: <TerminalAgentPage />, icon: <CodeOutlined />, permission: 'agent:execute' },
-  { path: '/sandboxes', name: 'sidebar.sandboxes', element: <SandboxDashboardPage />, icon: <CloudServerOutlined />, permission: 'agent:execute' },
-  { path: '/tasks', name: 'sidebar.taskLibrary', element: <TaskLibraryPage />, icon: <BookOutlined />, permission: 'agent:read' },
-  { path: '/knowledge', name: 'sidebar.knowledge', element: <KnowledgePage />, icon: <DatabaseOutlined />, permission: 'knowledge:read' },
-  { path: '/mcp', name: 'sidebar.mcpServers', element: <MCPManagementPage />, icon: <ApiOutlined />, permission: 'settings:manage' },
-  { path: '/providers', name: 'sidebar.providers', element: <ProvidersPage />, icon: <ApiOutlined />, permission: 'provider:read' },
-  { path: '/scheduler', name: 'sidebar.scheduler', element: <SchedulerPage />, icon: <ScheduleOutlined />, permission: 'scheduler:read' },
-  { path: '/reports', name: 'sidebar.reports', element: <ReportsPage />, icon: <FileTextOutlined />, permission: 'report:read' },
+  { path: '/', name: 'sidebar.dashboard', element: <HomePage />, icon: <DashboardOutlined />, permission: 'dashboard:read', group: 'pentest' },
+  { path: '/auto', name: 'sidebar.autoPentest', element: <AutoPentestPage />, icon: <RobotOutlined />, permission: 'agent:execute', group: 'pentest' },
+  { path: '/scan/new', name: 'sidebar.aiAgent', element: <NewScanPage />, icon: <PlusCircleOutlined />, permission: 'scan:create', group: 'pentest' },
+  { path: '/realtime', name: 'sidebar.realtimeTask', element: <RealtimeTaskPage />, icon: <ThunderboltOutlined />, permission: 'agent:execute', group: 'pentest' },
+  { path: '/full-ia', name: 'sidebar.fullIaTesting', element: <FullIATestingPage />, icon: <AimOutlined />, permission: 'agent:execute', group: 'pentest' },
+  { path: '/vuln-lab', name: 'sidebar.vulnLab', element: <VulnLabPage />, icon: <ExperimentOutlined />, permission: 'vulnerability:read', group: 'pentest' },
+  { path: '/terminal', name: 'sidebar.terminalAgent', element: <TerminalAgentPage />, icon: <CodeOutlined />, permission: 'agent:execute', group: 'pentest' },
+  { path: '/sandboxes', name: 'sidebar.sandboxes', element: <SandboxDashboardPage />, icon: <CloudServerOutlined />, permission: 'agent:execute', group: 'pentest' },
+  { path: '/tasks', name: 'sidebar.taskLibrary', element: <TaskLibraryPage />, icon: <BookOutlined />, permission: 'agent:read', group: 'pentest' },
+  { path: '/knowledge', name: 'sidebar.knowledge', element: <KnowledgePage />, icon: <DatabaseOutlined />, permission: 'knowledge:read', group: 'pentest' },
+  { path: '/mcp', name: 'sidebar.mcpServers', element: <MCPManagementPage />, icon: <ApiOutlined />, permission: 'settings:manage', group: 'pentest' },
+  { path: '/providers', name: 'sidebar.providers', element: <ProvidersPage />, icon: <ApiOutlined />, permission: 'provider:read', group: 'pentest' },
+  { path: '/scheduler', name: 'sidebar.scheduler', element: <SchedulerPage />, icon: <ScheduleOutlined />, permission: 'scheduler:read', group: 'pentest' },
+  { path: '/reports', name: 'sidebar.reports', element: <ReportsPage />, icon: <FileTextOutlined />, permission: 'report:read', group: 'pentest' },
   { path: '/reports/:reportId', name: 'pages.reportView', element: <ReportViewPage />, permission: 'report:read', hideInMenu: true },
   { path: '/scan/:scanId', name: 'pages.scanDetails', element: <ScanDetailsPage />, permission: 'scan:read', hideInMenu: true },
   { path: '/agent/:agentId', name: 'pages.agentStatus', element: <AgentStatusPage />, permission: 'agent:read', hideInMenu: true },
-  { path: '/languages', name: 'languageManagement.title', element: <LanguagesPage />, icon: <TranslationOutlined />, permission: 'settings:read' },
-  { path: '/users', name: 'usersManagement.title', element: <UserManagementPage />, icon: <TeamOutlined />, permission: 'user:manage' },
-  { path: '/roles', name: 'roleManagement.title', element: <RoleManagementPage />, icon: <UserSwitchOutlined />, permission: 'user:manage' },
-  { path: '/unmapped-resources', name: 'roleManagement.unmappedResources', element: <UnmappedResourcesPage />, icon: <UserSwitchOutlined />, permission: 'user:manage' },
-  { path: '/settings', name: 'sidebar.settings', element: <SettingsPage />, icon: <SettingOutlined />, permission: 'settings:read' },
-  { path: '/api-keys', name: 'apiKeys.title', element: <APIKeysPage />, icon: <KeyOutlined />, permission: 'api_key:read' },
-  { path: '/profile', name: 'profile.title', element: <UserProfilePage />, icon: <UserOutlined /> },
+  { path: '/languages', name: 'languageManagement.title', element: <LanguagesPage />, icon: <TranslationOutlined />, permission: 'settings:read', group: 'system' },
+  { path: '/users', name: 'usersManagement.title', element: <UserManagementPage />, icon: <TeamOutlined />, permission: 'user:manage', group: 'system' },
+  { path: '/roles', name: 'roleManagement.title', element: <RoleManagementPage />, permission: 'user:manage', hideInMenu: true },
+  { path: '/unmapped-resources', name: 'roleManagement.unmappedResources', element: <UnmappedResourcesPage />, icon: <UserSwitchOutlined />, permission: 'user:manage', group: 'system' },
+  { path: '/settings', name: 'sidebar.settings', element: <SettingsPage />, icon: <SettingOutlined />, permission: 'settings:read', group: 'pentest' },
+  { path: '/api-keys', name: 'apiKeys.title', element: <APIKeysPage />, icon: <KeyOutlined />, permission: 'api_key:read', group: 'system' },
+  { path: '/profile', name: 'profile.title', element: <UserProfilePage />, icon: <UserOutlined />, group: 'system' },
   { path: '*', name: 'pages.notFound', element: <NotFound />, public: true, hideInMenu: true },
 ]
 

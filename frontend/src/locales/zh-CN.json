@@ -108,6 +108,8 @@
     "operations": "操作",
     "tools": "工具",
     "configuration": "配置",
+    "systemSettings": "系统设置",
+    "penetrationTesting": "渗透测试",
     "dashboard": "仪表板",
     "autoPentest": "自动渗透测试",
     "aiAgent": "AI 代理",

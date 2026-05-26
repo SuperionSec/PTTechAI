@@ -108,6 +108,8 @@
     "operations": "Operations",
     "tools": "Tools",
     "configuration": "Configuration",
+    "systemSettings": "System Settings",
+    "penetrationTesting": "Penetration Testing",
     "dashboard": "Dashboard",
     "autoPentest": "Auto Pentest",
     "aiAgent": "AI Agent",
