@@ -174,7 +174,7 @@ PERMISSION_BACKEND_APIS = {
     "report:create": ["POST /api/v1/reports", "POST /api/v1/reports/*"],
     "report:read": ["GET /api/v1/reports", "GET /api/v1/reports/*"],
     "report:delete": ["DELETE /api/v1/reports/*"],
-    "vulnerability:read": ["GET /api/v1/vulnerabilities", "GET /api/v1/vulnerabilities/*", "GET /api/v1/scans/*/vulnerabilities", "GET /api/v1/vuln-lab", "GET /api/v1/vuln-lab/*"],
+    "vulnerability:read": ["GET /api/v1/vulnerabilities", "GET /api/v1/vulnerabilities/*", "GET /api/v1/scans/vulnerabilities/learning/stats", "GET /api/v1/scans/*/vulnerabilities", "GET /api/v1/vuln-lab", "GET /api/v1/vuln-lab/*"],
     "vulnerability:update": ["PATCH /api/v1/scans/vulnerabilities/*", "POST /api/v1/scans/vulnerabilities/*/feedback", "POST /api/v1/vuln-lab/*"],
     "vulnerability:delete": ["DELETE /api/v1/vuln-lab/*"],
     "dashboard:read": ["GET /api/v1/dashboard/*"],

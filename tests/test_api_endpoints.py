@@ -228,6 +228,15 @@ class TestRbacEndpoints:
         assert "POST /api/v1/providers/detect-all" in PERMISSION_BACKEND_APIS["provider:update"]
         assert "POST /api/v1/providers/test/*" in PERMISSION_BACKEND_APIS["provider:update"]
 
+    def test_learning_stats_uses_vulnerability_read_permission(self, app):
+        from backend.scripts.init_permissions import PERMISSION_BACKEND_APIS
+
+        route = next(route for route in app.routes if getattr(route, "path", "") == "/api/v1/scans/vulnerabilities/learning/stats")
+        dependencies = [dependency.call for dependency in route.dependant.dependencies]
+
+        assert "GET /api/v1/scans/vulnerabilities/learning/stats" in PERMISSION_BACKEND_APIS["vulnerability:read"]
+        assert any(getattr(dependency, "__name__", "") == "_check_permission" for dependency in dependencies)
+
     def test_prompts_are_not_hard_coded_to_settings_manage(self):
         resource_guard = (PROJECT_ROOT / "backend" / "core" / "resource_guard.py").read_text(encoding="utf-8")
 

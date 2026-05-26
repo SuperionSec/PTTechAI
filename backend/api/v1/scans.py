@@ -15,7 +15,8 @@ from backend.models.user import User, Role
 from backend.schemas.scan import ScanCreate, ScanUpdate, ScanResponse, ScanListResponse, ScanProgress
 from backend.services.scan_service import run_scan_task, skip_to_phase as _skip_to_phase, PHASE_ORDER
 from backend.core.auth import get_current_user
-from backend.core.permissions import require_scan_read, require_scan_create, require_scan_update, require_scan_delete, require_scan_execute
+from backend.core.permissions import require_permission, require_scan_read, require_scan_create, require_scan_update, require_scan_delete, require_scan_execute
+from backend.models.permission import PermissionAction, PermissionScope
 
 router = APIRouter()
 
@@ -679,7 +680,7 @@ async def submit_vulnerability_feedback(
     }
 
 
-@router.get("/vulnerabilities/learning/stats", dependencies=[Depends(require_scan_read())])
+@router.get("/vulnerabilities/learning/stats", dependencies=[Depends(require_permission(PermissionScope.VULNERABILITY, PermissionAction.READ))])
 async def get_learning_stats():
     """Get adaptive learning statistics."""
     try:
