@@ -9,9 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from backend.api.v1.permissions import (
     CreateResourceMappingRequest,
     UpdateRoleRequest,
+    assign_permission_to_role as assign_legacy_permission_to_role,
     create_resource_mapping as create_legacy_resource_mapping,
     delete_resource_mapping as delete_legacy_resource_mapping,
     list_unmapped_resources as list_legacy_unmapped_resources,
+    revoke_permission_from_role as revoke_legacy_permission_from_role,
     update_role_permissions as update_legacy_role_permissions,
 )
 from backend.config import settings
@@ -349,3 +351,35 @@ async def test_legacy_update_role_permissions_rejects_missing_role_without_orpha
 
     assert exc_info.value.status_code == 404
     assert await db_session.scalar(select(RolePermission)) is None
+
+
+@pytest.mark.asyncio
+async def test_legacy_assign_permission_rejects_missing_role_without_orphans(db_session):
+    permission = await _seed_permission(db_session)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await assign_legacy_permission_to_role("missing_role", permission.id, db_session, current_user=None)
+
+    assert exc_info.value.status_code == 404
+    assert await db_session.scalar(select(RolePermission)) is None
+
+
+@pytest.mark.asyncio
+async def test_legacy_revoke_permission_updates_persistent_role_permissions(db_session):
+    scan_read = await _seed_permission(db_session)
+    user_manage = Permission(
+        id="perm-user-manage",
+        name="user:manage",
+        description="Manage users",
+        scope=PermissionScope.USER,
+        action=PermissionAction.MANAGE,
+        is_active=True,
+    )
+    db_session.add(user_manage)
+    await db_session.commit()
+    role_detail = await create_role(db_session, RoleCreate(name="auditor", display_name="Auditor", permission_ids=[scan_read.id, user_manage.id]))
+
+    await revoke_legacy_permission_from_role("auditor", scan_read.id, db_session, current_user=None)
+
+    role_permissions = (await db_session.execute(select(RolePermission).where(RolePermission.role_id == role_detail.id))).scalars().all()
+    assert [role_permission.permission_id for role_permission in role_permissions] == [user_manage.id]

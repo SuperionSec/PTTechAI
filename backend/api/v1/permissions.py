@@ -2,7 +2,6 @@
 Permission Management API Endpoints
 PTTechAI v0.1.0 - RBAC Permission System
 """
-import uuid
 import re
 from typing import List, Optional
 
@@ -13,7 +12,7 @@ from sqlalchemy import select
 
 from backend.db.database import get_db
 from backend.models.permission import Permission, RolePermission, ResourceMapping, PermissionScope, PermissionAction
-from backend.models.user import User, Role, RoleModel
+from backend.models.user import User, Role
 from backend.core.auth import get_current_user, require_role
 from backend.core.resource_guard import resource_guard
 from backend.schemas.rbac import RoleCreate as RbacRoleCreate
@@ -231,31 +230,11 @@ async def assign_permission_to_role(
     current_user: User = Depends(require_role(Role.ADMIN))
 ):
     """Assign a permission to a role (admin only)"""
-    # Check if permission exists
-    perm_result = await db.execute(select(Permission).where(Permission.id == permission_id))
-    permission = perm_result.scalar_one_or_none()
-    if not permission:
-        raise HTTPException(status_code=404, detail="Permission not found")
-
-    # Check if already assigned
-    existing = await db.execute(
-        select(RolePermission).where(
-            RolePermission.role == role,
-            RolePermission.permission_id == permission_id
-        )
-    )
-    if existing.scalar_one_or_none():
+    detail = await rbac_service.get_role_detail(db, role)
+    permission_ids = [permission.id for permission in detail.permissions]
+    if permission_id in permission_ids:
         raise HTTPException(status_code=400, detail="Permission already assigned to role")
-
-    role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role))
-    rp = RolePermission(
-        id=str(uuid.uuid4()),
-        role=role,
-        role_id=role_model.id if role_model else None,
-        permission_id=permission_id,
-    )
-    db.add(rp)
-    await db.commit()
+    await rbac_service.update_role_permissions(db, role, [*permission_ids, permission_id])
 
     return {"message": f"Permission assigned to {role}"}
 
@@ -268,18 +247,11 @@ async def revoke_permission_from_role(
     current_user: User = Depends(require_role(Role.ADMIN))
 ):
     """Revoke a permission from a role (admin only)"""
-    result = await db.execute(
-        select(RolePermission).where(
-            RolePermission.role == role,
-            RolePermission.permission_id == permission_id
-        )
-    )
-    rp = result.scalar_one_or_none()
-    if not rp:
+    detail = await rbac_service.get_role_detail(db, role)
+    permission_ids = [permission.id for permission in detail.permissions]
+    if permission_id not in permission_ids:
         raise HTTPException(status_code=404, detail="Role permission mapping not found")
-
-    await db.delete(rp)
-    await db.commit()
+    await rbac_service.update_role_permissions(db, role, [existing_permission_id for existing_permission_id in permission_ids if existing_permission_id != permission_id])
 
     return {"message": f"Permission revoked from {role}"}
 
