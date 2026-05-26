@@ -40,12 +40,14 @@ import KnowledgePage from '../pages/KnowledgePage'
 import MCPManagementPage from '../pages/MCPManagementPage'
 import ProvidersPage from '../pages/ProvidersPage'
 import FullIATestingPage from '../pages/FullIATestingPage'
-import UserManagementPage from '../pages/system/UserManagementPage'
-import UserProfilePage from '../pages/system/UserProfilePage'
-import LanguagesPage from '../pages/system/LanguagesPage'
-import RoleManagementPage from '../pages/system/RoleManagementPage'
-import UnmappedResourcesPage from '../pages/system/UnmappedResourcesPage'
-import APIKeysPage from '../pages/system/APIKeysPage'
+import {
+  APIKeysPage,
+  LanguagesPage,
+  RoleManagementPage,
+  UnmappedResourcesPage,
+  UserManagementPage,
+  UserProfilePage,
+} from '../pages/system'
 import NotFound from '../pages/Exception/NotFound'
 
 export type RouteGroup = 'system' | 'pentest'

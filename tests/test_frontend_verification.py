@@ -75,10 +75,17 @@ class TestFrontendPages:
         page_path = FRONTEND_SRC / "pages" / "system" / page_file
         assert page_path.exists(), f"System page component {page_file} should exist in pages/system"
 
-    def test_route_config_imports_system_pages_from_system_directory(self):
+    def test_route_config_imports_system_pages_from_system_module(self):
         content = (FRONTEND_SRC / "routes" / "routeConfig.tsx").read_text(encoding="utf-8")
+        assert "from '../pages/system'" in content
         for page in ["LanguagesPage", "UserManagementPage", "APIKeysPage", "UserProfilePage", "UnmappedResourcesPage", "RoleManagementPage"]:
-            assert f"../pages/system/{page}" in content
+            assert page in content
+            assert f"../pages/system/{page}" not in content
+
+    def test_system_pages_module_exports_all_system_pages(self):
+        index_content = (FRONTEND_SRC / "pages" / "system" / "index.ts").read_text(encoding="utf-8")
+        for page in ["LanguagesPage", "UserManagementPage", "APIKeysPage", "UserProfilePage", "UnmappedResourcesPage", "RoleManagementPage"]:
+            assert f"as {page}" in index_content
 
     def test_visible_system_menu_is_limited_to_five_items(self):
         content = (FRONTEND_SRC / "routes" / "routeConfig.tsx").read_text(encoding="utf-8")
