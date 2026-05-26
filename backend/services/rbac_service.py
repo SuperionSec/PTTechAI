@@ -12,6 +12,8 @@ from backend.schemas.rbac import MenuItemOut, PermissionOut, ResourceMappingOut,
 
 SYSTEM_ROLES = {"admin", "user", "viewer", "service"}
 ROLE_NAME_PATTERN = re.compile(r"^[a-z0-9_]{1,50}$")
+RESOURCE_TYPES = {"backend_api", "frontend_page"}
+API_METHODS = {"GET", "POST", "PUT", "PATCH", "DELETE"}
 FRONTEND_ROUTES = [
     ("/", "sidebar.dashboard", "dashboard:read"),
     ("/auto", "sidebar.autoPentest", "agent:execute"),
@@ -145,6 +147,23 @@ async def resolve_active_role(db: AsyncSession, role: str | None) -> RoleModel:
     return role_model
 
 
+def _normalize_resource_mapping_input(resource_type: str, resource_path: str) -> tuple[str, str]:
+    normalized_type = resource_type.strip()
+    normalized_path = resource_path.strip()
+    if normalized_type not in RESOURCE_TYPES:
+        raise HTTPException(status_code=400, detail="Invalid resource type")
+    if not normalized_path or len(normalized_path) > 255:
+        raise HTTPException(status_code=400, detail="Invalid resource path")
+    if normalized_type == "frontend_page" and not normalized_path.startswith("/"):
+        raise HTTPException(status_code=400, detail="Frontend page resources must start with /")
+    if normalized_type == "backend_api":
+        method, separator, path = normalized_path.partition(" ")
+        if not separator or method.upper() not in API_METHODS or not path.startswith("/api"):
+            raise HTTPException(status_code=400, detail="Backend API resources must use 'METHOD /api/...' format")
+        normalized_path = f"{method.upper()} {path}"
+    return normalized_type, normalized_path
+
+
 async def _validate_permission_ids(db: AsyncSession, permission_ids: list[str]) -> None:
     if permission_ids:
         result = await db.execute(select(Permission.id).where(Permission.id.in_(permission_ids)))
@@ -239,6 +258,7 @@ async def list_resource_mappings(db: AsyncSession, resource_type: str | None = N
 
 
 async def create_resource_mapping(db: AsyncSession, permission_id: str, resource_type: str, resource_path: str) -> ResourceMappingOut:
+    normalized_type, normalized_path = _normalize_resource_mapping_input(resource_type, resource_path)
     permission = await db.scalar(select(Permission).where(Permission.id == permission_id))
     if not permission:
         raise HTTPException(status_code=404, detail="Permission not found")
@@ -246,8 +266,8 @@ async def create_resource_mapping(db: AsyncSession, permission_id: str, resource
     existing = await db.scalar(
         select(ResourceMapping).where(
             ResourceMapping.permission_id == permission_id,
-            ResourceMapping.resource_type == resource_type,
-            ResourceMapping.resource_path == resource_path,
+            ResourceMapping.resource_type == normalized_type,
+            ResourceMapping.resource_path == normalized_path,
         )
     )
     if existing:
@@ -256,8 +276,8 @@ async def create_resource_mapping(db: AsyncSession, permission_id: str, resource
     mapping = ResourceMapping(
         id=str(uuid.uuid4()),
         permission_id=permission_id,
-        resource_type=resource_type,
-        resource_path=resource_path,
+        resource_type=normalized_type,
+        resource_path=normalized_path,
     )
     db.add(mapping)
     await db.commit()

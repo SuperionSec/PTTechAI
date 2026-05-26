@@ -2,7 +2,7 @@ import pytest
 from fastapi import HTTPException
 
 from backend.schemas.rbac import RoleUpdate
-from backend.services.rbac_service import _normalize_role_name, resolve_active_role, update_role
+from backend.services.rbac_service import _normalize_resource_mapping_input, _normalize_role_name, resolve_active_role, update_role
 
 
 class FakeDb:
@@ -65,5 +65,31 @@ async def test_resolve_active_role_rejects_missing_role():
 
     with pytest.raises(HTTPException) as exc_info:
         await resolve_active_role(db, "unknown")
+
+    assert exc_info.value.status_code == 400
+
+
+def test_normalize_resource_mapping_input_normalizes_backend_method():
+    assert _normalize_resource_mapping_input("backend_api", "get /api/v1/scans/*") == ("backend_api", "GET /api/v1/scans/*")
+
+
+def test_normalize_resource_mapping_input_accepts_frontend_page():
+    assert _normalize_resource_mapping_input("frontend_page", " /roles ") == ("frontend_page", "/roles")
+
+
+@pytest.mark.parametrize(
+    ("resource_type", "resource_path"),
+    [
+        ("backend", "GET /api/v1/scans"),
+        ("backend_api", "TRACE /api/v1/scans"),
+        ("backend_api", "GET /internal"),
+        ("backend_api", "/api/v1/scans"),
+        ("frontend_page", "roles"),
+        ("frontend_page", ""),
+    ],
+)
+def test_normalize_resource_mapping_input_rejects_invalid_values(resource_type, resource_path):
+    with pytest.raises(HTTPException) as exc_info:
+        _normalize_resource_mapping_input(resource_type, resource_path)
 
     assert exc_info.value.status_code == 400
