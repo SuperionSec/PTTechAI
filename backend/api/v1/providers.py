@@ -361,10 +361,7 @@ async def get_env_keys(current_user: User = Depends(get_current_user)):
     result = {}
     for key in sorted(ALLOWED_ENV_KEYS):
         val = os.getenv(key, "")
-        if val and "KEY" in key and key not in ("ENABLE_SMART_ROUTER", "ENABLE_REASONING",
-                                                  "ENABLE_CVE_HUNT", "ENABLE_MULTI_AGENT",
-                                                  "ENABLE_RESEARCHER_AI", "TOKEN_BUDGET"):
-            # Mask API keys: show first 8 and last 4 chars
+        if val and any(marker in key for marker in ("KEY", "TOKEN", "SECRET", "PASSWORD")):
             if len(val) > 16:
                 result[key] = val[:8] + "..." + val[-4:]
             else:

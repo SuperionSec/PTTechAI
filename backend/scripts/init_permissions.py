@@ -203,7 +203,7 @@ PERMISSION_BACKEND_APIS = {
     "api_key:create": ["POST /api/v1/api-keys"],
     "api_key:read": ["GET /api/v1/api-keys"],
     "api_key:delete": ["DELETE /api/v1/api-keys/*"],
-    "provider:read": ["GET /api/v1/providers", "GET /api/v1/providers/*", "GET /api/v1/cli-agent/providers"],
+    "provider:read": ["GET /api/v1/providers", "GET /api/v1/cli-agent/providers"],
     "provider:update": ["POST /api/v1/providers/*/detect", "POST /api/v1/providers/*/connect", "POST /api/v1/providers/*/toggle"],
     "provider:manage": ["POST /api/v1/providers/*", "DELETE /api/v1/providers/*", "GET /api/v1/providers/env", "POST /api/v1/providers/env"],
     "agent:read": [
@@ -312,6 +312,16 @@ async def init_permissions():
                     )
                     db.add(rm)
                     print(f"[RESOURCE_MAPPING] Created: {perm_name} -> frontend_page:{page_path}")
+
+        provider_read_id = permission_map.get("provider:read")
+        if provider_read_id:
+            await db.execute(
+                delete(ResourceMapping).where(
+                    ResourceMapping.permission_id == provider_read_id,
+                    ResourceMapping.resource_type == "backend_api",
+                    ResourceMapping.resource_path == "GET /api/v1/providers/*"
+                )
+            )
 
         # Create resource mappings (backend APIs)
         for perm_name, apis in PERMISSION_BACKEND_APIS.items():
