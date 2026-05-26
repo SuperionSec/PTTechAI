@@ -46,11 +46,13 @@ export default function ProAppLayout({ children }: ProAppLayoutProps) {
 
     return [
       {
+        path: '/system-setting-group',
         name: t('sidebar.systemSettings'),
         icon: <SettingOutlined />,
         routes: systemRoutes,
       },
       {
+        path: '/penetration-testing-group',
         name: t('sidebar.penetrationTesting'),
         icon: <BugOutlined />,
         routes: pentestRoutes,
@@ -124,7 +126,7 @@ export default function ProAppLayout({ children }: ProAppLayoutProps) {
           contentWidth="Fluid"
           location={{ pathname: location.pathname }}
           route={{ path: '/', routes }}
-          menuItemRender={(item, dom) => item.path ? <Link to={item.path}>{dom}</Link> : dom}
+          menuItemRender={(item, dom) => item.children ? dom : item.path ? <Link to={item.path}>{dom}</Link> : dom}
           avatarProps={user ? {
             icon: <UserOutlined />,
             title: user.full_name || user.email,
