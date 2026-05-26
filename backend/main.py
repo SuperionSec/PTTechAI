@@ -15,6 +15,50 @@ from backend.api.v1 import scans, targets, prompts, reports, dashboard, vulnerab
 from backend.api.websocket import manager as ws_manager
 
 
+async def execute_scheduled_scan(target: str, scan_type: str, agent_role: str | None, llm_profile: str | None) -> dict:
+    from datetime import datetime
+    from urllib.parse import urlparse
+
+    from backend.db.database import async_session_factory
+    from backend.models import Scan, Target
+    from backend.services.scan_service import run_scan_task
+
+    async with async_session_factory() as db:
+        config = {}
+        if agent_role:
+            config["agent_role"] = agent_role
+        if llm_profile:
+            config["llm_profile"] = llm_profile
+
+        scan = Scan(
+            name=f"Scheduled Scan {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}",
+            scan_type=scan_type,
+            recon_enabled=True,
+            config=config,
+            status="running",
+            started_at=datetime.utcnow(),
+            current_phase="initializing",
+            progress=0,
+        )
+        db.add(scan)
+        await db.flush()
+
+        parsed = urlparse(target)
+        db.add(Target(
+            scan_id=scan.id,
+            url=target,
+            hostname=parsed.hostname or target,
+            port=parsed.port or (443 if parsed.scheme == "https" else 80),
+            protocol=parsed.scheme or "https",
+            path=parsed.path or "/",
+        ))
+        await db.commit()
+        scan_id = scan.id
+
+    asyncio.create_task(run_scan_task(scan_id))
+    return {"scan_id": scan_id, "target": target, "scan_type": scan_type}
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler"""
@@ -46,6 +90,7 @@ async def lifespan(app: FastAPI):
                 config = json.load(f)
             from backend.core.scheduler import ScanScheduler
             scan_scheduler = ScanScheduler(config)
+            scan_scheduler.set_scan_callback(execute_scheduled_scan)
             scan_scheduler.start()
             app.state.scheduler = scan_scheduler
             print(f"Scheduler initialized (enabled={scan_scheduler.enabled})")

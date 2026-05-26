@@ -44,13 +44,13 @@ except ImportError:
 class ScanScheduler:
     """Manages recurring scan jobs via APScheduler."""
 
-    def __init__(self, config: Dict, database_url: str = "sqlite:///./data/pttechai_scheduler.db"):
+    def __init__(self, config: Dict, database_url: str = "sqlite:///./data/pttechai_scheduler.db", scheduler_key: str = "default"):
         self.config = config
         self.scheduler_config = config.get('scheduler', {})
         self.enabled = self.scheduler_config.get('enabled', False)
         self.jobs_meta: Dict[str, Dict] = {}  # job_id -> metadata
         self._scan_callback = None
-        self._registry_key = str(id(self))
+        self._registry_key = scheduler_key
         _SCHEDULER_REGISTRY[self._registry_key] = self
 
         if not HAS_APSCHEDULER:
