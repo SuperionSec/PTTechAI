@@ -74,11 +74,6 @@ async def check_api_permission(
             return current_user
         raise PermissionDenied(detail=f"Permission denied for {method} {path}")
 
-    if path.startswith("/api/v1/prompts"):
-        if await user_has_permission_name(db, current_user, "settings:manage"):
-            return current_user
-        raise PermissionDenied(detail=f"Permission denied for {method} {path}")
-
     # Check if there's a permission mapping for this API
     result = await db.execute(
         select(ResourceMapping.resource_path, ResourceMapping.permission_id)

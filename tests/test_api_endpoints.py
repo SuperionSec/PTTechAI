@@ -219,6 +219,20 @@ class TestRbacEndpoints:
         assert any(getattr(dependency, "__name__", "") == "_check_permission" for dependency in run_dependencies)
         assert any(getattr(dependency, "__name__", "") == "_check_permission" for dependency in status_dependencies)
 
+    def test_default_prompt_and_provider_mappings_use_feature_permissions(self):
+        from backend.scripts.init_permissions import PERMISSION_BACKEND_APIS
+
+        assert "GET /api/v1/prompts" in PERMISSION_BACKEND_APIS["agent:read"]
+        assert "POST /api/v1/prompts" in PERMISSION_BACKEND_APIS["agent:execute"]
+        assert "GET /api/v1/prompts" not in PERMISSION_BACKEND_APIS["settings:manage"]
+        assert "POST /api/v1/providers/detect-all" in PERMISSION_BACKEND_APIS["provider:update"]
+        assert "POST /api/v1/providers/test/*" in PERMISSION_BACKEND_APIS["provider:update"]
+
+    def test_prompts_are_not_hard_coded_to_settings_manage(self):
+        resource_guard = (PROJECT_ROOT / "backend" / "core" / "resource_guard.py").read_text(encoding="utf-8")
+
+        assert 'path.startswith("/api/v1/prompts")' not in resource_guard
+
 
 class TestVulnLabEndpoints:
     """Test vulnerability lab endpoints."""
