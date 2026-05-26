@@ -126,7 +126,15 @@ export default function ProAppLayout({ children }: ProAppLayoutProps) {
           contentWidth="Fluid"
           location={{ pathname: location.pathname }}
           route={{ path: '/', routes }}
-          menuItemRender={(item, dom) => item.children ? dom : item.path ? <Link to={item.path}>{dom}</Link> : dom}
+          menuItemRender={(item, dom) => {
+            const content = item.parentKeys?.length && item.icon ? (
+              <Space size={8}>
+                {item.icon}
+                <span>{dom}</span>
+              </Space>
+            ) : dom
+            return item.children ? content : item.path ? <Link to={item.path}>{content}</Link> : content
+          }}
           avatarProps={user ? {
             icon: <UserOutlined />,
             title: user.full_name || user.email,
