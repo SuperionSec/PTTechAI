@@ -3,8 +3,8 @@ PTTechAI Test Configuration
 Shared fixtures for backend tests
 """
 import pytest_asyncio
-import asyncio
 import sys
+import uuid
 from pathlib import Path
 
 # Add project root to path for imports
@@ -12,50 +12,54 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy import delete
+from sqlalchemy import text
 
+from backend.config import settings
 from backend.db.database import Base, get_db
 from backend.models.user import User, Role
 from backend.models.permission import Permission, RolePermission, ResourceMapping, PermissionScope, PermissionAction
 from backend.main import app
 
 
-# Use in-memory SQLite for tests
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+TEST_DATABASE_URL = settings.DATABASE_URL
 
 
 @pytest_asyncio.fixture(scope="session")
 async def engine():
     """Create a test database engine"""
+    schema_name = f"test_backend_{uuid.uuid4().hex}"
     engine = create_async_engine(
         TEST_DATABASE_URL,
         echo=False,
         future=True,
     )
     async with engine.begin() as conn:
+        await conn.execute(text(f'CREATE SCHEMA "{schema_name}"'))
+        await conn.execute(text(f'SET search_path TO "{schema_name}"'))
         await conn.run_sync(Base.metadata.create_all)
-    yield engine
+    yield engine, schema_name
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+        await conn.execute(text(f'DROP SCHEMA "{schema_name}" CASCADE'))
     await engine.dispose()
 
 
 @pytest_asyncio.fixture
 async def db_session(engine):
     """Create a fresh database session for each test"""
+    engine_obj, schema_name = engine
     async_session = async_sessionmaker(
-        engine,
+        engine_obj,
         class_=AsyncSession,
         expire_on_commit=False,
         autocommit=False,
         autoflush=False,
     )
     async with async_session() as session:
+        await session.execute(text(f'SET search_path TO "{schema_name}"'))
         yield session
-        await session.commit()
-        # Cleanup after test
+        await session.rollback()
         for table in reversed(Base.metadata.sorted_tables):
-            await session.execute(delete(table))
+            await session.execute(table.delete())
         await session.commit()
 
 
