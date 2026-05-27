@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { PageContainer, ProCard, ProTable } from '@ant-design/pro-components'
+import { PageContainer, ProCard, ProTable, StatisticCard } from '@ant-design/pro-components'
 import type { ProColumns } from '@ant-design/pro-components'
 import {
   Alert,
@@ -182,6 +182,8 @@ export default function UserManagementPage() {
   }
 
   const validUsers = useMemo(() => users.filter(user => user && typeof user === 'object' && user.id), [users])
+  const activeUsers = useMemo(() => validUsers.filter(user => user.is_active).length, [validUsers])
+  const adminUsers = useMemo(() => validUsers.filter(user => user.role === 'admin').length, [validUsers])
 
   const columns: ProColumns<User>[] = [
     {
@@ -264,27 +266,41 @@ export default function UserManagementPage() {
   }
 
   return (
-    <PageContainer
-      title={t('usersManagement.title')}
-      subTitle={t('usersManagement.subtitle')}
-      extra={[
-        <Button key="refresh" icon={<ReloadOutlined />} onClick={fetchUsers}>{t('common.refresh')}</Button>,
-        <Button key="create" type="primary" icon={<PlusOutlined />} onClick={() => setShowCreateModal(true)}>
-          {t('usersManagement.createUser')}
-        </Button>,
-      ]}
-    >
-      <ProCard bordered title={<Space><SafetyCertificateOutlined />{t('usersManagement.userList')} ({validUsers.length})</Space>}>
-        <ProTable<User>
-          rowKey="id"
-          search={false}
-          options={false}
-          columns={columns}
-          dataSource={validUsers}
-          pagination={{ pageSize: 10, showSizeChanger: true }}
-          toolBarRender={false}
-        />
-      </ProCard>
+    <PageContainer title={t('usersManagement.title')} subTitle={t('usersManagement.subtitle')}>
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <ProCard bordered>
+          <Space style={{ width: '100%', justifyContent: 'space-between' }} align="center" wrap>
+            <Space direction="vertical" size={4}>
+              <Text strong>{t('usersManagement.title')}</Text>
+              <Text type="secondary">{t('usersManagement.subtitle')}</Text>
+            </Space>
+            <Space wrap>
+              <Button icon={<ReloadOutlined />} onClick={fetchUsers}>{t('common.refresh')}</Button>
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowCreateModal(true)}>
+                {t('usersManagement.createUser')}
+              </Button>
+            </Space>
+          </Space>
+        </ProCard>
+
+        <StatisticCard.Group direction="row">
+          <StatisticCard statistic={{ title: t('usersManagement.userList'), value: validUsers.length, icon: <UserOutlined /> }} />
+          <StatisticCard statistic={{ title: t('usersManagement.active'), value: activeUsers, icon: <SafetyCertificateOutlined /> }} />
+          <StatisticCard statistic={{ title: t('usersManagement.admin'), value: adminUsers, icon: <KeyOutlined /> }} />
+        </StatisticCard.Group>
+
+        <ProCard bordered title={<Space><SafetyCertificateOutlined />{t('usersManagement.userList')} ({validUsers.length})</Space>}>
+          <ProTable<User>
+            rowKey="id"
+            search={false}
+            options={false}
+            columns={columns}
+            dataSource={validUsers}
+            pagination={{ pageSize: 10, showSizeChanger: true }}
+            toolBarRender={false}
+          />
+        </ProCard>
+      </Space>
 
       <Modal
         title={t('usersManagement.createNewUser')}
