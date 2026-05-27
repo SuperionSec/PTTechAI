@@ -333,16 +333,20 @@ export default function RoleManagementPage() {
   }
 
   return (
-    <PageContainer
-      title={t('roleManagement.title')}
-      subTitle={t('roleManagement.subtitle')}
-      extra={[
-        <Button key="create" type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
-          {t('roleManagement.createRole')}
-        </Button>,
-      ]}
-    >
+    <PageContainer title={t('roleManagement.title')} subTitle={t('roleManagement.subtitle')}>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <ProCard bordered>
+          <Space style={{ width: '100%', justifyContent: 'space-between' }} align="center" wrap>
+            <Space direction="vertical" size={4}>
+              <Text strong>{t('roleManagement.title')}</Text>
+              <Text type="secondary">{t('roleManagement.subtitle')}</Text>
+            </Space>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+              {t('roleManagement.createRole')}
+            </Button>
+          </Space>
+        </ProCard>
+
         <StatisticCard.Group direction="row">
           <StatisticCard statistic={{ title: t('roleManagement.roles'), value: roles.length, icon: <SafetyCertificateOutlined /> }} />
           <StatisticCard statistic={{ title: t('roleManagement.permissions'), value: permissions.length, icon: <LockOutlined /> }} />
