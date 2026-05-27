@@ -104,6 +104,15 @@ class TestFrontendPages:
             route_line = next(line for line in content.splitlines() if f"path: '{path}'" in line)
             assert "group: 'pentest'" in route_line
 
+    def test_pro_layout_builds_two_grouped_menus(self):
+        content = (FRONTEND_SRC / "layouts" / "ProAppLayout.tsx").read_text(encoding="utf-8")
+        assert "path: '/system-setting-group'" in content
+        assert "path: '/penetration-testing-group'" in content
+        assert "t('sidebar.systemSettings')" in content
+        assert "t('sidebar.penetrationTesting')" in content
+        assert "item.parentKeys?.length && item.icon" in content
+        assert "item.children ? content" in content
+
     def test_system_pages_use_standard_pro_layout_cards(self):
         for page_file in self.SYSTEM_PAGES:
             content = (FRONTEND_SRC / "pages" / "system" / page_file).read_text(encoding="utf-8")
