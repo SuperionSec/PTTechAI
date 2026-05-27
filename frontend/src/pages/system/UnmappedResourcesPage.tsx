@@ -179,9 +179,24 @@ export default function UnmappedResourcesPage() {
       title={t('unmappedResources.title') || 'Unmapped Resources'}
       subTitle={t('unmappedResources.subtitle') || 'Resources not bound to any permission. Map them to ensure proper access control.'}
       onBack={() => navigate('/roles')}
-      extra={<Button icon={<ReloadOutlined />} onClick={fetchUnmappedResources}>{t('common.refresh')}</Button>}
     >
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <ProCard bordered>
+          <Space style={{ width: '100%', justifyContent: 'space-between' }} align="center" wrap>
+            <Space direction="vertical" size={4}>
+              <Text strong>{t('unmappedResources.title') || 'Unmapped Resources'}</Text>
+              <Text type="secondary">{t('unmappedResources.subtitle') || 'Resources not bound to any permission. Map them to ensure proper access control.'}</Text>
+            </Space>
+            <Button icon={<ReloadOutlined />} onClick={fetchUnmappedResources}>{t('common.refresh')}</Button>
+          </Space>
+        </ProCard>
+
+        <StatisticCard.Group direction="row">
+          <StatisticCard statistic={{ title: 'Frontend Pages', value: frontendResources.length, icon: <GlobalOutlined /> }} />
+          <StatisticCard statistic={{ title: 'Backend APIs', value: backendResources.length, icon: <ApiOutlined /> }} />
+          <StatisticCard statistic={{ title: 'Total Unmapped', value: unmappedResources.length, icon: <WarningOutlined />, status: unmappedResources.length ? 'warning' : 'success' }} />
+        </StatisticCard.Group>
+
         {unmappedResources.length === 0 ? (
           <ProCard bordered>
             <Empty
@@ -202,12 +217,7 @@ export default function UnmappedResourcesPage() {
               icon={<WarningOutlined />}
               message={t('unmappedResources.warning', 'Unmapped resources are currently governed by the server-side fallback policy.')}
             />
-            <StatisticCard.Group direction="row">
-              <StatisticCard statistic={{ title: 'Frontend Pages', value: frontendResources.length, icon: <GlobalOutlined /> }} />
-              <StatisticCard statistic={{ title: 'Backend APIs', value: backendResources.length, icon: <ApiOutlined /> }} />
-              <StatisticCard statistic={{ title: 'Total Unmapped', value: unmappedResources.length, icon: <WarningOutlined />, status: 'warning' }} />
-            </StatisticCard.Group>
-            <ProCard bordered>
+            <ProCard bordered title={<Space><WarningOutlined />{t('unmappedResources.title') || 'Unmapped Resources'} ({unmappedResources.length})</Space>}>
               <ProTable<UnmappedResource>
                 rowKey={record => `${record.resource_type}:${record.resource_path}`}
                 search={false}
