@@ -192,6 +192,16 @@ def test_access_helper_role_permission_filter_includes_role_id_fallback():
     assert "role_permissions.role" in expression
 
 
+def test_access_helper_role_permission_filter_uses_role_without_role_id():
+    from backend.core.rbac.access_helpers import role_permission_filter
+
+    user = User(id="user-id", email="user@example.com", hashed_password="hashed", role="auditor", is_active=True)
+    expression = str(role_permission_filter(user))
+
+    assert "role_permissions.role" in expression
+    assert "role_permissions.role_id" not in expression
+
+
 @pytest.mark.asyncio
 async def test_create_role_persists_custom_role_permissions(db_session):
     permission = await _seed_permission(db_session)
