@@ -98,6 +98,11 @@ class TestFrontendPages:
         assert "hideInMenu: true" in roles_line
         assert "group: 'system'" not in roles_line
 
+    def test_frontend_nginx_api_proxy_does_not_capture_api_keys_route(self):
+        content = (PROJECT_ROOT / "docker" / "nginx.conf").read_text(encoding="utf-8")
+        assert "location /api/" in content
+        assert "location /api {" not in content
+
 
 class TestFrontendServices:
     """Test frontend service layer."""
