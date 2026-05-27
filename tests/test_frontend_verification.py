@@ -133,6 +133,16 @@ class TestFrontendPages:
         assert "<PermissionSelector" in content
         assert "<RoleStatisticCards" in content
 
+    def test_user_management_uses_extracted_statistic_cards(self):
+        content = (FRONTEND_SRC / "pages" / "system" / "UserManagementPage.tsx").read_text(encoding="utf-8")
+        assert "function UserStatisticCards(" in content
+        assert "<UserStatisticCards" in content
+
+    def test_unmapped_resources_uses_extracted_statistic_cards(self):
+        content = (FRONTEND_SRC / "pages" / "system" / "UnmappedResourcesPage.tsx").read_text(encoding="utf-8")
+        assert "function UnmappedResourceStatisticCards(" in content
+        assert "<UnmappedResourceStatisticCards" in content
+
     def test_frontend_nginx_api_proxy_does_not_capture_api_keys_route(self):
         content = (PROJECT_ROOT / "docker" / "nginx.conf").read_text(encoding="utf-8")
         assert "location /api/" in content

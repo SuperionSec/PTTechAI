@@ -56,6 +56,21 @@ interface ResetPasswordForm {
   new_password: string
 }
 
+function UserStatisticCards({ totalUsers, activeUsers, adminUsers, t }: {
+  totalUsers: number
+  activeUsers: number
+  adminUsers: number
+  t: (key: string) => string
+}) {
+  return (
+    <StatisticCard.Group direction="row">
+      <StatisticCard statistic={{ title: t('usersManagement.userList'), value: totalUsers, icon: <UserOutlined /> }} />
+      <StatisticCard statistic={{ title: t('usersManagement.active'), value: activeUsers, icon: <SafetyCertificateOutlined /> }} />
+      <StatisticCard statistic={{ title: t('usersManagement.admin'), value: adminUsers, icon: <KeyOutlined /> }} />
+    </StatisticCard.Group>
+  )
+}
+
 export default function UserManagementPage() {
   const { t } = useTranslation()
   const { user: currentUser } = useAuth()
@@ -283,11 +298,12 @@ export default function UserManagementPage() {
           </Space>
         </ProCard>
 
-        <StatisticCard.Group direction="row">
-          <StatisticCard statistic={{ title: t('usersManagement.userList'), value: validUsers.length, icon: <UserOutlined /> }} />
-          <StatisticCard statistic={{ title: t('usersManagement.active'), value: activeUsers, icon: <SafetyCertificateOutlined /> }} />
-          <StatisticCard statistic={{ title: t('usersManagement.admin'), value: adminUsers, icon: <KeyOutlined /> }} />
-        </StatisticCard.Group>
+        <UserStatisticCards
+          totalUsers={validUsers.length}
+          activeUsers={activeUsers}
+          adminUsers={adminUsers}
+          t={t}
+        />
 
         <ProCard bordered title={<Space><SafetyCertificateOutlined />{t('usersManagement.userList')} ({validUsers.length})</Space>}>
           <ProTable<User>
