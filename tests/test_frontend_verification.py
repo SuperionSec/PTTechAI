@@ -193,6 +193,16 @@ class TestFrontendI18n:
         assert isinstance(data, dict), "zh-CN.json should be a valid JSON object"
         assert len(data) > 0, "zh-CN.json should not be empty"
 
+    def test_sidebar_group_locale_keys_exist(self):
+        with open(FRONTEND_SRC / "locales" / "en-US.json", encoding="utf-8") as f:
+            en = json.load(f)
+        with open(FRONTEND_SRC / "locales" / "zh-CN.json", encoding="utf-8") as f:
+            zh = json.load(f)
+        assert en["sidebar"]["systemSettings"] == "System Settings"
+        assert en["sidebar"]["penetrationTesting"] == "Penetration Testing"
+        assert zh["sidebar"]["systemSettings"] == "系统设置"
+        assert zh["sidebar"]["penetrationTesting"] == "渗透测试"
+
 
 class TestFrontendNoStaleBrand:
     """Test that frontend files don't contain stale brand references."""
