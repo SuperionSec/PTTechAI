@@ -113,6 +113,12 @@ class TestFrontendPages:
         assert "item.parentKeys?.length && item.icon" in content
         assert "item.children ? content" in content
 
+    def test_menu_routes_exclude_hidden_and_public_routes(self):
+        content = (FRONTEND_SRC / "routes" / "routeConfig.tsx").read_text(encoding="utf-8")
+        assert "export const menuRoutes = appRoutes.filter(route => !route.hideInMenu && !route.public)" in content
+        roles_line = next(line for line in content.splitlines() if "path: '/roles'" in line)
+        assert "hideInMenu: true" in roles_line
+
     def test_system_pages_use_standard_pro_layout_cards(self):
         for page_file in self.SYSTEM_PAGES:
             content = (FRONTEND_SRC / "pages" / "system" / page_file).read_text(encoding="utf-8")
