@@ -98,6 +98,12 @@ class TestFrontendPages:
         assert "hideInMenu: true" in roles_line
         assert "group: 'system'" not in roles_line
 
+    def test_system_pages_use_standard_pro_layout_cards(self):
+        for page_file in self.SYSTEM_PAGES:
+            content = (FRONTEND_SRC / "pages" / "system" / page_file).read_text(encoding="utf-8")
+            assert "PageContainer" in content
+            assert "ProCard" in content
+
     def test_frontend_nginx_api_proxy_does_not_capture_api_keys_route(self):
         content = (PROJECT_ROOT / "docker" / "nginx.conf").read_text(encoding="utf-8")
         assert "location /api/" in content
