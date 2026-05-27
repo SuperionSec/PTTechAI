@@ -175,11 +175,12 @@ class TestFrontendServices:
 class TestAutoPentestOptions:
     """Test Auto Pentest mode options."""
 
-    def test_kali_researcher_mode_is_present(self):
+    def test_kali_sandbox_is_checkbox_not_test_mode(self):
         content = (FRONTEND_SRC / "pages" / "AutoPentestPage.tsx").read_text(encoding="utf-8")
-        assert "kali_researcher" in content
-        assert "isKaliResearcherMode" in content
+        assert "kali_researcher" not in content
+        assert "isKaliResearcherMode" not in content
         assert "enable_kali_sandbox" in content
+        assert "t('autoPentest.kaliSandbox')" in content
 
     def test_kali_researcher_i18n_keys_exist(self):
         with open(FRONTEND_SRC / "locales" / "en-US.json", encoding="utf-8") as f:
