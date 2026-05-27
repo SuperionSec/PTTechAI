@@ -73,6 +73,21 @@ class TestRouterRegistration:
 
         assert len(missing) == 0, f"Missing API routes: {missing}"
 
+    def test_v1_router_registry_keeps_system_and_pentest_boundaries(self):
+        from backend.api.v1.routes import PENTEST_ROUTERS, SYSTEM_ROUTERS
+
+        system_prefixes = {spec.prefix for spec in SYSTEM_ROUTERS}
+        pentest_prefixes = {spec.prefix for spec in PENTEST_ROUTERS}
+
+        assert system_prefixes == {"/api/v1/auth", "/api/v1/users", "/api/v1/permissions", "/api/v1/rbac"}
+        assert "/api/v1/settings" in pentest_prefixes
+        assert "/api/v1/scheduler" in pentest_prefixes
+        assert "/api/v1/knowledge" in pentest_prefixes
+        assert "/api/v1/terminal" in pentest_prefixes
+        assert "/api/v1/mcp" in pentest_prefixes
+        assert "/api/v1/providers" in pentest_prefixes
+        assert any(spec.prefix is None and spec.tags == ["CLI Agent"] for spec in PENTEST_ROUTERS)
+
     def test_health_endpoint_exists(self, app):
         registered_paths = [r.path for r in app.routes if hasattr(r, "path")]
         assert "/api/health" in registered_paths, "Health endpoint not found"
