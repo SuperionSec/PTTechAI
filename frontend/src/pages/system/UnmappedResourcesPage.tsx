@@ -29,6 +29,20 @@ import type { Permission, UnmappedResource } from '../../services/system'
 
 const { Text } = Typography
 
+function UnmappedResourceStatisticCards({ frontendCount, backendCount, totalCount }: {
+  frontendCount: number
+  backendCount: number
+  totalCount: number
+}) {
+  return (
+    <StatisticCard.Group direction="row">
+      <StatisticCard statistic={{ title: 'Frontend Pages', value: frontendCount, icon: <GlobalOutlined /> }} />
+      <StatisticCard statistic={{ title: 'Backend APIs', value: backendCount, icon: <ApiOutlined /> }} />
+      <StatisticCard statistic={{ title: 'Total Unmapped', value: totalCount, icon: <WarningOutlined />, status: totalCount ? 'warning' : 'success' }} />
+    </StatisticCard.Group>
+  )
+}
+
 export default function UnmappedResourcesPage() {
   const { t } = useTranslation()
   const { user: currentUser } = useAuth()
@@ -191,11 +205,11 @@ export default function UnmappedResourcesPage() {
           </Space>
         </ProCard>
 
-        <StatisticCard.Group direction="row">
-          <StatisticCard statistic={{ title: 'Frontend Pages', value: frontendResources.length, icon: <GlobalOutlined /> }} />
-          <StatisticCard statistic={{ title: 'Backend APIs', value: backendResources.length, icon: <ApiOutlined /> }} />
-          <StatisticCard statistic={{ title: 'Total Unmapped', value: unmappedResources.length, icon: <WarningOutlined />, status: unmappedResources.length ? 'warning' : 'success' }} />
-        </StatisticCard.Group>
+        <UnmappedResourceStatisticCards
+          frontendCount={frontendResources.length}
+          backendCount={backendResources.length}
+          totalCount={unmappedResources.length}
+        />
 
         {unmappedResources.length === 0 ? (
           <ProCard bordered>
