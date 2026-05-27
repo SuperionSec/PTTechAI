@@ -19,6 +19,21 @@ interface PasswordFormValues {
   confirm_password: string
 }
 
+function ProfileStatisticCards({ roleLabel, email, createdAt, t }: {
+  roleLabel: string
+  email: string
+  createdAt: string
+  t: (key: string) => string
+}) {
+  return (
+    <StatisticCard.Group direction="row">
+      <StatisticCard statistic={{ title: t('usersManagement.role'), value: roleLabel, icon: <UserOutlined /> }} />
+      <StatisticCard statistic={{ title: t('login.email'), value: email, icon: <EditOutlined /> }} />
+      <StatisticCard statistic={{ title: t('usersManagement.createdAt'), value: createdAt, icon: <LockOutlined /> }} />
+    </StatisticCard.Group>
+  )
+}
+
 export default function UserProfilePage() {
   const { t } = useTranslation()
   const { user } = useAuth()
@@ -116,11 +131,12 @@ export default function UserProfilePage() {
           </Space>
         </ProCard>
 
-        <StatisticCard.Group direction="row">
-          <StatisticCard statistic={{ title: t('usersManagement.role'), value: roleLabels[user.role] || user.role, icon: <UserOutlined /> }} />
-          <StatisticCard statistic={{ title: t('login.email'), value: user.email, icon: <EditOutlined /> }} />
-          <StatisticCard statistic={{ title: t('usersManagement.createdAt'), value: new Date(user.created_at).toLocaleDateString(i18n.language === 'zh-CN' ? 'zh-CN' : 'en-US'), icon: <LockOutlined /> }} />
-        </StatisticCard.Group>
+        <ProfileStatisticCards
+          roleLabel={roleLabels[user.role] || user.role}
+          email={user.email}
+          createdAt={new Date(user.created_at).toLocaleDateString(i18n.language === 'zh-CN' ? 'zh-CN' : 'en-US')}
+          t={t}
+        />
 
         <ProCard
           bordered

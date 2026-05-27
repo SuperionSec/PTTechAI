@@ -41,6 +41,21 @@ interface CreateKeyFormValues {
   name: string
 }
 
+function APIKeyStatisticCards({ totalKeys, activeKeys, usedKeys, t }: {
+  totalKeys: number
+  activeKeys: number
+  usedKeys: number
+  t: (key: string) => string
+}) {
+  return (
+    <StatisticCard.Group direction="row">
+      <StatisticCard statistic={{ title: t('apiKeys.myKeys'), value: totalKeys, icon: <KeyOutlined /> }} />
+      <StatisticCard statistic={{ title: t('common.enabled'), value: activeKeys, icon: <SafetyCertificateOutlined /> }} />
+      <StatisticCard statistic={{ title: t('apiKeys.lastUsed'), value: usedKeys, icon: <ClockCircleOutlined /> }} />
+    </StatisticCard.Group>
+  )
+}
+
 function formatDate(value: string | null) {
   return value ? new Date(value).toLocaleString() : '-'
 }
@@ -175,11 +190,7 @@ export default function APIKeysPage() {
           </Space>
         </ProCard>
 
-        <StatisticCard.Group direction="row">
-          <StatisticCard statistic={{ title: t('apiKeys.myKeys'), value: keys.length, icon: <KeyOutlined /> }} />
-          <StatisticCard statistic={{ title: t('common.enabled'), value: activeKeys, icon: <SafetyCertificateOutlined /> }} />
-          <StatisticCard statistic={{ title: t('apiKeys.lastUsed'), value: usedKeys, icon: <ClockCircleOutlined /> }} />
-        </StatisticCard.Group>
+        <APIKeyStatisticCards totalKeys={keys.length} activeKeys={activeKeys} usedKeys={usedKeys} t={t} />
 
         {showNewKey && (
           <Alert

@@ -143,6 +143,21 @@ class TestFrontendPages:
         assert "function UnmappedResourceStatisticCards(" in content
         assert "<UnmappedResourceStatisticCards" in content
 
+    def test_api_keys_uses_extracted_statistic_cards(self):
+        content = (FRONTEND_SRC / "pages" / "system" / "APIKeysPage.tsx").read_text(encoding="utf-8")
+        assert "function APIKeyStatisticCards(" in content
+        assert "<APIKeyStatisticCards" in content
+
+    def test_user_profile_uses_extracted_statistic_cards(self):
+        content = (FRONTEND_SRC / "pages" / "system" / "UserProfilePage.tsx").read_text(encoding="utf-8")
+        assert "function ProfileStatisticCards(" in content
+        assert "<ProfileStatisticCards" in content
+
+    def test_languages_uses_extracted_statistic_cards(self):
+        content = (FRONTEND_SRC / "pages" / "system" / "LanguagesPage.tsx").read_text(encoding="utf-8")
+        assert "function LanguageStatisticCards(" in content
+        assert "<LanguageStatisticCards" in content
+
     def test_frontend_nginx_api_proxy_does_not_capture_api_keys_route(self):
         content = (PROJECT_ROOT / "docker" / "nginx.conf").read_text(encoding="utf-8")
         assert "location /api/" in content

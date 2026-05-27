@@ -13,6 +13,19 @@ const availableLanguages = [
   { code: 'en-US', name: 'English', nativeName: 'English', flag: '🇺🇸' },
 ]
 
+function LanguageStatisticCards({ currentLanguageName, t }: {
+  currentLanguageName: string
+  t: ReturnType<typeof useTranslation>['t']
+}) {
+  return (
+    <StatisticCard.Group direction="row">
+      <StatisticCard statistic={{ title: t('languageManagement.interfaceLanguage', 'Interface Language'), value: currentLanguageName, icon: <GlobalOutlined /> }} />
+      <StatisticCard statistic={{ title: t('languageManagement.translationProgress', 'Translation Progress'), value: '100%', icon: <TranslationOutlined /> }} />
+      <StatisticCard statistic={{ title: t('languageManagement.lastUpdated', 'Last Updated'), value: '2026-05-03', icon: <CheckOutlined /> }} />
+    </StatisticCard.Group>
+  )
+}
+
 export default function LanguagesPage() {
   const { t } = useTranslation()
   const { notification } = AntApp.useApp()
@@ -56,11 +69,7 @@ export default function LanguagesPage() {
           </Space>
         </ProCard>
 
-        <StatisticCard.Group direction="row">
-          <StatisticCard statistic={{ title: t('languageManagement.interfaceLanguage', 'Interface Language'), value: currentLanguage.nativeName, icon: <GlobalOutlined /> }} />
-          <StatisticCard statistic={{ title: t('languageManagement.translationProgress', 'Translation Progress'), value: '100%', icon: <TranslationOutlined /> }} />
-          <StatisticCard statistic={{ title: t('languageManagement.lastUpdated', 'Last Updated'), value: '2026-05-03', icon: <CheckOutlined /> }} />
-        </StatisticCard.Group>
+        <LanguageStatisticCards currentLanguageName={currentLanguage.nativeName} t={t} />
 
         <ProCard
           bordered
