@@ -157,11 +157,15 @@ class TestFrontendServices:
         for type_name in ["Permission", "ResourceMapping", "RoleSummary", "UnmappedResource"]:
             assert type_name in content
 
-    def test_system_pages_use_system_service_entrypoint(self):
+    def test_system_pages_do_not_import_rbac_service_directly(self):
+        for page_file in ["LanguagesPage.tsx", "UserManagementPage.tsx", "APIKeysPage.tsx", "UserProfilePage.tsx", "UnmappedResourcesPage.tsx", "RoleManagementPage.tsx"]:
+            content = (FRONTEND_SRC / "pages" / "system" / page_file).read_text(encoding="utf-8")
+            assert "../../services/rbac" not in content
+
+    def test_rbac_management_pages_use_system_service_entrypoint(self):
         for page_file in ["UserManagementPage.tsx", "RoleManagementPage.tsx", "UnmappedResourcesPage.tsx"]:
             content = (FRONTEND_SRC / "pages" / "system" / page_file).read_text(encoding="utf-8")
             assert "../../services/system" in content
-            assert "../../services/rbac" not in content
 
     def test_auth_context_keeps_rbac_profile_import(self):
         content = (FRONTEND_SRC / "contexts" / "AuthContext.tsx").read_text(encoding="utf-8")
