@@ -126,6 +126,13 @@ class TestFrontendPages:
             assert "PageContainer" in content
             assert "ProCard" in content
 
+    def test_role_management_uses_extracted_ui_helpers(self):
+        content = (FRONTEND_SRC / "pages" / "system" / "RoleManagementPage.tsx").read_text(encoding="utf-8")
+        assert "function PermissionSelector(" in content
+        assert "function RoleStatisticCards(" in content
+        assert "<PermissionSelector" in content
+        assert "<RoleStatisticCards" in content
+
     def test_frontend_nginx_api_proxy_does_not_capture_api_keys_route(self):
         content = (PROJECT_ROOT / "docker" / "nginx.conf").read_text(encoding="utf-8")
         assert "location /api/" in content
