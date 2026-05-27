@@ -98,6 +98,12 @@ class TestFrontendPages:
         assert "hideInMenu: true" in roles_line
         assert "group: 'system'" not in roles_line
 
+    def test_key_pentest_routes_remain_in_pentest_group(self):
+        content = (FRONTEND_SRC / "routes" / "routeConfig.tsx").read_text(encoding="utf-8")
+        for path in ["/", "/scheduler", "/knowledge", "/terminal", "/mcp", "/providers", "/settings"]:
+            route_line = next(line for line in content.splitlines() if f"path: '{path}'" in line)
+            assert "group: 'pentest'" in route_line
+
     def test_system_pages_use_standard_pro_layout_cards(self):
         for page_file in self.SYSTEM_PAGES:
             content = (FRONTEND_SRC / "pages" / "system" / page_file).read_text(encoding="utf-8")
