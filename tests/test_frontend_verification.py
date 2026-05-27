@@ -87,17 +87,20 @@ class TestFrontendPages:
         for page in ["LanguagesPage", "UserManagementPage", "APIKeysPage", "UserProfilePage", "UnmappedResourcesPage", "RoleManagementPage"]:
             assert f"as {page}" in index_content
 
-    def test_visible_system_menu_is_limited_to_five_items(self):
+    def test_visible_system_menu_matches_rbac_admin_information_architecture(self):
         content = (FRONTEND_SRC / "routes" / "routeConfig.tsx").read_text(encoding="utf-8")
         system_paths = []
         for line in content.splitlines():
             if "group: 'system'" in line and "hideInMenu: true" not in line:
                 path = line.split("path: '")[1].split("'")[0]
                 system_paths.append(path)
-        assert system_paths == ["/languages", "/users", "/unmapped-resources", "/api-keys", "/profile"]
-        roles_line = next(line for line in content.splitlines() if "path: '/roles'" in line)
-        assert "hideInMenu: true" in roles_line
-        assert "group: 'system'" not in roles_line
+        assert system_paths == ["/users", "/roles", "/unmapped-resources", "/languages"]
+        profile_line = next(line for line in content.splitlines() if "path: '/profile'" in line)
+        api_keys_line = next(line for line in content.splitlines() if "path: '/api-keys'" in line)
+        assert "hideInMenu: true" in profile_line
+        assert "group: 'system'" not in profile_line
+        assert "hideInMenu: true" in api_keys_line
+        assert "group: 'system'" not in api_keys_line
 
     def test_key_pentest_routes_remain_in_pentest_group(self):
         content = (FRONTEND_SRC / "routes" / "routeConfig.tsx").read_text(encoding="utf-8")
@@ -137,7 +140,21 @@ class TestFrontendPages:
         content = (FRONTEND_SRC / "routes" / "routeConfig.tsx").read_text(encoding="utf-8")
         assert "export const menuRoutes = appRoutes.filter(route => !route.hideInMenu && !route.public)" in content
         roles_line = next(line for line in content.splitlines() if "path: '/roles'" in line)
-        assert "hideInMenu: true" in roles_line
+        profile_line = next(line for line in content.splitlines() if "path: '/profile'" in line)
+        api_keys_line = next(line for line in content.splitlines() if "path: '/api-keys'" in line)
+        assert "group: 'system'" in roles_line
+        assert "hideInMenu: true" not in roles_line
+        assert "hideInMenu: true" in profile_line
+        assert "hideInMenu: true" in api_keys_line
+
+    def test_pro_layout_exposes_profile_and_api_tokens_in_avatar_menu(self):
+        content = (FRONTEND_SRC / "layouts" / "ProAppLayout.tsx").read_text(encoding="utf-8")
+        assert "key: 'profile'" in content
+        assert "key: 'api-keys'" in content
+        assert "navigate('/profile')" in content
+        assert "navigate('/api-keys')" in content
+        assert "canAccessApiTokens" in content
+        assert "hasPermission({" in content
 
     def test_system_pages_use_standard_pro_layout_cards(self):
         for page_file in self.SYSTEM_PAGES:
@@ -214,11 +231,21 @@ class TestFrontendPages:
         content = (FRONTEND_SRC / "pages" / "system" / "UnmappedResourcesPage.tsx").read_text(encoding="utf-8")
         assert "function UnmappedResourceStatisticCards(" in content
         assert "<UnmappedResourceStatisticCards" in content
+        assert "accessCoverage.title" in content
+        assert "accessCoverage.subtitle" in content
+        assert "accessCoverage.mapPermission" in content
+        assert "systemApi.unmappedResources()" in content
 
     def test_api_keys_uses_extracted_statistic_cards(self):
         content = (FRONTEND_SRC / "pages" / "system" / "APIKeysPage.tsx").read_text(encoding="utf-8")
         assert "function APIKeyStatisticCards(" in content
         assert "<APIKeyStatisticCards" in content
+        en = json.loads((FRONTEND_SRC / "locales" / "en-US.json").read_text(encoding="utf-8"))
+        zh = json.loads((FRONTEND_SRC / "locales" / "zh-CN.json").read_text(encoding="utf-8"))
+        assert en["apiKeys"]["title"] == "My API Tokens"
+        assert "current signed-in user" in en["apiKeys"]["subtitle"]
+        assert zh["apiKeys"]["title"] == "我的 API Token"
+        assert "当前登录用户" in zh["apiKeys"]["subtitle"]
 
     def test_user_profile_uses_extracted_statistic_cards(self):
         content = (FRONTEND_SRC / "pages" / "system" / "UserProfilePage.tsx").read_text(encoding="utf-8")
@@ -229,6 +256,19 @@ class TestFrontendPages:
         content = (FRONTEND_SRC / "pages" / "system" / "LanguagesPage.tsx").read_text(encoding="utf-8")
         assert "function LanguageStatisticCards(" in content
         assert "<LanguageStatisticCards" in content
+
+    def test_access_coverage_locale_keys_exist(self):
+        en = json.loads((FRONTEND_SRC / "locales" / "en-US.json").read_text(encoding="utf-8"))
+        zh = json.loads((FRONTEND_SRC / "locales" / "zh-CN.json").read_text(encoding="utf-8"))
+        assert en["accessCoverage"]["title"] == "Access Coverage"
+        assert "permission" in en["accessCoverage"]["subtitle"]
+        assert zh["accessCoverage"]["title"] == "访问覆盖"
+        assert "权限映射" in zh["accessCoverage"]["subtitle"]
+
+    def test_frontend_vite_api_proxy_does_not_capture_api_keys_route(self):
+        content = (PROJECT_ROOT / "frontend" / "vite.config.ts").read_text(encoding="utf-8")
+        assert "'^/api/'" in content
+        assert "'/api':" not in content
 
     def test_frontend_nginx_api_proxy_does_not_capture_api_keys_route(self):
         content = (PROJECT_ROOT / "docker" / "nginx.conf").read_text(encoding="utf-8")

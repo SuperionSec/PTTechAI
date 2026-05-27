@@ -211,7 +211,7 @@ def test_build_menu_items_returns_grouped_pro_layout_contract():
     pentest_menu = menus[1]
     assert system_menu.icon == "SettingOutlined"
     assert system_menu.locale == "sidebar.systemSettings"
-    assert [item.path for item in system_menu.children] == ["/languages", "/users", "/unmapped-resources", "/profile"]
+    assert [item.path for item in system_menu.children] == ["/users", "/roles", "/unmapped-resources", "/languages"]
     assert all(item.access == "canAccessPage" for item in system_menu.children)
     assert [item.path for item in pentest_menu.children] == ["/settings"]
     assert pentest_menu.children[0].icon == "SettingOutlined"
@@ -221,7 +221,9 @@ def test_build_menu_items_keeps_admin_access_to_all_groups():
     menus = build_menu_items([], [], "admin")
 
     paths = [item.path for menu in menus for item in menu.children]
-    assert "/api-keys" in paths
+    assert "/api-keys" not in paths
+    assert "/profile" not in paths
+    assert "/roles" in paths
     assert "/scheduler" in paths
     assert "/unmapped-resources" in paths
 

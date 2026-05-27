@@ -19,6 +19,7 @@ import {
   SettingOutlined,
   UserOutlined,
   KeyOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons'
 import LoginPage from '../pages/LoginPage'
 import RegisterPage from '../pages/RegisterPage'
@@ -84,13 +85,13 @@ export const appRoutes: AppRoute[] = [
   { path: '/reports/:reportId', name: 'pages.reportView', element: <ReportViewPage />, access: 'canAccessPage', permission: 'report:read', hideInMenu: true },
   { path: '/scan/:scanId', name: 'pages.scanDetails', element: <ScanDetailsPage />, access: 'canAccessPage', permission: 'scan:read', hideInMenu: true },
   { path: '/agent/:agentId', name: 'pages.agentStatus', element: <AgentStatusPage />, access: 'canAccessPage', permission: 'agent:read', hideInMenu: true },
-  { path: '/languages', name: 'languageManagement.title', element: <LanguagesPage />, icon: <TranslationOutlined />, access: 'canAccessPage', permission: 'settings:read', group: 'system' },
   { path: '/users', name: 'usersManagement.title', element: <UserManagementPage />, icon: <TeamOutlined />, access: 'canAccessPage', permission: 'user:manage', group: 'system' },
-  { path: '/roles', name: 'roleManagement.title', element: <RoleManagementPage />, access: 'canAccessPage', permission: 'user:manage', hideInMenu: true },
-  { path: '/unmapped-resources', name: 'roleManagement.unmappedResources', element: <UnmappedResourcesPage />, icon: <UserSwitchOutlined />, access: 'canAccessPage', permission: 'user:manage', group: 'system' },
+  { path: '/roles', name: 'roleManagement.title', element: <RoleManagementPage />, icon: <SafetyCertificateOutlined />, access: 'canAccessPage', permission: 'user:manage', group: 'system' },
+  { path: '/unmapped-resources', name: 'accessCoverage.title', element: <UnmappedResourcesPage />, icon: <UserSwitchOutlined />, access: 'canAccessPage', permission: 'user:manage', group: 'system' },
+  { path: '/languages', name: 'languageManagement.title', element: <LanguagesPage />, icon: <TranslationOutlined />, access: 'canAccessPage', permission: 'settings:read', group: 'system' },
   { path: '/settings', name: 'sidebar.settings', element: <SettingsPage />, icon: <SettingOutlined />, access: 'canAccessPage', permission: 'settings:read', group: 'pentest' },
-  { path: '/api-keys', name: 'apiKeys.title', element: <APIKeysPage />, icon: <KeyOutlined />, access: 'canAccessPage', permission: 'api_key:read', group: 'system' },
-  { path: '/profile', name: 'profile.title', element: <UserProfilePage />, icon: <UserOutlined />, access: 'canAccessPage', group: 'system' },
+  { path: '/api-keys', name: 'apiKeys.title', element: <APIKeysPage />, icon: <KeyOutlined />, access: 'canAccessPage', permission: 'api_key:read', hideInMenu: true },
+  { path: '/profile', name: 'profile.title', element: <UserProfilePage />, icon: <UserOutlined />, access: 'canAccessPage', hideInMenu: true },
   { path: '*', name: 'pages.notFound', element: <NotFound />, public: true, hideInMenu: true },
 ]
 

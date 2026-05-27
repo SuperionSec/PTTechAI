@@ -30,13 +30,13 @@ FRONTEND_ROUTES = [
     ("/providers", "sidebar.providers", "provider:read", "ApiOutlined", "pentest"),
     ("/scheduler", "sidebar.scheduler", "scheduler:read", "ScheduleOutlined", "pentest"),
     ("/reports", "sidebar.reports", "report:read", "FileTextOutlined", "pentest"),
-    ("/languages", "languageManagement.title", "settings:read", "TranslationOutlined", "system"),
     ("/users", "usersManagement.title", "user:manage", "TeamOutlined", "system"),
-    ("/roles", "roleManagement.title", "user:manage", None, None),
-    ("/unmapped-resources", "roleManagement.unmappedResources", "user:manage", "UserSwitchOutlined", "system"),
+    ("/roles", "roleManagement.title", "user:manage", "SafetyCertificateOutlined", "system"),
+    ("/unmapped-resources", "accessCoverage.title", "user:manage", "UserSwitchOutlined", "system"),
+    ("/languages", "languageManagement.title", "settings:read", "TranslationOutlined", "system"),
     ("/settings", "sidebar.settings", "settings:read", "SettingOutlined", "pentest"),
-    ("/api-keys", "apiKeys.title", "api_key:read", "KeyOutlined", "system"),
-    ("/profile", "profile.title", None, "UserOutlined", "system"),
+    ("/api-keys", "apiKeys.title", "api_key:read", "KeyOutlined", None),
+    ("/profile", "profile.title", None, "UserOutlined", None),
 ]
 PUBLIC_API_RESOURCES = {
     "GET /api/health",

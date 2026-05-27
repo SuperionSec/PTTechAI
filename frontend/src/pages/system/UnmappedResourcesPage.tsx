@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { PageContainer, ProCard, ProTable, StatisticCard } from '@ant-design/pro-components'
 import type { ProColumns } from '@ant-design/pro-components'
 import {
@@ -29,16 +30,17 @@ import type { Permission, UnmappedResource } from '../../services/system'
 
 const { Text } = Typography
 
-function UnmappedResourceStatisticCards({ frontendCount, backendCount, totalCount }: {
+function UnmappedResourceStatisticCards({ frontendCount, backendCount, totalCount, t }: {
   frontendCount: number
   backendCount: number
   totalCount: number
+  t: TFunction
 }) {
   return (
     <StatisticCard.Group direction="row">
-      <StatisticCard statistic={{ title: 'Frontend Pages', value: frontendCount, icon: <GlobalOutlined /> }} />
-      <StatisticCard statistic={{ title: 'Backend APIs', value: backendCount, icon: <ApiOutlined /> }} />
-      <StatisticCard statistic={{ title: 'Total Unmapped', value: totalCount, icon: <WarningOutlined />, status: totalCount ? 'warning' : 'success' }} />
+      <StatisticCard statistic={{ title: t('accessCoverage.frontendPages', 'Frontend Pages'), value: frontendCount, icon: <GlobalOutlined /> }} />
+      <StatisticCard statistic={{ title: t('accessCoverage.backendApis', 'Backend APIs'), value: backendCount, icon: <ApiOutlined /> }} />
+      <StatisticCard statistic={{ title: t('accessCoverage.uncoveredResources', 'Resources Needing Rules'), value: totalCount, icon: <WarningOutlined />, status: totalCount ? 'warning' : 'success' }} />
     </StatisticCard.Group>
   )
 }
@@ -67,7 +69,7 @@ export default function UnmappedResourcesPage() {
       setUnmappedResources(data)
     } catch (error) {
       console.error('Failed to fetch unmapped resources:', error)
-      notify(t('unmappedResources.fetchFailed', 'Failed to fetch unmapped resources'), 'error')
+      notify(t('accessCoverage.fetchFailed', 'Failed to fetch access coverage resources'), 'error')
     } finally {
       setLoading(false)
     }
@@ -129,13 +131,13 @@ export default function UnmappedResourcesPage() {
         resource_type: mappingTarget.resource_type,
         resource_path: mappingTarget.resource_path,
       })
-      notify(`Mapped ${mappingTarget.resource_path} to permission`, 'success')
+      notify(t('accessCoverage.mappingCreated', 'Permission mapping created'), 'success')
       setMappingTarget(null)
       setSelectedPermission('')
       await fetchUnmappedResources()
     } catch (error: any) {
       console.error('Failed to create mapping:', error)
-      notify(error.response?.data?.detail || 'Failed to create mapping', 'error')
+      notify(error.response?.data?.detail || t('accessCoverage.mappingFailed', 'Failed to create permission mapping'), 'error')
     } finally {
       setActionLoading(null)
     }
@@ -146,7 +148,7 @@ export default function UnmappedResourcesPage() {
 
   const columns: ProColumns<UnmappedResource>[] = [
     {
-      title: t('unmappedResources.resourceType', 'Type'),
+      title: t('accessCoverage.resourceType', 'Type'),
       dataIndex: 'resource_type',
       width: 150,
       filters: [
@@ -159,12 +161,12 @@ export default function UnmappedResourcesPage() {
         : <Tag color="green" icon={<ApiOutlined />}>API</Tag>,
     },
     {
-      title: t('unmappedResources.resourcePath', 'Resource'),
+      title: t('accessCoverage.resourcePath', 'Resource'),
       dataIndex: 'resource_path',
       render: (_, resource) => <Text code>{resource.resource_path}</Text>,
     },
     {
-      title: t('unmappedResources.reason', 'Reason'),
+      title: t('accessCoverage.reason', 'Coverage Gap'),
       dataIndex: 'reason',
       render: (_, resource) => <Text type="secondary">{resource.reason}</Text>,
     },
@@ -174,7 +176,7 @@ export default function UnmappedResourcesPage() {
       width: 160,
       render: (_, resource) => [
         <Button key="map" size="small" type="primary" icon={<LinkOutlined />} onClick={() => openMappingModal(resource)}>
-          Map
+          {t('accessCoverage.mapPermission', 'Bind Permission')}
         </Button>,
       ],
     },
@@ -182,7 +184,7 @@ export default function UnmappedResourcesPage() {
 
   if (loading) {
     return (
-      <PageContainer title={t('unmappedResources.title') || 'Unmapped Resources'}>
+      <PageContainer title={t('accessCoverage.title', 'Access Coverage')}>
         <ProCard bordered><Spin style={{ display: 'block', margin: '64px auto' }} /></ProCard>
       </PageContainer>
     )
@@ -190,16 +192,16 @@ export default function UnmappedResourcesPage() {
 
   return (
     <PageContainer
-      title={t('unmappedResources.title') || 'Unmapped Resources'}
-      subTitle={t('unmappedResources.subtitle') || 'Resources not bound to any permission. Map them to ensure proper access control.'}
+      title={t('accessCoverage.title', 'Access Coverage')}
+      subTitle={t('accessCoverage.subtitle', 'Audit discovered pages and APIs that still need explicit permission rules.')}
       onBack={() => navigate('/roles')}
     >
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <ProCard bordered>
           <Space style={{ width: '100%', justifyContent: 'space-between' }} align="center" wrap>
             <Space direction="vertical" size={4}>
-              <Text strong>{t('unmappedResources.title') || 'Unmapped Resources'}</Text>
-              <Text type="secondary">{t('unmappedResources.subtitle') || 'Resources not bound to any permission. Map them to ensure proper access control.'}</Text>
+              <Text strong>{t('accessCoverage.title', 'Access Coverage')}</Text>
+              <Text type="secondary">{t('accessCoverage.subtitle', 'Audit discovered pages and APIs that still need explicit permission rules.')}</Text>
             </Space>
             <Button icon={<ReloadOutlined />} onClick={fetchUnmappedResources}>{t('common.refresh')}</Button>
           </Space>
@@ -209,6 +211,7 @@ export default function UnmappedResourcesPage() {
           frontendCount={frontendResources.length}
           backendCount={backendResources.length}
           totalCount={unmappedResources.length}
+          t={t}
         />
 
         {unmappedResources.length === 0 ? (
@@ -217,8 +220,8 @@ export default function UnmappedResourcesPage() {
               image={<CheckCircleOutlined style={{ fontSize: 56, color: '#52c41a' }} />}
               description={(
                 <Space direction="vertical">
-                  <Text strong>All Resources Mapped</Text>
-                  <Text type="secondary">All frontend pages and backend APIs are properly bound to permissions.</Text>
+                  <Text strong>{t('accessCoverage.allCovered', 'All Resources Covered')}</Text>
+                  <Text type="secondary">{t('accessCoverage.allCoveredDesc', 'All discovered frontend pages and backend APIs have explicit permission mappings.')}</Text>
                 </Space>
               )}
             />
@@ -229,9 +232,9 @@ export default function UnmappedResourcesPage() {
               type="warning"
               showIcon
               icon={<WarningOutlined />}
-              message={t('unmappedResources.warning', 'Unmapped resources are currently governed by the server-side fallback policy.')}
+              message={t('accessCoverage.warning', 'Resources listed here are using the server-side fallback policy until you bind them to explicit permissions.')}
             />
-            <ProCard bordered title={<Space><WarningOutlined />{t('unmappedResources.title') || 'Unmapped Resources'} ({unmappedResources.length})</Space>}>
+            <ProCard bordered title={<Space><WarningOutlined />{t('accessCoverage.pendingRules', 'Resources Needing Access Rules')} ({unmappedResources.length})</Space>}>
               <ProTable<UnmappedResource>
                 rowKey={record => `${record.resource_type}:${record.resource_path}`}
                 search={false}
@@ -247,7 +250,7 @@ export default function UnmappedResourcesPage() {
       </Space>
 
       <Modal
-        title="Map Permission"
+        title={t('accessCoverage.mapPermission', 'Bind Permission')}
         open={Boolean(mappingTarget)}
         confirmLoading={Boolean(actionLoading)}
         onOk={handleCreateMapping}
@@ -255,7 +258,7 @@ export default function UnmappedResourcesPage() {
           setMappingTarget(null)
           setSelectedPermission('')
         }}
-        okText="Map"
+        okText={t('accessCoverage.mapPermission', 'Bind Permission')}
         okButtonProps={{ disabled: !selectedPermission }}
       >
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
@@ -270,7 +273,7 @@ export default function UnmappedResourcesPage() {
           <Select
             showSearch
             value={selectedPermission || undefined}
-            placeholder="Select permission..."
+            placeholder={t('accessCoverage.selectPermission', 'Select permission...')}
             onChange={setSelectedPermission}
             style={{ width: '100%' }}
             optionFilterProp="label"

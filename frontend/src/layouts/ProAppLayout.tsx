@@ -7,7 +7,7 @@ import { GlobalOutlined, LogoutOutlined, SafetyCertificateOutlined, SettingOutli
 import { useTranslation } from 'react-i18next'
 import i18n from '../locales'
 import { useAuth } from '../contexts/AuthContext'
-import { canAccessPage } from '../routes/access'
+import { canAccessPage, hasPermission } from '../routes/access'
 import { menuRoutes } from '../routes/routeConfig'
 
 interface ProAppLayoutProps {
@@ -60,19 +60,33 @@ export default function ProAppLayout({ children }: ProAppLayoutProps) {
     ].filter(route => route.routes.length > 0)
   }, [t, user?.role, userPermissions])
 
+  const canAccessApiTokens = canAccessPage({
+    role: userPermissions?.role || user?.role,
+    permissions: userPermissions?.permissions,
+    frontendPages: userPermissions?.frontend_pages,
+  }, '/api-keys', 'api_key:read') || hasPermission({
+    role: userPermissions?.role || user?.role,
+    permissions: userPermissions?.permissions,
+  }, 'api_key:read')
+
   const userMenuItems: MenuProps['items'] = [
     {
       key: 'profile',
       icon: <UserOutlined />,
       label: t('profile.title', 'Profile'),
     },
+    ...(canAccessApiTokens ? [{
+      key: 'api-keys',
+      icon: <SettingOutlined />,
+      label: t('apiKeys.title', 'My API Tokens'),
+    }] : []),
     {
       key: 'language',
       icon: <GlobalOutlined />,
       label: i18n.language === 'zh-CN' ? 'English' : '中文',
     },
     {
-      type: 'divider',
+      type: 'divider' as const,
     },
     {
       key: 'logout',
@@ -85,6 +99,10 @@ export default function ProAppLayout({ children }: ProAppLayoutProps) {
   const onUserMenuClick: MenuProps['onClick'] = ({ key }) => {
     if (key === 'profile') {
       navigate('/profile')
+      return
+    }
+    if (key === 'api-keys') {
+      navigate('/api-keys')
       return
     }
     if (key === 'language') {
