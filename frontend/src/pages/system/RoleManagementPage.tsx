@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { PageContainer, ProCard, ProTable, StatisticCard } from '@ant-design/pro-components'
 import type { ProColumns } from '@ant-design/pro-components'
 import {
@@ -40,6 +41,70 @@ const SYSTEM_ROLES = ['admin', 'user', 'viewer', 'service']
 
 interface RoleFormValues {
   role: string
+}
+
+function RoleStatisticCards({ roles, permissions, isSystemRole, t }: {
+  roles: RoleSummary[]
+  permissions: Permission[]
+  isSystemRole: (role: string) => boolean
+  t: TFunction
+}) {
+  return (
+    <StatisticCard.Group direction="row">
+      <StatisticCard statistic={{ title: t('roleManagement.roles'), value: roles.length, icon: <SafetyCertificateOutlined /> }} />
+      <StatisticCard statistic={{ title: t('roleManagement.permissions'), value: permissions.length, icon: <LockOutlined /> }} />
+      <StatisticCard statistic={{ title: t('roleManagement.system'), value: roles.filter(role => isSystemRole(role.role)).length, icon: <TeamOutlined /> }} />
+    </StatisticCard.Group>
+  )
+}
+
+function PermissionSelector({
+  formError,
+  groupedPermissions,
+  selectedPermissions,
+  togglePermission,
+  t,
+}: {
+  formError: string | null
+  groupedPermissions: Record<string, Permission[]>
+  selectedPermissions: Set<string>
+  togglePermission: (permissionId: string, checked: boolean) => void
+  t: TFunction
+}) {
+  return (
+    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      {formError && <Alert type="error" showIcon message={formError} />}
+      <Text type="secondary">{t('roleManagement.permissions')} ({selectedPermissions.size})</Text>
+      {Object.keys(groupedPermissions).length === 0 ? (
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('roleManagement.noPermissions')} />
+      ) : (
+        <Tabs
+          tabPosition="left"
+          items={Object.entries(groupedPermissions).map(([scope, scopePermissions]) => ({
+            key: scope,
+            label: `${scope} (${scopePermissions.length})`,
+            children: (
+              <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                {scopePermissions.map(permission => (
+                  <ProCard key={permission.id} bordered size="small">
+                    <Checkbox
+                      checked={selectedPermissions.has(permission.id)}
+                      onChange={event => togglePermission(permission.id, event.target.checked)}
+                    >
+                      <Space direction="vertical" size={0}>
+                        <Text strong>{permission.name}</Text>
+                        {permission.description && <Text type="secondary">{permission.description}</Text>}
+                      </Space>
+                    </Checkbox>
+                  </ProCard>
+                ))}
+              </Space>
+            ),
+          }))}
+        />
+      )}
+    </Space>
+  )
 }
 
 export default function RoleManagementPage() {
@@ -237,38 +302,13 @@ export default function RoleManagementPage() {
   }
 
   const permissionSelector = (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      {formError && <Alert type="error" showIcon message={formError} />}
-      <Text type="secondary">{t('roleManagement.permissions')} ({selectedPermissions.size})</Text>
-      {Object.keys(groupedPermissions).length === 0 ? (
-        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('roleManagement.noPermissions')} />
-      ) : (
-        <Tabs
-          tabPosition="left"
-          items={Object.entries(groupedPermissions).map(([scope, scopePermissions]) => ({
-            key: scope,
-            label: `${scope} (${scopePermissions.length})`,
-            children: (
-              <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                {scopePermissions.map(permission => (
-                  <ProCard key={permission.id} bordered size="small">
-                    <Checkbox
-                      checked={selectedPermissions.has(permission.id)}
-                      onChange={event => togglePermission(permission.id, event.target.checked)}
-                    >
-                      <Space direction="vertical" size={0}>
-                        <Text strong>{permission.name}</Text>
-                        {permission.description && <Text type="secondary">{permission.description}</Text>}
-                      </Space>
-                    </Checkbox>
-                  </ProCard>
-                ))}
-              </Space>
-            ),
-          }))}
-        />
-      )}
-    </Space>
+    <PermissionSelector
+      formError={formError}
+      groupedPermissions={groupedPermissions}
+      selectedPermissions={selectedPermissions}
+      togglePermission={togglePermission}
+      t={t}
+    />
   )
 
   const viewFrontendMappings = viewResourceMappings.filter(mapping => mapping.resource_type === 'frontend_page')
@@ -347,11 +387,7 @@ export default function RoleManagementPage() {
           </Space>
         </ProCard>
 
-        <StatisticCard.Group direction="row">
-          <StatisticCard statistic={{ title: t('roleManagement.roles'), value: roles.length, icon: <SafetyCertificateOutlined /> }} />
-          <StatisticCard statistic={{ title: t('roleManagement.permissions'), value: permissions.length, icon: <LockOutlined /> }} />
-          <StatisticCard statistic={{ title: t('roleManagement.system'), value: roles.filter(role => isSystemRole(role.role)).length, icon: <TeamOutlined /> }} />
-        </StatisticCard.Group>
+        <RoleStatisticCards roles={roles} permissions={permissions} isSystemRole={isSystemRole} t={t} />
 
         <ProCard bordered title={<Space><SafetyCertificateOutlined />{t('roleManagement.roles')} ({roles.length})</Space>}>
           <ProTable<RoleSummary>
