@@ -39,7 +39,7 @@ export default function RouteGuard({ route }: RouteGuardProps) {
 
   const allowed = route.access === 'canAccessPage'
     ? canAccessPage({
-        role: userPermissions?.role,
+        role: userPermissions?.role || user.role,
         permissions: userPermissions?.permissions,
         frontendPages: userPermissions?.frontend_pages,
       }, location.pathname, route.permission)

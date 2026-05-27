@@ -23,7 +23,7 @@ export default function ProAppLayout({ children }: ProAppLayoutProps) {
   const routes = useMemo(() => {
     const accessibleRoutes = menuRoutes
       .filter(route => canAccessPage({
-        role: userPermissions?.role,
+        role: userPermissions?.role || user?.role,
         permissions: userPermissions?.permissions,
         frontendPages: userPermissions?.frontend_pages,
       }, route.path, route.permission))
@@ -58,7 +58,7 @@ export default function ProAppLayout({ children }: ProAppLayoutProps) {
         routes: pentestRoutes,
       }
     ].filter(route => route.routes.length > 0)
-  }, [t, userPermissions])
+  }, [t, user?.role, userPermissions])
 
   const userMenuItems: MenuProps['items'] = [
     {

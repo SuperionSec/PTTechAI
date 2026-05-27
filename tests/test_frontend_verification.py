@@ -120,7 +120,9 @@ class TestFrontendPages:
         assert "export const canAccessPath = canAccessPage" in access_content
         assert "route.access === 'canAccessPage'" in guard_content
         assert "canAccessPage({" in guard_content
+        assert "role: userPermissions?.role || user.role" in guard_content
         assert "canAccessPage({" in layout_content
+        assert "role: userPermissions?.role || user?.role" in layout_content
 
     def test_pro_layout_builds_two_grouped_menus(self):
         content = (FRONTEND_SRC / "layouts" / "ProAppLayout.tsx").read_text(encoding="utf-8")
