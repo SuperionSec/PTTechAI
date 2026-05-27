@@ -20,8 +20,10 @@ export function hasPermission(ctx: PermissionContext, permission?: string) {
   return Boolean(ctx.permissions?.includes(permission))
 }
 
-export function canAccessPath(ctx: PermissionContext, path: string, permission?: string) {
+export function canAccessPage(ctx: PermissionContext, path: string, permission?: string) {
   if (ctx.role === 'admin') return true
   if (permission && hasPermission(ctx, permission)) return true
   return Boolean(ctx.frontendPages?.some(page => matchPathPattern(page, path)))
 }
+
+export const canAccessPath = canAccessPage

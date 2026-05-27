@@ -3,7 +3,7 @@ import { Result, Spin } from 'antd'
 import { useTranslation } from 'react-i18next'
 import type { AppRoute } from './routeConfig'
 import { useAuth } from '../contexts/AuthContext'
-import { canAccessPath } from './access'
+import { canAccessPage } from './access'
 import Forbidden from '../pages/Exception/Forbidden'
 
 interface RouteGuardProps {
@@ -37,11 +37,13 @@ export default function RouteGuard({ route }: RouteGuardProps) {
     )
   }
 
-  const allowed = canAccessPath({
-    role: userPermissions?.role,
-    permissions: userPermissions?.permissions,
-    frontendPages: userPermissions?.frontend_pages,
-  }, location.pathname, route.permission)
+  const allowed = route.access === 'canAccessPage'
+    ? canAccessPage({
+        role: userPermissions?.role,
+        permissions: userPermissions?.permissions,
+        frontendPages: userPermissions?.frontend_pages,
+      }, location.pathname, route.permission)
+    : true
 
   if (!allowed) {
     return <Forbidden />

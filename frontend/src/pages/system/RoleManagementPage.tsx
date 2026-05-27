@@ -1,24 +1,25 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { PageContainer, ProCard, ProTable, StatisticCard } from '@ant-design/pro-components'
-import type { ProColumns } from '@ant-design/pro-components'
+import type { ActionType, ProColumns } from '@ant-design/pro-components'
 import {
   Alert,
   App as AntApp,
   Button,
-  Checkbox,
   Empty,
   Form,
   Input,
   Modal,
   Popconfirm,
   Space,
+  Switch,
   Spin,
   Tabs,
   Tag,
   Tooltip,
+  Tree,
   Typography,
 } from 'antd'
 import {
@@ -33,7 +34,7 @@ import {
   TeamOutlined,
 } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContext'
-import { rbacApi } from '../../services/system'
+import { systemApi } from '../../services/system'
 import type { Permission, ResourceMapping, RoleSummary } from '../../services/system'
 
 const { Text } = Typography
@@ -41,6 +42,9 @@ const SYSTEM_ROLES = ['admin', 'user', 'viewer', 'service']
 
 interface RoleFormValues {
   role: string
+  display_name: string
+  description?: string
+  is_active: boolean
 }
 
 function RoleStatisticCards({ roles, permissions, isSystemRole, t }: {
@@ -62,13 +66,13 @@ function PermissionSelector({
   formError,
   groupedPermissions,
   selectedPermissions,
-  togglePermission,
+  togglePermissions,
   t,
 }: {
   formError: string | null
   groupedPermissions: Record<string, Permission[]>
   selectedPermissions: Set<string>
-  togglePermission: (permissionId: string, checked: boolean) => void
+  togglePermissions: (permissionIds: string[]) => void
   t: TFunction
 }) {
   return (
@@ -78,28 +82,24 @@ function PermissionSelector({
       {Object.keys(groupedPermissions).length === 0 ? (
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('roleManagement.noPermissions')} />
       ) : (
-        <Tabs
-          tabPosition="left"
-          items={Object.entries(groupedPermissions).map(([scope, scopePermissions]) => ({
-            key: scope,
-            label: `${scope} (${scopePermissions.length})`,
-            children: (
-              <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                {scopePermissions.map(permission => (
-                  <ProCard key={permission.id} bordered size="small">
-                    <Checkbox
-                      checked={selectedPermissions.has(permission.id)}
-                      onChange={event => togglePermission(permission.id, event.target.checked)}
-                    >
-                      <Space direction="vertical" size={0}>
-                        <Text strong>{permission.name}</Text>
-                        {permission.description && <Text type="secondary">{permission.description}</Text>}
-                      </Space>
-                    </Checkbox>
-                  </ProCard>
-                ))}
-              </Space>
-            ),
+        <Tree
+          checkable
+          defaultExpandAll
+          checkedKeys={Array.from(selectedPermissions)}
+          onCheck={checkedKeys => togglePermissions(Array.isArray(checkedKeys) ? checkedKeys.map(String) : checkedKeys.checked.map(String))}
+          treeData={Object.entries(groupedPermissions).map(([scope, scopePermissions]) => ({
+            title: `${scope} (${scopePermissions.length})`,
+            key: `scope:${scope}`,
+            selectable: false,
+            children: scopePermissions.map(permission => ({
+              title: (
+                <Space direction="vertical" size={0}>
+                  <Text strong>{permission.name}</Text>
+                  {permission.description && <Text type="secondary">{permission.description}</Text>}
+                </Space>
+              ),
+              key: permission.id,
+            })),
           }))}
         />
       )}
@@ -112,6 +112,7 @@ export default function RoleManagementPage() {
   const { user: currentUser } = useAuth()
   const navigate = useNavigate()
   const { notification } = AntApp.useApp()
+  const actionRef = useRef<ActionType>()
 
   const [roles, setRoles] = useState<RoleSummary[]>([])
   const [permissions, setPermissions] = useState<Permission[]>([])
@@ -147,20 +148,19 @@ export default function RoleManagementPage() {
 
   const fetchRoles = useCallback(async () => {
     try {
-      setLoading(true)
-      const data = await rbacApi.roles()
+      const data = await systemApi.roles()
       setRoles(data)
+      return data
     } catch (error) {
       console.error('Failed to fetch roles:', error)
       notify(t('roleManagement.fetchFailed') || 'Failed to fetch roles', 'error')
-    } finally {
-      setLoading(false)
+      return []
     }
   }, [notify, t])
 
   const fetchPermissions = useCallback(async () => {
     try {
-      const data = await rbacApi.permissions()
+      const data = await systemApi.permissions()
       setPermissions(data)
     } catch (error) {
       console.error('Failed to fetch permissions:', error)
@@ -172,9 +172,9 @@ export default function RoleManagementPage() {
       navigate('/')
       return
     }
-    fetchRoles()
     fetchPermissions()
-  }, [currentUser, navigate, fetchRoles, fetchPermissions])
+    setLoading(false)
+  }, [currentUser, navigate, fetchPermissions])
 
   const isSystemRole = (role: string) => SYSTEM_ROLES.includes(role)
 
@@ -194,17 +194,13 @@ export default function RoleManagementPage() {
     }, {})
   }, [permissions])
 
-  const togglePermission = (permissionId: string, checked: boolean) => {
-    setSelectedPermissions(prev => {
-      const next = new Set(prev)
-      if (checked) next.add(permissionId)
-      else next.delete(permissionId)
-      return next
-    })
+  const togglePermissions = (permissionIds: string[]) => {
+    setSelectedPermissions(new Set(permissionIds.filter(permissionId => !permissionId.startsWith('scope:'))))
   }
 
   const openCreateModal = () => {
     resetForm()
+    form.setFieldsValue({ is_active: true })
     setCreateOpen(true)
   }
 
@@ -213,7 +209,13 @@ export default function RoleManagementPage() {
     setFormError(null)
     setActionLoading(true)
     try {
-      const data = await rbacApi.role(role)
+      const data = await systemApi.role(role)
+      form.setFieldsValue({
+        role: data.role,
+        display_name: data.display_name || data.role,
+        description: data.description || '',
+        is_active: data.is_active,
+      })
       setSelectedPermissions(new Set(data.permissions.map(permission => permission.id) || []))
     } catch (error) {
       console.error('Failed to fetch role permissions:', error)
@@ -229,8 +231,8 @@ export default function RoleManagementPage() {
     setViewLoading(true)
     try {
       const [data, allMappings] = await Promise.all([
-        rbacApi.role(role),
-        rbacApi.resourceMappings(),
+        systemApi.role(role),
+        systemApi.resourceMappings(),
       ])
       setViewRolePermissions(data.permissions || [])
       const rolePermissionIds = new Set(data.permissions.map(permission => permission.id))
@@ -254,14 +256,16 @@ export default function RoleManagementPage() {
     setActionLoading(true)
     setFormError(null)
     try {
-      await rbacApi.createRole({
+      await systemApi.createRole({
         name: values.role,
-        display_name: roleLabels[values.role] || values.role,
+        display_name: values.display_name,
+        description: values.description,
+        is_active: values.is_active,
         permission_ids: Array.from(selectedPermissions),
       })
       setCreateOpen(false)
       resetForm()
-      await fetchRoles()
+      actionRef.current?.reload()
       notify(t('roleManagement.createSuccess') || 'Role created successfully', 'success')
     } catch (error: any) {
       setFormError(error.response?.data?.detail || (t('roleManagement.createFailed') || 'Failed to create role'))
@@ -271,14 +275,20 @@ export default function RoleManagementPage() {
   }
 
   const handleEditRole = async () => {
-    if (!editRole) return
+    if (!editRole || isSystemRole(editRole)) return
+    const values = await form.validateFields()
     setActionLoading(true)
     setFormError(null)
     try {
-      await rbacApi.updateRolePermissions(editRole, Array.from(selectedPermissions))
+      await systemApi.updateRole(editRole, {
+        display_name: values.display_name,
+        description: values.description,
+        is_active: values.is_active,
+        permission_ids: Array.from(selectedPermissions),
+      })
       setEditRole(null)
       resetForm()
-      await fetchRoles()
+      actionRef.current?.reload()
       notify(t('roleManagement.updateSuccess') || 'Role updated successfully', 'success')
     } catch (error: any) {
       setFormError(error.response?.data?.detail || (t('roleManagement.updateFailed') || 'Failed to update role'))
@@ -291,8 +301,8 @@ export default function RoleManagementPage() {
     if (role.user_count > 0) return
     setActionLoading(true)
     try {
-      await rbacApi.deleteRole(role.role)
-      await fetchRoles()
+      await systemApi.deleteRole(role.role)
+      actionRef.current?.reload()
       notify(t('roleManagement.deleteSuccess') || 'Role deleted successfully', 'success')
     } catch (error: any) {
       notify(error.response?.data?.detail || (t('roleManagement.deleteFailed') || 'Failed to delete role'), 'error')
@@ -301,12 +311,37 @@ export default function RoleManagementPage() {
     }
   }
 
+  const roleMetadataForm = (roleNameDisabled: boolean) => (
+    <Form form={form} layout="vertical">
+      <Form.Item
+        name="role"
+        label={t('roleManagement.roleName')}
+        rules={[{ required: true, message: t('roleManagement.roleNameRequired') || 'Role name is required' }]}
+      >
+        <Input disabled={roleNameDisabled} placeholder={t('roleManagement.roleNamePlaceholder') || 'e.g. auditor'} />
+      </Form.Item>
+      <Form.Item
+        name="display_name"
+        label={t('roleManagement.displayName')}
+        rules={[{ required: true, message: t('roleManagement.displayNameRequired') || 'Display name is required' }]}
+      >
+        <Input />
+      </Form.Item>
+      <Form.Item name="description" label={t('common.description')}>
+        <Input.TextArea rows={3} />
+      </Form.Item>
+      <Form.Item name="is_active" label={t('common.status')} valuePropName="checked">
+        <Switch checkedChildren={t('common.enabled')} unCheckedChildren={t('common.disabled')} />
+      </Form.Item>
+    </Form>
+  )
+
   const permissionSelector = (
     <PermissionSelector
       formError={formError}
       groupedPermissions={groupedPermissions}
       selectedPermissions={selectedPermissions}
-      togglePermission={togglePermission}
+      togglePermissions={togglePermissions}
       t={t}
     />
   )
@@ -345,8 +380,8 @@ export default function RoleManagementPage() {
         <Tooltip key="view" title={t('roleManagement.view')}>
           <Button size="small" icon={<EyeOutlined />} onClick={() => openViewModal(role.role)} />
         </Tooltip>,
-        <Tooltip key="edit" title={t('roleManagement.edit')}>
-          <Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(role.role)} />
+        <Tooltip key="edit" title={isSystemRole(role.role) ? t('roleManagement.systemRoleEditDisabled') : t('roleManagement.edit')}>
+          <Button size="small" icon={<EditOutlined />} disabled={isSystemRole(role.role)} onClick={() => openEditModal(role.role)} />
         </Tooltip>,
         <Popconfirm
           key="delete"
@@ -391,11 +426,15 @@ export default function RoleManagementPage() {
 
         <ProCard bordered title={<Space><SafetyCertificateOutlined />{t('roleManagement.roles')} ({roles.length})</Space>}>
           <ProTable<RoleSummary>
+            actionRef={actionRef}
             rowKey="role"
             search={false}
             options={false}
             columns={columns}
-            dataSource={roles}
+            request={async () => {
+              const data = await fetchRoles()
+              return { data, success: true, total: data.length }
+            }}
             pagination={{ pageSize: 10, showSizeChanger: true }}
             toolBarRender={false}
           />
@@ -416,15 +455,7 @@ export default function RoleManagementPage() {
         cancelText={t('common.cancel')}
       >
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          <Form form={form} layout="vertical">
-            <Form.Item
-              name="role"
-              label={t('roleManagement.roleName')}
-              rules={[{ required: true, message: t('roleManagement.roleNameRequired') || 'Role name is required' }]}
-            >
-              <Input placeholder={t('roleManagement.roleNamePlaceholder') || 'e.g. auditor'} />
-            </Form.Item>
-          </Form>
+          {roleMetadataForm(false)}
           {permissionSelector}
         </Space>
       </Modal>
@@ -439,7 +470,12 @@ export default function RoleManagementPage() {
         okText={t('common.save')}
         cancelText={t('common.cancel')}
       >
-        {actionLoading && selectedPermissions.size === 0 ? <Spin style={{ display: 'block', margin: '32px auto' }} /> : permissionSelector}
+        {actionLoading && selectedPermissions.size === 0 ? <Spin style={{ display: 'block', margin: '32px auto' }} /> : (
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            {roleMetadataForm(true)}
+            {permissionSelector}
+          </Space>
+        )}
       </Modal>
 
       <Modal

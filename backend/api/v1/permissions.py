@@ -312,7 +312,7 @@ async def get_recommended_mappings(
     scope, action = parts
 
     recommendations = {
-        "frontend_pages": [path for path, _name, permission in rbac_service.FRONTEND_ROUTES if permission == permission_name],
+        "frontend_pages": [path for path, _name, permission, _icon, _group in rbac_service.FRONTEND_ROUTES if permission == permission_name],
         "backend_apis": []
     }
 

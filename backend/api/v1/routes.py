@@ -20,6 +20,7 @@ from backend.api.v1 import (
     scheduler,
     scans,
     settings as settings_router,
+    system,
     targets,
     terminal,
     users,
@@ -39,6 +40,7 @@ SYSTEM_ROUTERS = [
     RouterSpec(auth.router, "/api/v1/auth", ["Authentication"]),
     RouterSpec(users.router, "/api/v1/users", ["User Management"]),
     RouterSpec(permissions.router, "/api/v1/permissions", ["Permissions"]),
+    RouterSpec(system.router, "/api/v1/system", ["System Management"]),
     RouterSpec(rbac.router, "/api/v1/rbac", ["RBAC"]),
 ]
 

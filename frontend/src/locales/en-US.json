@@ -2158,6 +2158,8 @@
     "roleNamePlaceholder": "e.g. auditor",
     "roleNameRequired": "Role name is required",
     "roleNameInvalid": "Role name must be alphanumeric or underscore",
+    "displayName": "Display Name",
+    "displayNameRequired": "Display name is required",
     "permissions": "Permissions",
     "noPermissions": "No permissions available",
     "noPermissionsAssigned": "No permissions assigned",

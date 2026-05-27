@@ -5,7 +5,7 @@ import { Alert, App as AntApp, Avatar, Button, Descriptions, Form, Input, Space,
 import { EditOutlined, LockOutlined, SaveOutlined, UserOutlined } from '@ant-design/icons'
 import i18n from '../../locales'
 import { useAuth } from '../../contexts/AuthContext'
-import api from '../../services/api'
+import { profileApi } from '../../services/system'
 
 const { Text } = Typography
 
@@ -68,7 +68,7 @@ export default function UserProfilePage() {
     const values = await profileForm.validateFields()
     setProfileLoading(true)
     try {
-      await api.put('/auth/me', { full_name: values.full_name })
+      await profileApi.update(values.full_name)
       notification.success({ message: t('profile.updateSuccess') })
       setEditing(false)
       window.location.reload()
@@ -88,10 +88,7 @@ export default function UserProfilePage() {
 
     setPasswordLoading(true)
     try {
-      await api.put('/auth/change-password', {
-        current_password: values.current_password,
-        new_password: values.new_password,
-      })
+      await profileApi.changePassword(values.current_password, values.new_password)
       notification.success({ message: t('profile.passwordChanged') })
       setChangingPassword(false)
       passwordForm.resetFields()

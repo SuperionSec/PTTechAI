@@ -24,7 +24,7 @@ import {
   PlusOutlined,
   SafetyCertificateOutlined,
 } from '@ant-design/icons'
-import api from '../../services/api'
+import { apiKeysApi } from '../../services/system'
 
 const { Text } = Typography
 
@@ -73,8 +73,8 @@ export default function APIKeysPage() {
   const fetchKeys = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await api.get('/api-keys')
-      setKeys(res.data)
+      const data = await apiKeysApi.list()
+      setKeys(data)
     } catch (error) {
       console.error('Failed to fetch API keys:', error)
       notification.error({ message: t('apiKeys.createFailed') })
@@ -91,8 +91,8 @@ export default function APIKeysPage() {
     const values = await form.validateFields()
     setCreating(true)
     try {
-      const res = await api.post('/api-keys', { name: values.name.trim() })
-      setShowNewKey(res.data.key)
+      const data = await apiKeysApi.create(values.name.trim())
+      setShowNewKey(data.key)
       setCreateOpen(false)
       form.resetFields()
       notification.success({ message: t('apiKeys.createKey') })
@@ -106,7 +106,7 @@ export default function APIKeysPage() {
 
   const handleDelete = async (keyId: string) => {
     try {
-      await api.delete(`/api-keys/${keyId}`)
+      await apiKeysApi.delete(keyId)
       setKeys(prev => prev.filter(key => key.id !== keyId))
       notification.success({ message: t('common.delete') })
     } catch {

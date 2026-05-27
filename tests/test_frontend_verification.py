@@ -105,6 +105,23 @@ class TestFrontendPages:
             route_line = next(line for line in content.splitlines() if f"path: '{path}'" in line)
             assert "group: 'pentest'" in route_line
 
+    def test_protected_routes_declare_access_metadata(self):
+        content = (FRONTEND_SRC / "routes" / "routeConfig.tsx").read_text(encoding="utf-8")
+        assert "access?: 'canAccessPage'" in content
+        for line in content.splitlines():
+            if "path: '" in line and "public: true" not in line and "hideInMenu: true" not in line:
+                assert "access: 'canAccessPage'" in line
+
+    def test_route_guard_uses_declared_access_metadata(self):
+        guard_content = (FRONTEND_SRC / "routes" / "routeGuards.tsx").read_text(encoding="utf-8")
+        access_content = (FRONTEND_SRC / "routes" / "access.ts").read_text(encoding="utf-8")
+        layout_content = (FRONTEND_SRC / "layouts" / "ProAppLayout.tsx").read_text(encoding="utf-8")
+        assert "export function canAccessPage(" in access_content
+        assert "export const canAccessPath = canAccessPage" in access_content
+        assert "route.access === 'canAccessPage'" in guard_content
+        assert "canAccessPage({" in guard_content
+        assert "canAccessPage({" in layout_content
+
     def test_pro_layout_builds_two_grouped_menus(self):
         content = (FRONTEND_SRC / "layouts" / "ProAppLayout.tsx").read_text(encoding="utf-8")
         assert "path: '/system-setting-group'" in content
@@ -132,11 +149,64 @@ class TestFrontendPages:
         assert "function RoleStatisticCards(" in content
         assert "<PermissionSelector" in content
         assert "<RoleStatisticCards" in content
+        assert "<Tree" in content
+        assert "checkable" in content
+        assert "treeData={Object.entries(groupedPermissions).map" in content
+        assert "togglePermissions" in content
+        assert "<Checkbox" not in content
+
+    def test_role_management_uses_protable_request_mode(self):
+        content = (FRONTEND_SRC / "pages" / "system" / "RoleManagementPage.tsx").read_text(encoding="utf-8")
+        assert "useRef<ActionType>()" in content
+        assert "actionRef={actionRef}" in content
+        assert "request={async () => {" in content
+        assert "return { data, success: true, total: data.length }" in content
+        assert "actionRef.current?.reload()" in content
+        assert "dataSource={roles}" not in content
+
+    def test_role_management_supports_custom_role_metadata_editing(self):
+        content = (FRONTEND_SRC / "pages" / "system" / "RoleManagementPage.tsx").read_text(encoding="utf-8")
+        assert "display_name: string" in content
+        assert "description?: string" in content
+        assert "is_active: boolean" in content
+        assert "roleMetadataForm(false)" in content
+        assert "roleMetadataForm(true)" in content
+        assert "systemApi.updateRole(editRole" in content
+        assert "display_name: values.display_name" in content
+        assert "description: values.description" in content
+        assert "is_active: values.is_active" in content
+        assert "valuePropName=\"checked\"" in content
+
+    def test_role_management_disables_system_role_mutations(self):
+        content = (FRONTEND_SRC / "pages" / "system" / "RoleManagementPage.tsx").read_text(encoding="utf-8")
+        assert "if (!editRole || isSystemRole(editRole)) return" in content
+        assert "disabled={isSystemRole(role.role)} onClick={() => openEditModal(role.role)}" in content
+        assert "disabled={isSystemRole(role.role)} icon={<DeleteOutlined />}" in content
+        assert "roleManagement.systemRoleEditDisabled" in content
+
+    def test_role_management_metadata_locale_keys_exist(self):
+        with open(FRONTEND_SRC / "locales" / "en-US.json", encoding="utf-8") as f:
+            en = json.load(f)
+        with open(FRONTEND_SRC / "locales" / "zh-CN.json", encoding="utf-8") as f:
+            zh = json.load(f)
+        assert en["roleManagement"]["displayName"] == "Display Name"
+        assert en["roleManagement"]["displayNameRequired"] == "Display name is required"
+        assert zh["roleManagement"]["displayName"] == "显示名称"
+        assert zh["roleManagement"]["displayNameRequired"] == "显示名称为必填项"
 
     def test_user_management_uses_extracted_statistic_cards(self):
         content = (FRONTEND_SRC / "pages" / "system" / "UserManagementPage.tsx").read_text(encoding="utf-8")
         assert "function UserStatisticCards(" in content
         assert "<UserStatisticCards" in content
+
+    def test_user_management_uses_protable_request_mode(self):
+        content = (FRONTEND_SRC / "pages" / "system" / "UserManagementPage.tsx").read_text(encoding="utf-8")
+        assert "useRef<ActionType>()" in content
+        assert "actionRef={actionRef}" in content
+        assert "request={async () => {" in content
+        assert "return { data: validData, success: true, total: validData.length }" in content
+        assert "actionRef.current?.reload()" in content
+        assert "dataSource={validUsers}" not in content
 
     def test_unmapped_resources_uses_extracted_statistic_cards(self):
         content = (FRONTEND_SRC / "pages" / "system" / "UnmappedResourcesPage.tsx").read_text(encoding="utf-8")
@@ -183,15 +253,20 @@ class TestFrontendServices:
         for method in ["roles", "role", "createRole", "updateRolePermissions", "deleteRole", "unmappedResources", "createResourceMapping"]:
             assert f"{method}:" in content, f"rbacApi should expose {method}"
 
-    def test_system_service_entrypoint_exports_rbac_boundary(self):
+    def test_system_service_entrypoint_exports_system_boundaries(self):
         content = (FRONTEND_SRC / "services" / "system" / "index.ts").read_text(encoding="utf-8")
         assert "export { rbacApi } from '../rbac'" in content
-        for type_name in ["Permission", "ResourceMapping", "RoleSummary", "UnmappedResource"]:
+        for api_name in ["systemApi", "usersApi", "profileApi", "apiKeysApi"]:
+            assert f"export const {api_name}" in content
+        for endpoint in ["/system/me", "/system/roles", "/system/permissions", "/system/resources", "/system/resources/unmapped", "/system/resources/mappings", "/system/users", "/system/profile/me", "/system/profile/change-password", "/system/api-keys"]:
+            assert endpoint in content
+        for type_name in ["Permission", "ResourceMapping", "RbacProfile", "RoleDetail", "RoleSummary", "UnmappedResource"]:
             assert type_name in content
 
-    def test_system_pages_do_not_import_rbac_service_directly(self):
+    def test_system_pages_do_not_import_api_or_rbac_services_directly(self):
         for page_file in ["LanguagesPage.tsx", "UserManagementPage.tsx", "APIKeysPage.tsx", "UserProfilePage.tsx", "UnmappedResourcesPage.tsx", "RoleManagementPage.tsx"]:
             content = (FRONTEND_SRC / "pages" / "system" / page_file).read_text(encoding="utf-8")
+            assert "../../services/api" not in content
             assert "../../services/rbac" not in content
 
     def test_rbac_management_pages_use_system_service_entrypoint(self):
@@ -199,9 +274,17 @@ class TestFrontendServices:
             content = (FRONTEND_SRC / "pages" / "system" / page_file).read_text(encoding="utf-8")
             assert "../../services/system" in content
 
-    def test_auth_context_keeps_rbac_profile_import(self):
+    def test_pentest_pages_do_not_import_system_service_entrypoint(self):
+        for page_file in TestFrontendPages.PENTEST_PAGES:
+            content = (FRONTEND_SRC / "pages" / page_file).read_text(encoding="utf-8")
+            assert "../services/system" not in content
+            assert "../../services/system" not in content
+
+    def test_auth_context_uses_system_profile_import(self):
         content = (FRONTEND_SRC / "contexts" / "AuthContext.tsx").read_text(encoding="utf-8")
-        assert "../services/rbac" in content
+        assert "../services/system" in content
+        assert "systemApi.me()" in content
+        assert "../services/rbac" not in content
 
 
 class TestAutoPentestOptions:

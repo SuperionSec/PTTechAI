@@ -78,6 +78,10 @@ class MenuItemOut(BaseModel):
     path: str
     name: str
     permission: Optional[str] = None
+    icon: Optional[str] = None
+    locale: Optional[str] = None
+    access: Optional[str] = None
+    children: list["MenuItemOut"] = []
 
 
 class RbacMeOut(BaseModel):

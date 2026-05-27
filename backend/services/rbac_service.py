@@ -16,27 +16,27 @@ ROLE_NAME_PATTERN = re.compile(r"^[a-z0-9_]{1,50}$")
 RESOURCE_TYPES = {"backend_api", "frontend_page"}
 API_METHODS = {"GET", "POST", "PUT", "PATCH", "DELETE"}
 FRONTEND_ROUTES = [
-    ("/", "sidebar.dashboard", "dashboard:read"),
-    ("/auto", "sidebar.autoPentest", "agent:execute"),
-    ("/scan/new", "sidebar.aiAgent", "scan:create"),
-    ("/realtime", "sidebar.realtimeTask", "agent:execute"),
-    ("/full-ia", "sidebar.fullIaTesting", "agent:execute"),
-    ("/vuln-lab", "sidebar.vulnLab", "vulnerability:read"),
-    ("/terminal", "sidebar.terminalAgent", "agent:execute"),
-    ("/sandboxes", "sidebar.sandboxes", "agent:execute"),
-    ("/tasks", "sidebar.taskLibrary", "agent:read"),
-    ("/knowledge", "sidebar.knowledge", "knowledge:read"),
-    ("/mcp", "sidebar.mcpServers", "settings:manage"),
-    ("/providers", "sidebar.providers", "provider:read"),
-    ("/scheduler", "sidebar.scheduler", "scheduler:read"),
-    ("/reports", "sidebar.reports", "report:read"),
-    ("/languages", "languageManagement.title", "settings:read"),
-    ("/users", "usersManagement.title", "user:manage"),
-    ("/roles", "roleManagement.title", "user:manage"),
-    ("/unmapped-resources", "roleManagement.unmappedResources", "user:manage"),
-    ("/settings", "sidebar.settings", "settings:read"),
-    ("/api-keys", "apiKeys.title", "api_key:read"),
-    ("/profile", "profile.title", None),
+    ("/", "sidebar.dashboard", "dashboard:read", "DashboardOutlined", "pentest"),
+    ("/auto", "sidebar.autoPentest", "agent:execute", "RobotOutlined", "pentest"),
+    ("/scan/new", "sidebar.aiAgent", "scan:create", "PlusCircleOutlined", "pentest"),
+    ("/realtime", "sidebar.realtimeTask", "agent:execute", "ThunderboltOutlined", "pentest"),
+    ("/full-ia", "sidebar.fullIaTesting", "agent:execute", "AimOutlined", "pentest"),
+    ("/vuln-lab", "sidebar.vulnLab", "vulnerability:read", "ExperimentOutlined", "pentest"),
+    ("/terminal", "sidebar.terminalAgent", "agent:execute", "CodeOutlined", "pentest"),
+    ("/sandboxes", "sidebar.sandboxes", "agent:execute", "CloudServerOutlined", "pentest"),
+    ("/tasks", "sidebar.taskLibrary", "agent:read", "BookOutlined", "pentest"),
+    ("/knowledge", "sidebar.knowledge", "knowledge:read", "DatabaseOutlined", "pentest"),
+    ("/mcp", "sidebar.mcpServers", "settings:manage", "ApiOutlined", "pentest"),
+    ("/providers", "sidebar.providers", "provider:read", "ApiOutlined", "pentest"),
+    ("/scheduler", "sidebar.scheduler", "scheduler:read", "ScheduleOutlined", "pentest"),
+    ("/reports", "sidebar.reports", "report:read", "FileTextOutlined", "pentest"),
+    ("/languages", "languageManagement.title", "settings:read", "TranslationOutlined", "system"),
+    ("/users", "usersManagement.title", "user:manage", "TeamOutlined", "system"),
+    ("/roles", "roleManagement.title", "user:manage", None, None),
+    ("/unmapped-resources", "roleManagement.unmappedResources", "user:manage", "UserSwitchOutlined", "system"),
+    ("/settings", "sidebar.settings", "settings:read", "SettingOutlined", "pentest"),
+    ("/api-keys", "apiKeys.title", "api_key:read", "KeyOutlined", "system"),
+    ("/profile", "profile.title", None, "UserOutlined", "system"),
 ]
 PUBLIC_API_RESOURCES = {
     "GET /api/health",
@@ -184,6 +184,8 @@ async def _validate_permission_ids(db: AsyncSession, permission_ids: list[str]) 
 
 async def create_role(db: AsyncSession, body: RoleCreate) -> RoleDetailOut:
     role_name = _normalize_role_name(body.name)
+    if role_name in SYSTEM_ROLES:
+        raise HTTPException(status_code=400, detail="System role names are reserved")
     if await db.scalar(select(RoleModel).where(RoleModel.name == role_name)):
         raise HTTPException(status_code=400, detail="Role already exists")
     permission_ids = await _validate_permission_ids(db, body.permission_ids)
@@ -218,6 +220,8 @@ async def update_role(db: AsyncSession, role: str, body: RoleUpdate) -> RoleDeta
             raise HTTPException(status_code=403, detail="Cannot deactivate system role")
         role_model.is_active = body.is_active
     if body.permission_ids is not None:
+        if role_model.is_system:
+            raise HTTPException(status_code=403, detail="Cannot update system role permissions")
         await _replace_role_permissions(db, role_name, role_model.id, body.permission_ids)
     await db.commit()
     return await get_role_detail(db, role_name)
@@ -253,6 +257,8 @@ async def update_role_permissions(db: AsyncSession, role: str, permission_ids: l
     role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role_name))
     if not role_model:
         raise HTTPException(status_code=404, detail="Role not found")
+    if role_model.is_system:
+        raise HTTPException(status_code=403, detail="Cannot update system role permissions")
     await _replace_role_permissions(db, role_name, role_model.id, permission_ids)
     await db.commit()
     return await get_role_detail(db, role_name)
@@ -331,7 +337,7 @@ async def list_unmapped_resources(db: AsyncSession, app) -> list[UnmappedResourc
     ]
     unmapped.extend(
         UnmappedResourceOut(resource_type="frontend_page", resource_path=path, reason="No permission mapping found")
-        for path, _, _ in FRONTEND_ROUTES
+        for path, _, _, _, _ in FRONTEND_ROUTES
         if path not in mapped_pages
     )
     return unmapped
@@ -368,8 +374,18 @@ def build_access_map(permission_names: list[str], role: str) -> dict[str, bool]:
 def build_menu_items(permission_names: list[str], frontend_pages: list[str], role: str) -> list[MenuItemOut]:
     permission_set = set(permission_names)
     page_set = set(frontend_pages)
-    menus = []
-    for path, name, permission in FRONTEND_ROUTES:
+    system_children = []
+    pentest_children = []
+    for path, name, permission, icon, group in FRONTEND_ROUTES:
         if role == "admin" or permission is None or permission in permission_set or path in page_set:
-            menus.append(MenuItemOut(path=path, name=name, permission=permission))
+            item = MenuItemOut(path=path, name=name, permission=permission, icon=icon, locale=name, access="canAccessPage")
+            if group == "system":
+                system_children.append(item)
+            elif group == "pentest":
+                pentest_children.append(item)
+    menus = []
+    if system_children:
+        menus.append(MenuItemOut(path="/system-setting-group", name="sidebar.systemSettings", icon="SettingOutlined", locale="sidebar.systemSettings", children=system_children))
+    if pentest_children:
+        menus.append(MenuItemOut(path="/penetration-testing-group", name="sidebar.penetrationTesting", icon="BugOutlined", locale="sidebar.penetrationTesting", children=pentest_children))
     return menus

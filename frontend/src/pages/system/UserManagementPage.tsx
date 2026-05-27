@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { PageContainer, ProCard, ProTable, StatisticCard } from '@ant-design/pro-components'
-import type { ProColumns } from '@ant-design/pro-components'
+import type { ActionType, ProColumns } from '@ant-design/pro-components'
 import {
   Alert,
   App as AntApp,
@@ -29,8 +29,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContext'
-import api from '../../services/api'
-import { rbacApi } from '../../services/system'
+import { systemApi, usersApi } from '../../services/system'
 import type { RoleSummary } from '../../services/system'
 
 const { Text } = Typography
@@ -76,6 +75,7 @@ export default function UserManagementPage() {
   const { user: currentUser } = useAuth()
   const navigate = useNavigate()
   const { notification } = AntApp.useApp()
+  const actionRef = useRef<ActionType>()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
@@ -106,11 +106,13 @@ export default function UserManagementPage() {
 
   const fetchUsers = async () => {
     try {
-      const res = await api.get('/users')
-      setUsers(res.data)
+      const data = await usersApi.list()
+      setUsers(data)
+      return data
     } catch (error) {
       console.error('Failed to fetch users:', error)
       notify(t('usersManagement.fetchFailed', 'Failed to fetch users'), 'error')
+      return []
     } finally {
       setLoading(false)
     }
@@ -118,7 +120,7 @@ export default function UserManagementPage() {
 
   const fetchAvailableRoles = async () => {
     try {
-      const data = await rbacApi.roles()
+      const data = await systemApi.roles()
       setAvailableRoles(data.filter(role => role.is_active !== false))
     } catch (error) {
       console.error('Failed to fetch roles:', error)
@@ -130,14 +132,14 @@ export default function UserManagementPage() {
       navigate('/')
       return
     }
-    fetchUsers()
     fetchAvailableRoles()
+    setLoading(false)
   }, [currentUser, navigate])
 
   const handleDeleteUser = async (userId: string) => {
     try {
-      await api.delete(`/users/${userId}`)
-      setUsers(prev => prev.filter(user => user.id !== userId))
+      await usersApi.delete(userId)
+      actionRef.current?.reload()
       notify(t('usersManagement.deleteSuccess', 'User deleted'), 'success')
     } catch (error) {
       console.error('Failed to delete user:', error)
@@ -147,8 +149,8 @@ export default function UserManagementPage() {
 
   const handleToggleActive = async (userId: string, currentActive: boolean) => {
     try {
-      await api.put(`/users/${userId}`, { is_active: !currentActive })
-      setUsers(prev => prev.map(user => user.id === userId ? { ...user, is_active: !currentActive } : user))
+      await usersApi.update(userId, { is_active: !currentActive })
+      actionRef.current?.reload()
       notify(t('usersManagement.operationSuccess', 'Operation succeeded'), 'success')
     } catch (error) {
       console.error('Failed to toggle user status:', error)
@@ -161,7 +163,7 @@ export default function UserManagementPage() {
     const values = await resetForm.validateFields()
     setActionLoading(true)
     try {
-      await api.post(`/users/${resetUser.id}/reset-password`, { new_password: values.new_password })
+      await usersApi.resetPassword(resetUser.id, values.new_password)
       setResetUser(null)
       resetForm.resetFields()
       notify(t('usersManagement.passwordReset'), 'success')
@@ -177,11 +179,11 @@ export default function UserManagementPage() {
     const values = await createForm.validateFields()
     setActionLoading(true)
     try {
-      await api.post('/users', values)
+      await usersApi.create(values)
       setShowCreateModal(false)
       createForm.resetFields()
       if (values.role === 'service') setShowServiceNotice(true)
-      await fetchUsers()
+      actionRef.current?.reload()
       notify(t('usersManagement.createSuccess', 'User created'), 'success')
     } catch (error: any) {
       const detail = error.response?.data?.detail
@@ -290,7 +292,7 @@ export default function UserManagementPage() {
               <Text type="secondary">{t('usersManagement.subtitle')}</Text>
             </Space>
             <Space wrap>
-              <Button icon={<ReloadOutlined />} onClick={fetchUsers}>{t('common.refresh')}</Button>
+              <Button icon={<ReloadOutlined />} onClick={() => actionRef.current?.reload()}>{t('common.refresh')}</Button>
               <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowCreateModal(true)}>
                 {t('usersManagement.createUser')}
               </Button>
@@ -307,11 +309,16 @@ export default function UserManagementPage() {
 
         <ProCard bordered title={<Space><SafetyCertificateOutlined />{t('usersManagement.userList')} ({validUsers.length})</Space>}>
           <ProTable<User>
+            actionRef={actionRef}
             rowKey="id"
             search={false}
             options={false}
             columns={columns}
-            dataSource={validUsers}
+            request={async () => {
+              const data: User[] = await fetchUsers()
+              const validData = data.filter(user => user && user.id)
+              return { data: validData, success: true, total: validData.length }
+            }}
             pagination={{ pageSize: 10, showSizeChanger: true }}
             toolBarRender={false}
           />

@@ -31,6 +31,7 @@ from backend.schemas.rbac import RoleCreate, RoleUpdate
 from backend.services.rbac_service import (
     _normalize_resource_mapping_input,
     _normalize_role_name,
+    build_menu_items,
     create_role,
     delete_role,
     get_user_permission_names,
@@ -202,6 +203,29 @@ def test_access_helper_role_permission_filter_uses_role_without_role_id():
     assert "role_permissions.role_id" not in expression
 
 
+def test_build_menu_items_returns_grouped_pro_layout_contract():
+    menus = build_menu_items(["user:manage", "settings:read"], ["/profile"], "user")
+
+    assert [menu.path for menu in menus] == ["/system-setting-group", "/penetration-testing-group"]
+    system_menu = menus[0]
+    pentest_menu = menus[1]
+    assert system_menu.icon == "SettingOutlined"
+    assert system_menu.locale == "sidebar.systemSettings"
+    assert [item.path for item in system_menu.children] == ["/languages", "/users", "/unmapped-resources", "/profile"]
+    assert all(item.access == "canAccessPage" for item in system_menu.children)
+    assert [item.path for item in pentest_menu.children] == ["/settings"]
+    assert pentest_menu.children[0].icon == "SettingOutlined"
+
+
+def test_build_menu_items_keeps_admin_access_to_all_groups():
+    menus = build_menu_items([], [], "admin")
+
+    paths = [item.path for menu in menus for item in menu.children]
+    assert "/api-keys" in paths
+    assert "/scheduler" in paths
+    assert "/unmapped-resources" in paths
+
+
 @pytest.mark.asyncio
 async def test_create_role_persists_custom_role_permissions(db_session):
     permission = await _seed_permission(db_session)
@@ -236,6 +260,38 @@ async def test_create_role_accepts_max_length_custom_role_name(db_session):
     role_permission = await db_session.scalar(select(RolePermission).where(RolePermission.role_id == role_detail.id))
     assert role_detail.role == role_name
     assert role_permission.role == role_name
+
+
+@pytest.mark.asyncio
+async def test_create_role_rejects_reserved_system_role_names(db_session):
+    with pytest.raises(HTTPException) as exc_info:
+        await create_role(db_session, RoleCreate(name="admin", display_name="Admin"))
+
+    assert exc_info.value.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_update_role_rejects_system_role_permission_changes(db_session):
+    permission = await _seed_permission(db_session)
+    db_session.add(RoleModel(id="admin-role-id", name="admin", display_name="Administrator", is_system=True, is_active=True))
+    await db_session.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        await update_role(db_session, "admin", RoleUpdate(permission_ids=[permission.id]))
+
+    assert exc_info.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_update_role_permissions_rejects_system_roles(db_session):
+    permission = await _seed_permission(db_session)
+    db_session.add(RoleModel(id="admin-role-id", name="admin", display_name="Administrator", is_system=True, is_active=True))
+    await db_session.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        await update_role_permissions(db_session, "admin", [permission.id])
+
+    assert exc_info.value.status_code == 403
 
 
 @pytest.mark.asyncio

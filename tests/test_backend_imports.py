@@ -132,6 +132,15 @@ class TestBackendCoreModulesImport:
         assert "def execute_scheduled_scan(" in lifecycle_content
         assert "set_scan_callback(execute_scheduled_scan)" in lifecycle_content
 
+    def test_system_router_is_composition_layer_only(self):
+        system_content = (BACKEND_DIR / "api" / "v1" / "system.py").read_text(encoding="utf-8")
+        assert "include_router(rbac.router)" in system_content
+        assert "include_router(users.router" in system_content
+        assert "include_router(auth.router" in system_content
+        assert "include_router(api_keys.router" in system_content
+        assert "@router." not in system_content
+        assert "async def " not in system_content
+
 
 class TestVulnEngineImport:
     """Test that the vulnerability engine modules can be imported."""

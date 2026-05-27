@@ -2158,6 +2158,8 @@
     "roleNamePlaceholder": "例如：auditor",
     "roleNameRequired": "角色名称为必填项",
     "roleNameInvalid": "角色名称只能包含字母、数字和下划线",
+    "displayName": "显示名称",
+    "displayNameRequired": "显示名称为必填项",
     "permissions": "权限",
     "noPermissions": "暂无权限",
     "noPermissionsAssigned": "未分配权限",

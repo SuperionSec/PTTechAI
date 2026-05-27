@@ -24,7 +24,7 @@ import {
   WarningOutlined,
 } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContext'
-import { rbacApi } from '../../services/system'
+import { systemApi } from '../../services/system'
 import type { Permission, UnmappedResource } from '../../services/system'
 
 const { Text } = Typography
@@ -63,7 +63,7 @@ export default function UnmappedResourcesPage() {
   const fetchUnmappedResources = async () => {
     try {
       setLoading(true)
-      const data = await rbacApi.unmappedResources()
+      const data = await systemApi.unmappedResources()
       setUnmappedResources(data)
     } catch (error) {
       console.error('Failed to fetch unmapped resources:', error)
@@ -75,7 +75,7 @@ export default function UnmappedResourcesPage() {
 
   const fetchPermissions = async () => {
     try {
-      const data = await rbacApi.permissions()
+      const data = await systemApi.permissions()
       setPermissions(data)
     } catch (error) {
       console.error('Failed to fetch permissions:', error)
@@ -124,7 +124,7 @@ export default function UnmappedResourcesPage() {
 
     setActionLoading(mappingTarget.resource_path)
     try {
-      await rbacApi.createResourceMapping({
+      await systemApi.createResourceMapping({
         permission_id: selectedPermission,
         resource_type: mappingTarget.resource_type,
         resource_path: mappingTarget.resource_path,

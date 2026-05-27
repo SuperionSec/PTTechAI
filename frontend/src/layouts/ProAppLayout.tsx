@@ -7,7 +7,7 @@ import { GlobalOutlined, LogoutOutlined, SafetyCertificateOutlined, SettingOutli
 import { useTranslation } from 'react-i18next'
 import i18n from '../locales'
 import { useAuth } from '../contexts/AuthContext'
-import { canAccessPath } from '../routes/access'
+import { canAccessPage } from '../routes/access'
 import { menuRoutes } from '../routes/routeConfig'
 
 interface ProAppLayoutProps {
@@ -22,7 +22,7 @@ export default function ProAppLayout({ children }: ProAppLayoutProps) {
 
   const routes = useMemo(() => {
     const accessibleRoutes = menuRoutes
-      .filter(route => canAccessPath({
+      .filter(route => canAccessPage({
         role: userPermissions?.role,
         permissions: userPermissions?.permissions,
         frontendPages: userPermissions?.frontend_pages,

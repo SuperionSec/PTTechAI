@@ -56,6 +56,7 @@ class TestRouterRegistration:
         "/api/v1/providers",
         "/api/v1/full-ia",
         "/api/v1/permissions",
+        "/api/v1/system",
         "/api/v1/rbac",
     ]
 
@@ -79,7 +80,7 @@ class TestRouterRegistration:
         system_prefixes = {spec.prefix for spec in SYSTEM_ROUTERS}
         pentest_prefixes = {spec.prefix for spec in PENTEST_ROUTERS}
 
-        assert system_prefixes == {"/api/v1/auth", "/api/v1/users", "/api/v1/permissions", "/api/v1/rbac"}
+        assert system_prefixes == {"/api/v1/auth", "/api/v1/users", "/api/v1/permissions", "/api/v1/system", "/api/v1/rbac"}
         assert "/api/v1/settings" in pentest_prefixes
         assert "/api/v1/scheduler" in pentest_prefixes
         assert "/api/v1/knowledge" in pentest_prefixes
@@ -188,6 +189,54 @@ class TestRbacEndpoints:
     """Test RBAC API endpoints."""
 
     @pytest.mark.asyncio
+    async def test_system_me_requires_auth(self, app):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get("/api/v1/system/me")
+            assert response.status_code in (401, 403), \
+                f"System profile should require auth, got {response.status_code}"
+
+    @pytest.mark.asyncio
+    async def test_system_roles_requires_auth(self, app):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get("/api/v1/system/roles")
+            assert response.status_code in (401, 403), \
+                f"System roles should require auth, got {response.status_code}"
+
+    @pytest.mark.asyncio
+    async def test_system_permissions_requires_auth(self, app):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get("/api/v1/system/permissions")
+            assert response.status_code in (401, 403), \
+                f"System permissions should require auth, got {response.status_code}"
+
+    @pytest.mark.asyncio
+    async def test_system_users_requires_auth(self, app):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get("/api/v1/system/users")
+            assert response.status_code in (401, 403), \
+                f"System users should require auth, got {response.status_code}"
+
+    @pytest.mark.asyncio
+    async def test_system_profile_requires_auth(self, app):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get("/api/v1/system/profile/me")
+            assert response.status_code in (401, 403), \
+                f"System profile should require auth, got {response.status_code}"
+
+    @pytest.mark.asyncio
+    async def test_system_api_keys_requires_auth(self, app):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get("/api/v1/system/api-keys")
+            assert response.status_code in (401, 403), \
+                f"System API keys should require auth, got {response.status_code}"
+
+    @pytest.mark.asyncio
     async def test_rbac_me_requires_auth(self, app):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -212,9 +261,10 @@ class TestRbacEndpoints:
                 f"RBAC permissions should require auth, got {response.status_code}"
 
     def test_rbac_me_response_model_has_frontend_contract_fields(self):
-        from backend.schemas.rbac import RbacMeOut
+        from backend.schemas.rbac import MenuItemOut, RbacMeOut
 
         assert set(RbacMeOut.model_fields) == {"role", "permissions", "frontend_pages", "backend_apis", "access", "menus"}
+        assert set(MenuItemOut.model_fields) == {"path", "name", "permission", "icon", "locale", "access", "children"}
 
 
     def test_default_backend_resource_mappings_cover_registered_apis(self, app):
@@ -225,6 +275,27 @@ class TestRbacEndpoints:
         registered = discover_api_routes(app) - PUBLIC_API_RESOURCES
         patterns = {pattern for api_patterns in PERMISSION_BACKEND_APIS.values() for pattern in api_patterns}
         unmapped = [resource for resource in sorted(registered) if not any(match_api_resource(pattern, resource) for pattern in patterns)]
+
+        assert unmapped == []
+
+    def test_default_frontend_resource_mappings_cover_protected_routes(self):
+        from backend.scripts.init_permissions import PERMISSION_FRONTEND_PAGES
+
+        def match_frontend_resource(pattern: str, path: str) -> bool:
+            if pattern == path:
+                return True
+            pattern_parts = pattern.strip("/").split("/")
+            path_parts = path.strip("/").split("/")
+            return len(pattern_parts) == len(path_parts) and all(pattern_part.startswith(":") or pattern_part == path_part for pattern_part, path_part in zip(pattern_parts, path_parts))
+
+        route_config = (PROJECT_ROOT / "frontend" / "src" / "routes" / "routeConfig.tsx").read_text(encoding="utf-8")
+        protected_routes = []
+        for line in route_config.splitlines():
+            if "path: '" in line and "access: 'canAccessPage'" in line:
+                protected_routes.append(line.split("path: '")[1].split("'")[0])
+
+        mapped_patterns = {pattern for page_patterns in PERMISSION_FRONTEND_PAGES.values() for pattern in page_patterns}
+        unmapped = [route for route in protected_routes if not any(match_frontend_resource(pattern, route) for pattern in mapped_patterns)]
 
         assert unmapped == []
 
