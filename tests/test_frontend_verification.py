@@ -89,11 +89,12 @@ class TestFrontendPages:
 
     def test_visible_system_menu_is_limited_to_five_items(self):
         content = (FRONTEND_SRC / "routes" / "routeConfig.tsx").read_text(encoding="utf-8")
-        assert "path: '/languages'" in content and "group: 'system'" in content
-        assert "path: '/users'" in content and "group: 'system'" in content
-        assert "path: '/api-keys'" in content and "group: 'system'" in content
-        assert "path: '/profile'" in content and "group: 'system'" in content
-        assert "path: '/unmapped-resources'" in content and "group: 'system'" in content
+        system_paths = []
+        for line in content.splitlines():
+            if "group: 'system'" in line and "hideInMenu: true" not in line:
+                path = line.split("path: '")[1].split("'")[0]
+                system_paths.append(path)
+        assert system_paths == ["/languages", "/users", "/unmapped-resources", "/api-keys", "/profile"]
         roles_line = next(line for line in content.splitlines() if "path: '/roles'" in line)
         assert "hideInMenu: true" in roles_line
         assert "group: 'system'" not in roles_line
