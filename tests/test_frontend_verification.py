@@ -177,6 +177,9 @@ class TestAutoPentestOptions:
 
     def test_kali_sandbox_is_checkbox_not_test_mode(self):
         content = (FRONTEND_SRC / "pages" / "AutoPentestPage.tsx").read_text(encoding="utf-8")
+        assert "value=\"auto_pentest\"" in content
+        assert "value=\"cli_agent\"" in content
+        assert "value=\"full_llm_pentest\"" in content
         assert "kali_researcher" not in content
         assert "isKaliResearcherMode" not in content
         assert "enable_kali_sandbox" in content
