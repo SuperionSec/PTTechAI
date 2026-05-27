@@ -123,6 +123,15 @@ class TestBackendCoreModulesImport:
         mod = importlib.import_module(module_name)
         assert mod is not None, f"Failed to import {module_name}"
 
+    def test_main_uses_lifecycle_module(self):
+        main_content = (BACKEND_DIR / "main.py").read_text(encoding="utf-8")
+        lifecycle_content = (BACKEND_DIR / "app_lifecycle.py").read_text(encoding="utf-8")
+        assert "from backend.app_lifecycle import shutdown_app, startup_app" in main_content
+        assert "await startup_app(app)" in main_content
+        assert "await shutdown_app(app)" in main_content
+        assert "def execute_scheduled_scan(" in lifecycle_content
+        assert "set_scan_callback(execute_scheduled_scan)" in lifecycle_content
+
 
 class TestVulnEngineImport:
     """Test that the vulnerability engine modules can be imported."""
