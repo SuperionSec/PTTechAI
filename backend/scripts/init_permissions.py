@@ -257,7 +257,7 @@ async def init_permissions():
                     name=role_name,
                     display_name=role_data["display_name"],
                     description=role_data["description"],
-                    is_system=True,
+                    is_system=role_name == "admin",
                     is_active=True,
                 )
                 db.add(existing_role)
@@ -266,7 +266,7 @@ async def init_permissions():
             else:
                 existing_role.display_name = role_data["display_name"]
                 existing_role.description = role_data["description"]
-                existing_role.is_system = True
+                existing_role.is_system = role_name == "admin"
                 existing_role.is_active = True
             role_map[role_name] = existing_role.id
 

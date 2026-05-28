@@ -2,6 +2,16 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
 import { systemApi } from '../services/system'
+import {
+  AUTH_URL,
+  getStoredRefreshToken,
+  getStoredToken,
+  isAuthRefreshRequest,
+  refreshAccessToken,
+  removeStoredToken,
+  setStoredRefreshToken,
+  setStoredToken,
+} from '../services/authTokens'
 
 interface User {
   id: string
@@ -32,21 +42,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
-
-const AUTH_URL = '/api/v1/auth'
-
-function getStoredToken(): string | null {
-  return localStorage.getItem('access_token')
-}
-
-function setStoredToken(token: string) {
-  localStorage.setItem('access_token', token)
-}
-
-function removeStoredToken() {
-  localStorage.removeItem('access_token')
-  localStorage.removeItem('refresh_token')
-}
 
 // Get token expiration time
 function getTokenExp(token: string): number {
@@ -82,24 +77,20 @@ const authEvents = {
 axios.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401 && !error.config._retry) {
-      const refreshToken = localStorage.getItem('refresh_token')
-      if (refreshToken) {
-        try {
-          error.config._retry = true
-          const res = await axios.post(`${AUTH_URL}/refresh`, { refresh_token: refreshToken })
-          const { access_token, refresh_token } = res.data
-          setStoredToken(access_token)
-          localStorage.setItem('refresh_token', refresh_token)
-          error.config.headers.Authorization = `Bearer ${access_token}`
-          return axios(error.config)
-        } catch {
-          error.config._retry = true
-          removeStoredToken()
-          authEvents.emit()
-          return Promise.reject(error)
-        }
+    const originalRequest = error.config
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthRefreshRequest(originalRequest.url)) {
+      try {
+        originalRequest._retry = true
+        const accessToken = await refreshAccessToken()
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`
+        return axios(originalRequest)
+      } catch {
+        removeStoredToken()
+        authEvents.emit()
+        return Promise.reject(error)
       }
+    }
+    if (error.response?.status === 401 && isAuthRefreshRequest(originalRequest?.url)) {
       removeStoredToken()
       authEvents.emit()
     }
@@ -141,7 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const exp = getTokenExp(t)
     if (exp && exp < Date.now()) {
       // Token expired, try refresh or clear
-      const refreshToken = localStorage.getItem('refresh_token')
+      const refreshToken = getStoredRefreshToken()
       if (!refreshToken) {
         removeStoredToken()
         setToken(null)
@@ -187,17 +178,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clearTimeout(refreshTimerRef.current)
       }
       refreshTimerRef.current = setTimeout(async () => {
-        const refreshToken = localStorage.getItem('refresh_token')
+        const refreshToken = getStoredRefreshToken()
         if (!refreshToken) return
         try {
-          const res = await axios.post(`${AUTH_URL}/refresh`, { refresh_token: refreshToken })
-          const { access_token, refresh_token } = res.data
-          setStoredToken(access_token)
-          localStorage.setItem('refresh_token', refresh_token)
-          setToken(access_token)
+          const accessToken = await refreshAccessToken()
+          setToken(accessToken)
           setupTokenRefresh()
         } catch {
-          // Refresh failed, will be handled on next request by interceptor
+          authEvents.emit()
         }
       }, timeUntilRefresh)
     }
@@ -232,7 +220,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const res = await axios.post(`${AUTH_URL}/login`, { email, password })
     const { access_token, refresh_token } = res.data
     setStoredToken(access_token)
-    localStorage.setItem('refresh_token', refresh_token)
+    setStoredRefreshToken(refresh_token)
     setToken(access_token)
     const userRes = await axios.get(`${AUTH_URL}/me`, {
       headers: { Authorization: `Bearer ${access_token}` }

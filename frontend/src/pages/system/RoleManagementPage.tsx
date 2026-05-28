@@ -38,7 +38,7 @@ import { systemApi } from '../../services/system'
 import type { Permission, ResourceMapping, RoleSummary } from '../../services/system'
 
 const { Text } = Typography
-const SYSTEM_ROLES = ['admin', 'user', 'viewer', 'service']
+const PROTECTED_SYSTEM_ROLES = ['admin']
 
 interface RoleFormValues {
   role: string
@@ -176,7 +176,7 @@ export default function RoleManagementPage() {
     setLoading(false)
   }, [currentUser, navigate, fetchPermissions])
 
-  const isSystemRole = (role: string) => SYSTEM_ROLES.includes(role)
+  const isSystemRole = (role: string) => PROTECTED_SYSTEM_ROLES.includes(role)
 
   const resetForm = () => {
     form.resetFields()

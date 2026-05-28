@@ -196,8 +196,11 @@ class TestFrontendPages:
         assert "is_active: values.is_active" in content
         assert "valuePropName=\"checked\"" in content
 
-    def test_role_management_disables_system_role_mutations(self):
+    def test_role_management_disables_only_admin_role_mutations(self):
         content = (FRONTEND_SRC / "pages" / "system" / "RoleManagementPage.tsx").read_text(encoding="utf-8")
+        assert "const PROTECTED_SYSTEM_ROLES = ['admin']" in content
+        assert "SYSTEM_ROLES = ['admin', 'user', 'viewer', 'service']" not in content
+        assert "PROTECTED_SYSTEM_ROLES.includes(role)" in content
         assert "if (!editRole || isSystemRole(editRole)) return" in content
         assert "disabled={isSystemRole(role.role)} onClick={() => openEditModal(role.role)}" in content
         assert "disabled={isSystemRole(role.role)} icon={<DeleteOutlined />}" in content
@@ -321,6 +324,22 @@ class TestFrontendServices:
             content = (FRONTEND_SRC / "pages" / page_file).read_text(encoding="utf-8")
             assert "../services/system" not in content
             assert "../../services/system" not in content
+
+    def test_auth_refresh_uses_shared_single_flight_helper(self):
+        helper_content = (FRONTEND_SRC / "services" / "authTokens.ts").read_text(encoding="utf-8")
+        auth_content = (FRONTEND_SRC / "contexts" / "AuthContext.tsx").read_text(encoding="utf-8")
+        api_content = (FRONTEND_SRC / "services" / "api.ts").read_text(encoding="utf-8")
+        assert "let refreshPromise: Promise<string> | null = null" in helper_content
+        assert "if (!refreshPromise)" in helper_content
+        assert "finally(() =>" in helper_content
+        assert "isAuthRefreshRequest" in auth_content
+        assert "!isAuthRefreshRequest(originalRequest.url)" in auth_content
+        assert "isAuthRefreshRequest(originalRequest?.url)" in auth_content
+        assert "refreshAccessToken()" in auth_content
+        assert "refreshAccessToken()" in api_content
+        assert "!isAuthRefreshRequest(originalRequest.url)" in api_content
+        assert "axios.post(`${AUTH_URL}/refresh`" not in auth_content
+        assert "axios.post('/api/v1/auth/refresh'" not in api_content
 
     def test_auth_context_uses_system_profile_import(self):
         content = (FRONTEND_SRC / "contexts" / "AuthContext.tsx").read_text(encoding="utf-8")

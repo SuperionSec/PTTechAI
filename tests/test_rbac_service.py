@@ -34,7 +34,9 @@ from backend.services.rbac_service import (
     build_menu_items,
     create_role,
     delete_role,
+    get_role_detail,
     get_user_permission_names,
+    list_roles,
     resolve_active_role,
     update_role,
     update_role_permissions,
@@ -265,11 +267,25 @@ async def test_create_role_accepts_max_length_custom_role_name(db_session):
 
 
 @pytest.mark.asyncio
-async def test_create_role_rejects_reserved_system_role_names(db_session):
+async def test_create_role_rejects_protected_admin_role_name(db_session):
     with pytest.raises(HTTPException) as exc_info:
         await create_role(db_session, RoleCreate(name="admin", display_name="Admin"))
 
     assert exc_info.value.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_default_example_role_names_are_editable_custom_roles(db_session):
+    permission = await _seed_permission(db_session)
+
+    for role_name in ["user", "viewer", "service"]:
+        detail = await create_role(db_session, RoleCreate(name=role_name, display_name=role_name.title(), permission_ids=[permission.id]))
+        assert detail.role == role_name
+        assert not detail.is_system
+
+        updated = await update_role(db_session, role_name, RoleUpdate(display_name=f"Updated {role_name}", permission_ids=[]))
+        assert updated.display_name == f"Updated {role_name}"
+        assert not updated.is_system
 
 
 @pytest.mark.asyncio
@@ -282,6 +298,23 @@ async def test_update_role_rejects_system_role_permission_changes(db_session):
         await update_role(db_session, "admin", RoleUpdate(permission_ids=[permission.id]))
 
     assert exc_info.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_legacy_example_role_marked_system_is_reported_editable(db_session):
+    permission = await _seed_permission(db_session)
+    db_session.add(RoleModel(id="user-role-id", name="user", display_name="Standard User", is_system=True, is_active=True))
+    await db_session.commit()
+
+    roles = await list_roles(db_session)
+    user_summary = next(role for role in roles if role.role == "user")
+    assert not user_summary.is_system
+
+    detail = await get_role_detail(db_session, "user")
+    assert not detail.is_system
+
+    updated = await update_role_permissions(db_session, "user", [permission.id])
+    assert [permission.name for permission in updated.permissions] == ["scan:read"]
 
 
 @pytest.mark.asyncio

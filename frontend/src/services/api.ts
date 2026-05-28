@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { getStoredToken, isAuthRefreshRequest, refreshAccessToken, removeStoredToken } from './authTokens'
 import type {
   Scan, Vulnerability, Prompt, PromptPreset, Report, DashboardStats,
   AgentTask, AgentRequest, AgentResponse, AgentStatus, AgentLog, AgentMode,
@@ -16,7 +17,7 @@ const api = axios.create({
 
 // Request interceptor - attach auth token
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token')
+  const token = getStoredToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -28,22 +29,15 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      const refreshToken = localStorage.getItem('refresh_token')
-      if (refreshToken && !originalRequest.url?.includes('/auth/refresh')) {
-        try {
-          originalRequest._retry = true
-          const res = await axios.post('/api/v1/auth/refresh', { refresh_token: refreshToken })
-          const { access_token, refresh_token: newRefreshToken } = res.data
-          localStorage.setItem('access_token', access_token)
-          localStorage.setItem('refresh_token', newRefreshToken)
-          originalRequest.headers.Authorization = `Bearer ${access_token}`
-          return api(originalRequest)
-        } catch {
-          localStorage.removeItem('access_token')
-          localStorage.removeItem('refresh_token')
-          window.location.href = '/login'
-        }
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthRefreshRequest(originalRequest.url)) {
+      try {
+        originalRequest._retry = true
+        const accessToken = await refreshAccessToken()
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`
+        return api(originalRequest)
+      } catch {
+        removeStoredToken()
+        window.location.href = '/login'
       }
     }
     return Promise.reject(error)
