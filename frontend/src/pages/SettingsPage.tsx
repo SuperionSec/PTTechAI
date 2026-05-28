@@ -18,6 +18,7 @@ import {
   Tag,
   Typography,
 } from 'antd'
+import api from '../services/api'
 import {
   BellOutlined,
   CheckCircleOutlined,
@@ -98,11 +99,6 @@ function formatNumber(n: number): string {
   return String(n)
 }
 
-function tokenHeaders() {
-  const token = localStorage.getItem('access_token')
-  return { Authorization: `Bearer ${token}` }
-}
-
 export default function SettingsPage() {
   const { t } = useTranslation()
   const { notification } = AntApp.useApp()
@@ -163,23 +159,21 @@ export default function SettingsPage() {
 
   const fetchSettings = useCallback(async () => {
     try {
-      const response = await fetch('/api/v1/settings', { headers: tokenHeaders() })
-      if (response.ok) {
-        const data: Settings = await response.json()
-        setSettings(data)
-        setLlmProvider(data.llm_provider)
-        setLlmModel(data.llm_model || '')
-        setMaxConcurrentScans(data.max_concurrent_scans)
-        setAggressiveMode(data.aggressive_mode)
-        setEnableModelRouting(data.enable_model_routing ?? false)
-        setEnableKnowledgeAugmentation(data.enable_knowledge_augmentation ?? false)
-        setEnableBrowserValidation(data.enable_browser_validation ?? false)
-        setMaxOutputTokens(data.max_output_tokens)
-        setOllamaUrl(data.ollama_base_url || '')
-        setLmstudioUrl(data.lmstudio_base_url || '')
-        setEnableNotifications(data.enable_notifications ?? false)
-        setNotificationSeverityFilter(data.notification_severity_filter || 'critical,high')
-      }
+      const response = await api.get<Settings>('/settings')
+      const data = response.data
+      setSettings(data)
+      setLlmProvider(data.llm_provider)
+      setLlmModel(data.llm_model || '')
+      setMaxConcurrentScans(data.max_concurrent_scans)
+      setAggressiveMode(data.aggressive_mode)
+      setEnableModelRouting(data.enable_model_routing ?? false)
+      setEnableKnowledgeAugmentation(data.enable_knowledge_augmentation ?? false)
+      setEnableBrowserValidation(data.enable_browser_validation ?? false)
+      setMaxOutputTokens(data.max_output_tokens)
+      setOllamaUrl(data.ollama_base_url || '')
+      setLmstudioUrl(data.lmstudio_base_url || '')
+      setEnableNotifications(data.enable_notifications ?? false)
+      setNotificationSeverityFilter(data.notification_severity_filter || 'critical,high')
     } catch (error) {
       console.error('Failed to fetch settings:', error)
       notification.error({ message: t('settings.failedToLoadSettings') })
@@ -190,8 +184,8 @@ export default function SettingsPage() {
 
   const fetchDbStats = useCallback(async () => {
     try {
-      const response = await fetch('/api/v1/settings/stats', { headers: tokenHeaders() })
-      if (response.ok) setDbStats(await response.json())
+      const response = await api.get<DbStats>('/settings/stats')
+      setDbStats(response.data)
     } catch (error) {
       console.error('Failed to fetch db stats:', error)
     }
@@ -200,13 +194,8 @@ export default function SettingsPage() {
   const fetchModels = useCallback(async (provider: string) => {
     setLoadingModels(true)
     try {
-      const response = await fetch(`/api/v1/settings/models/${provider}`)
-      if (response.ok) {
-        const data = await response.json()
-        setAvailableModels((data.models as ModelInfo[]) || [])
-      } else {
-        setAvailableModels([])
-      }
+      const response = await api.get<{ models?: ModelInfo[] }>(`/settings/models/${provider}`)
+      setAvailableModels(response.data.models || [])
     } catch {
       setAvailableModels([])
     } finally {
@@ -255,31 +244,22 @@ export default function SettingsPage() {
       if (ollamaUrl) body.ollama_base_url = ollamaUrl
       if (lmstudioUrl) body.lmstudio_base_url = lmstudioUrl
 
-      const response = await fetch('/api/v1/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...tokenHeaders() },
-        body: JSON.stringify(body),
-      })
-
-      if (response.ok) {
-        setSettings(await response.json())
-        setApiKey('')
-        setOpenaiKey('')
-        setOpenrouterKey('')
-        setGeminiKey('')
-        setTogetherKey('')
-        setFireworksKey('')
-        setDiscordWebhookUrl('')
-        setTelegramBotToken('')
-        setTelegramChatId('')
-        setTwilioAccountSid('')
-        setTwilioAuthToken('')
-        setTwilioFromNumber('')
-        setTwilioToNumber('')
-        notification.success({ message: t('settings.savedSuccessfully') })
-      } else {
-        notification.error({ message: t('settings.failedToSaveSettings') })
-      }
+      const response = await api.put<Settings>('/settings', body)
+      setSettings(response.data)
+      setApiKey('')
+      setOpenaiKey('')
+      setOpenrouterKey('')
+      setGeminiKey('')
+      setTogetherKey('')
+      setFireworksKey('')
+      setDiscordWebhookUrl('')
+      setTelegramBotToken('')
+      setTelegramChatId('')
+      setTwilioAccountSid('')
+      setTwilioAuthToken('')
+      setTwilioFromNumber('')
+      setTwilioToNumber('')
+      notification.success({ message: t('settings.savedSuccessfully') })
     } catch {
       notification.error({ message: t('settings.failedToSaveSettings') })
     } finally {
@@ -298,18 +278,9 @@ export default function SettingsPage() {
   const handleClearDatabase = useCallback(async () => {
     setIsClearing(true)
     try {
-      const response = await fetch('/api/v1/settings/clear-database', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...tokenHeaders() },
-        body: JSON.stringify({ confirm: true }),
-      })
-      if (response.ok) {
-        notification.success({ message: t('settings.databaseCleared') })
-        await fetchDbStats()
-      } else {
-        const data = await response.json()
-        notification.error({ message: data.detail || t('settings.failedToClearDatabase') })
-      }
+      await api.post('/settings/clear-database', { confirm: true })
+      notification.success({ message: t('settings.databaseCleared') })
+      await fetchDbStats()
     } catch {
       notification.error({ message: t('settings.failedToClearDatabase') })
     } finally {
@@ -320,11 +291,8 @@ export default function SettingsPage() {
   const handleTestNotification = useCallback(async (channel: string) => {
     setTestingChannel(channel)
     try {
-      const response = await fetch(`/api/v1/settings/notifications/test/${channel}`, {
-        method: 'POST',
-        headers: tokenHeaders(),
-      })
-      const data = await response.json()
+      const response = await api.post<{ success?: boolean; message?: string; error?: string }>(`/settings/notifications/test/${channel}`)
+      const data = response.data
       if (data.success) {
         notification.success({ message: data.message || t('settings.testSentTo', { channel }) })
       } else {

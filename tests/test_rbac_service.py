@@ -111,14 +111,14 @@ def test_normalize_role_name_rejects_invalid_values(role_name):
 
 
 @pytest.mark.asyncio
-async def test_update_role_rejects_deactivating_system_role():
-    db = FakeDb(FakeRoleModel())
+async def test_update_role_allows_deactivating_preseeded_admin_role_flagged_system(db_session):
+    db_session.add(RoleModel(id="admin-role-id", name="admin", display_name="Administrator", is_system=True, is_active=True))
+    await db_session.commit()
 
-    with pytest.raises(HTTPException) as exc_info:
-        await update_role(db, "ADMIN", RoleUpdate(is_active=False))
+    updated = await update_role(db_session, "ADMIN", RoleUpdate(is_active=False))
 
-    assert exc_info.value.status_code == 403
-    assert not db.committed
+    assert not updated.is_active
+    assert not updated.is_system
 
 
 @pytest.mark.asyncio
@@ -267,11 +267,16 @@ async def test_create_role_accepts_max_length_custom_role_name(db_session):
 
 
 @pytest.mark.asyncio
-async def test_create_role_rejects_protected_admin_role_name(db_session):
-    with pytest.raises(HTTPException) as exc_info:
-        await create_role(db_session, RoleCreate(name="admin", display_name="Admin"))
+async def test_admin_role_name_is_editable_like_other_preseeded_roles(db_session):
+    permission = await _seed_permission(db_session)
 
-    assert exc_info.value.status_code == 400
+    detail = await create_role(db_session, RoleCreate(name="admin", display_name="Admin", permission_ids=[permission.id]))
+    assert detail.role == "admin"
+    assert not detail.is_system
+
+    updated = await update_role(db_session, "admin", RoleUpdate(display_name="Updated Admin", permission_ids=[]))
+    assert updated.display_name == "Updated Admin"
+    assert not updated.is_system
 
 
 @pytest.mark.asyncio
@@ -289,15 +294,15 @@ async def test_default_example_role_names_are_editable_custom_roles(db_session):
 
 
 @pytest.mark.asyncio
-async def test_update_role_rejects_system_role_permission_changes(db_session):
+async def test_preseeded_admin_marked_system_can_update_permissions(db_session):
     permission = await _seed_permission(db_session)
     db_session.add(RoleModel(id="admin-role-id", name="admin", display_name="Administrator", is_system=True, is_active=True))
     await db_session.commit()
 
-    with pytest.raises(HTTPException) as exc_info:
-        await update_role(db_session, "admin", RoleUpdate(permission_ids=[permission.id]))
+    updated = await update_role(db_session, "admin", RoleUpdate(permission_ids=[permission.id]))
 
-    assert exc_info.value.status_code == 403
+    assert not updated.is_system
+    assert [permission.name for permission in updated.permissions] == ["scan:read"]
 
 
 @pytest.mark.asyncio
@@ -318,15 +323,15 @@ async def test_legacy_example_role_marked_system_is_reported_editable(db_session
 
 
 @pytest.mark.asyncio
-async def test_update_role_permissions_rejects_system_roles(db_session):
+async def test_update_role_permissions_allows_preseeded_admin_marked_system(db_session):
     permission = await _seed_permission(db_session)
     db_session.add(RoleModel(id="admin-role-id", name="admin", display_name="Administrator", is_system=True, is_active=True))
     await db_session.commit()
 
-    with pytest.raises(HTTPException) as exc_info:
-        await update_role_permissions(db_session, "admin", [permission.id])
+    updated = await update_role_permissions(db_session, "admin", [permission.id])
 
-    assert exc_info.value.status_code == 403
+    assert not updated.is_system
+    assert [permission.name for permission in updated.permissions] == ["scan:read"]
 
 
 @pytest.mark.asyncio

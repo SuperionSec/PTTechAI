@@ -15,7 +15,7 @@ down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-SYSTEM_ROLES = [
+DEFAULT_ROLES = [
     ("00000000-0000-0000-0000-000000000001", "admin", "Administrator", "Full system administrator"),
     ("00000000-0000-0000-0000-000000000002", "user", "Standard User", "Standard authenticated user"),
     ("00000000-0000-0000-0000-000000000003", "viewer", "Viewer", "Read-only user"),
@@ -74,19 +74,24 @@ def upgrade() -> None:
     if not _fk_exists("role_permissions", "fk_role_permissions_role_id_roles"):
         op.create_foreign_key("fk_role_permissions_role_id_roles", "role_permissions", "roles", ["role_id"], ["id"])
 
-    for role_id, role_name, display_name, description in SYSTEM_ROLES:
+    for role_id, role_name, display_name, description in DEFAULT_ROLES:
         op.execute(
             text(
-                f"""
+                """
                 INSERT INTO roles (id, name, display_name, description, is_system, is_active, created_at, updated_at)
-                VALUES ('{role_id}', '{role_name}', '{display_name}', '{description}', true, true, now(), now())
+                VALUES (:role_id, :role_name, :display_name, :description, false, true, now(), now())
                 ON CONFLICT (name) DO UPDATE SET
                     display_name = EXCLUDED.display_name,
                     description = EXCLUDED.description,
-                    is_system = true,
+                    is_system = false,
                     is_active = true,
                     updated_at = now()
                 """
+            ).bindparams(
+                role_id=role_id,
+                role_name=role_name,
+                display_name=display_name,
+                description=description,
             )
         )
 

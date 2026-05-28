@@ -196,15 +196,15 @@ class TestFrontendPages:
         assert "is_active: values.is_active" in content
         assert "valuePropName=\"checked\"" in content
 
-    def test_role_management_disables_only_admin_role_mutations(self):
+    def test_role_management_does_not_hard_disable_preseeded_roles(self):
         content = (FRONTEND_SRC / "pages" / "system" / "RoleManagementPage.tsx").read_text(encoding="utf-8")
-        assert "const PROTECTED_SYSTEM_ROLES = ['admin']" in content
-        assert "SYSTEM_ROLES = ['admin', 'user', 'viewer', 'service']" not in content
-        assert "PROTECTED_SYSTEM_ROLES.includes(role)" in content
-        assert "if (!editRole || isSystemRole(editRole)) return" in content
-        assert "disabled={isSystemRole(role.role)} onClick={() => openEditModal(role.role)}" in content
-        assert "disabled={isSystemRole(role.role)} icon={<DeleteOutlined />}" in content
-        assert "roleManagement.systemRoleEditDisabled" in content
+        assert "PROTECTED_SYSTEM_ROLES" not in content
+        assert "SYSTEM_ROLES" not in content
+        assert "isSystemRole" not in content
+        assert "if (!editRole) return" in content
+        assert "disabled={role.user_count > 0}" in content
+        assert "disabled={isSystemRole" not in content
+        assert "systemRoleEditDisabled" not in content
 
     def test_role_management_metadata_locale_keys_exist(self):
         with open(FRONTEND_SRC / "locales" / "en-US.json", encoding="utf-8") as f:
@@ -213,8 +213,14 @@ class TestFrontendPages:
             zh = json.load(f)
         assert en["roleManagement"]["displayName"] == "Display Name"
         assert en["roleManagement"]["displayNameRequired"] == "Display name is required"
+        assert en["roleManagement"]["activeRoles"] == "Active Roles"
+        assert "systemRoleEditDisabled" not in en["roleManagement"]
+        assert "systemRoleDeleteDisabled" not in en["roleManagement"]
         assert zh["roleManagement"]["displayName"] == "显示名称"
         assert zh["roleManagement"]["displayNameRequired"] == "显示名称为必填项"
+        assert zh["roleManagement"]["activeRoles"] == "启用角色"
+        assert "systemRoleEditDisabled" not in zh["roleManagement"]
+        assert "systemRoleDeleteDisabled" not in zh["roleManagement"]
 
     def test_user_management_uses_extracted_statistic_cards(self):
         content = (FRONTEND_SRC / "pages" / "system" / "UserManagementPage.tsx").read_text(encoding="utf-8")
@@ -340,6 +346,16 @@ class TestFrontendServices:
         assert "!isAuthRefreshRequest(originalRequest.url)" in api_content
         assert "axios.post(`${AUTH_URL}/refresh`" not in auth_content
         assert "axios.post('/api/v1/auth/refresh'" not in api_content
+
+    def test_settings_page_uses_shared_api_client_for_authenticated_requests(self):
+        content = (FRONTEND_SRC / "pages" / "SettingsPage.tsx").read_text(encoding="utf-8")
+        assert "import api from '../services/api'" in content
+        assert "localStorage.getItem('access_token')" not in content
+        assert "tokenHeaders" not in content
+        assert "fetch('/api/v1/settings" not in content
+        assert "api.get<Settings>('/settings')" in content
+        assert "api.put<Settings>('/settings', body)" in content
+        assert "api.post('/settings/clear-database'" in content
 
     def test_auth_context_uses_system_profile_import(self):
         content = (FRONTEND_SRC / "contexts" / "AuthContext.tsx").read_text(encoding="utf-8")

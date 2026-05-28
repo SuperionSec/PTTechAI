@@ -11,7 +11,6 @@ from backend.models.permission import Permission, ResourceMapping, RolePermissio
 from backend.models.user import RoleModel, User
 from backend.schemas.rbac import MenuItemOut, PermissionOut, ResourceMappingOut, RoleCreate, RoleDetailOut, RoleSummaryOut, RoleUpdate, UnmappedResourceOut
 
-PROTECTED_SYSTEM_ROLES = {"admin"}
 DEFAULT_ROLE_NAMES = {"admin", "user", "viewer", "service"}
 ROLE_NAME_PATTERN = re.compile(r"^[a-z0-9_]{1,50}$")
 RESOURCE_TYPES = {"backend_api", "frontend_page"}
@@ -88,7 +87,7 @@ async def list_roles(db: AsyncSession) -> list[RoleSummaryOut]:
                 id=role.id,
                 display_name=role.display_name,
                 description=role.description,
-                is_system=role.name in PROTECTED_SYSTEM_ROLES,
+                is_system=False,
                 is_active=role.is_active,
                 user_count=user_count,
                 permission_count=permission_count,
@@ -98,7 +97,7 @@ async def list_roles(db: AsyncSession) -> list[RoleSummaryOut]:
     for role in sorted(legacy_names):
         user_count = await db.scalar(select(func.count(User.id)).where(User.role == role)) or 0
         permission_count = await db.scalar(select(func.count(RolePermission.id)).where(RolePermission.role == role)) or 0
-        summaries.append(RoleSummaryOut(role=role, is_system=role in PROTECTED_SYSTEM_ROLES, user_count=user_count, permission_count=permission_count))
+        summaries.append(RoleSummaryOut(role=role, is_system=False, user_count=user_count, permission_count=permission_count))
     return summaries
 
 
@@ -127,7 +126,7 @@ async def get_role_detail(db: AsyncSession, role: str) -> RoleDetailOut:
         id=role_model.id if role_model else None,
         display_name=role_model.display_name if role_model else None,
         description=role_model.description if role_model else None,
-        is_system=role_name in PROTECTED_SYSTEM_ROLES,
+        is_system=False,
         is_active=role_model.is_active if role_model else True,
         permissions=permissions,
         total=len(permissions),
@@ -185,8 +184,6 @@ async def _validate_permission_ids(db: AsyncSession, permission_ids: list[str]) 
 
 async def create_role(db: AsyncSession, body: RoleCreate) -> RoleDetailOut:
     role_name = _normalize_role_name(body.name)
-    if role_name in PROTECTED_SYSTEM_ROLES:
-        raise HTTPException(status_code=400, detail="System role names are reserved")
     if await db.scalar(select(RoleModel).where(RoleModel.name == role_name)):
         raise HTTPException(status_code=400, detail="Role already exists")
     permission_ids = await _validate_permission_ids(db, body.permission_ids)
@@ -217,12 +214,8 @@ async def update_role(db: AsyncSession, role: str, body: RoleUpdate) -> RoleDeta
     if body.description is not None:
         role_model.description = body.description
     if body.is_active is not None:
-        if role_name in PROTECTED_SYSTEM_ROLES and not body.is_active:
-            raise HTTPException(status_code=403, detail="Cannot deactivate system role")
         role_model.is_active = body.is_active
     if body.permission_ids is not None:
-        if role_name in PROTECTED_SYSTEM_ROLES:
-            raise HTTPException(status_code=403, detail="Cannot update system role permissions")
         await _replace_role_permissions(db, role_name, role_model.id, body.permission_ids)
     await db.commit()
     return await get_role_detail(db, role_name)
@@ -233,8 +226,6 @@ async def delete_role(db: AsyncSession, role: str) -> None:
     role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role_name))
     if not role_model:
         raise HTTPException(status_code=404, detail="Role not found")
-    if role_name in PROTECTED_SYSTEM_ROLES:
-        raise HTTPException(status_code=403, detail="Cannot delete system role")
     user_count = await db.scalar(select(func.count(User.id)).where((User.role_id == role_model.id) | (User.role == role_name))) or 0
     if user_count > 0:
         raise HTTPException(status_code=400, detail="Role is assigned to users")
@@ -258,8 +249,6 @@ async def update_role_permissions(db: AsyncSession, role: str, permission_ids: l
     role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role_name))
     if not role_model:
         raise HTTPException(status_code=404, detail="Role not found")
-    if role_name in PROTECTED_SYSTEM_ROLES:
-        raise HTTPException(status_code=403, detail="Cannot update system role permissions")
     await _replace_role_permissions(db, role_name, role_model.id, permission_ids)
     await db.commit()
     return await get_role_detail(db, role_name)

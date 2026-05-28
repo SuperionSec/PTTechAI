@@ -23,7 +23,7 @@ async def init_admin():
                 name="admin",
                 display_name="Administrator",
                 description="Full system administrator",
-                is_system=True,
+                is_system=False,
                 is_active=True,
             )
             db.add(role_model)

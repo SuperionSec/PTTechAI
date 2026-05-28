@@ -38,7 +38,6 @@ import { systemApi } from '../../services/system'
 import type { Permission, ResourceMapping, RoleSummary } from '../../services/system'
 
 const { Text } = Typography
-const PROTECTED_SYSTEM_ROLES = ['admin']
 
 interface RoleFormValues {
   role: string
@@ -47,17 +46,16 @@ interface RoleFormValues {
   is_active: boolean
 }
 
-function RoleStatisticCards({ roles, permissions, isSystemRole, t }: {
+function RoleStatisticCards({ roles, permissions, t }: {
   roles: RoleSummary[]
   permissions: Permission[]
-  isSystemRole: (role: string) => boolean
   t: TFunction
 }) {
   return (
     <StatisticCard.Group direction="row">
       <StatisticCard statistic={{ title: t('roleManagement.roles'), value: roles.length, icon: <SafetyCertificateOutlined /> }} />
       <StatisticCard statistic={{ title: t('roleManagement.permissions'), value: permissions.length, icon: <LockOutlined /> }} />
-      <StatisticCard statistic={{ title: t('roleManagement.system'), value: roles.filter(role => isSystemRole(role.role)).length, icon: <TeamOutlined /> }} />
+      <StatisticCard statistic={{ title: t('roleManagement.activeRoles'), value: roles.filter(role => role.is_active).length, icon: <TeamOutlined /> }} />
     </StatisticCard.Group>
   )
 }
@@ -176,8 +174,6 @@ export default function RoleManagementPage() {
     setLoading(false)
   }, [currentUser, navigate, fetchPermissions])
 
-  const isSystemRole = (role: string) => PROTECTED_SYSTEM_ROLES.includes(role)
-
   const resetForm = () => {
     form.resetFields()
     setSelectedPermissions(new Set())
@@ -275,7 +271,7 @@ export default function RoleManagementPage() {
   }
 
   const handleEditRole = async () => {
-    if (!editRole || isSystemRole(editRole)) return
+    if (!editRole) return
     const values = await form.validateFields()
     setActionLoading(true)
     setFormError(null)
@@ -356,7 +352,6 @@ export default function RoleManagementPage() {
       render: (_, role) => (
         <Space>
           <Tag color={roleColors[role.role]}>{roleLabels[role.role] || role.role}</Tag>
-          {isSystemRole(role.role) && <Tag>{t('roleManagement.system')}</Tag>}
         </Space>
       ),
     },
@@ -380,8 +375,8 @@ export default function RoleManagementPage() {
         <Tooltip key="view" title={t('roleManagement.view')}>
           <Button size="small" icon={<EyeOutlined />} onClick={() => openViewModal(role.role)} />
         </Tooltip>,
-        <Tooltip key="edit" title={isSystemRole(role.role) ? t('roleManagement.systemRoleEditDisabled') : t('roleManagement.edit')}>
-          <Button size="small" icon={<EditOutlined />} disabled={isSystemRole(role.role)} onClick={() => openEditModal(role.role)} />
+        <Tooltip key="edit" title={t('roleManagement.edit')}>
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(role.role)} />
         </Tooltip>,
         <Popconfirm
           key="delete"
@@ -391,9 +386,9 @@ export default function RoleManagementPage() {
           cancelText={t('common.cancel')}
           okButtonProps={{ danger: true, disabled: role.user_count > 0 }}
           onConfirm={() => handleDeleteRole(role)}
-          disabled={isSystemRole(role.role)}
+          disabled={role.user_count > 0}
         >
-          <Button size="small" danger disabled={isSystemRole(role.role)} icon={<DeleteOutlined />} />
+          <Button size="small" danger disabled={role.user_count > 0} icon={<DeleteOutlined />} />
         </Popconfirm>,
       ],
     },
@@ -422,7 +417,7 @@ export default function RoleManagementPage() {
           </Space>
         </ProCard>
 
-        <RoleStatisticCards roles={roles} permissions={permissions} isSystemRole={isSystemRole} t={t} />
+        <RoleStatisticCards roles={roles} permissions={permissions} t={t} />
 
         <ProCard bordered title={<Space><SafetyCertificateOutlined />{t('roleManagement.roles')} ({roles.length})</Space>}>
           <ProTable<RoleSummary>

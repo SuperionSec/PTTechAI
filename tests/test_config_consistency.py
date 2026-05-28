@@ -176,6 +176,24 @@ class TestAlembicConfig:
         assert "UPDATE users" in content
         assert "UPDATE role_permissions" in content
 
+    def test_initial_roles_migration_does_not_mark_default_roles_system(self):
+        migration_path = PROJECT_ROOT / "backend" / "migrations" / "versions" / "20260526_0001_add_roles_table_and_role_foreign_keys.py"
+        content = migration_path.read_text(encoding="utf-8")
+        assert "DEFAULT_ROLES" in content
+        assert '"admin", "Administrator", "Full system administrator"' in content
+        assert '"user", "Standard User", "Standard authenticated user"' in content
+        assert '"viewer", "Viewer", "Read-only user"' in content
+        assert '"service", "Service Account", "API-only service account"' in content
+        assert "is_system = true" not in content.lower()
+        assert "is_system = false" in content.lower()
+
+    def test_initial_roles_migration_uses_bound_parameters(self):
+        migration_path = PROJECT_ROOT / "backend" / "migrations" / "versions" / "20260526_0001_add_roles_table_and_role_foreign_keys.py"
+        content = migration_path.read_text(encoding="utf-8")
+        assert "VALUES (:role_id, :role_name, :display_name, :description, false" in content
+        assert ").bindparams(" in content
+        assert 'f"""' not in content
+
     def test_role_permission_role_length_migration_exists(self):
         migration_path = PROJECT_ROOT / "backend" / "migrations" / "versions" / "20260526_0002_widen_role_permission_role.py"
         content = migration_path.read_text(encoding="utf-8")
