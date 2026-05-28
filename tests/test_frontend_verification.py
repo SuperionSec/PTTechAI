@@ -121,6 +121,8 @@ class TestFrontendPages:
         layout_content = (FRONTEND_SRC / "layouts" / "ProAppLayout.tsx").read_text(encoding="utf-8")
         assert "export function canAccessPage(" in access_content
         assert "export const canAccessPath = canAccessPage" in access_content
+        assert "if (permission) return hasPermission(ctx, permission)" in access_content
+        assert "if (permission && hasPermission(ctx, permission)) return true" not in access_content
         assert "route.access === 'canAccessPage'" in guard_content
         assert "canAccessPage({" in guard_content
         assert "role: userPermissions?.role || user.role" in guard_content

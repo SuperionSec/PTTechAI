@@ -14,6 +14,7 @@ These are unit/integration tests for frontend permission components.
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
+import { canAccessPage } from '../routes/access'
 
 // ============================================================================
 // Mock AuthContext for testing
@@ -336,6 +337,24 @@ describe('Button-Level Permission Control', () => {
     expect(canCreateReport(adminPerms)).toBe(true)
     expect(canCreateReport(userPerms)).toBe(true)
     expect(canCreateReport(viewerPerms)).toBe(false)
+  })
+})
+
+describe('Route Access Helper', () => {
+  it('does not let frontend page mappings override explicit route permissions', () => {
+    const viewerContext = {
+      role: 'viewer',
+      permissions: ['agent:read'],
+      frontendPages: ['/realtime'],
+    }
+
+    expect(canAccessPage(viewerContext, '/realtime', 'agent:execute')).toBe(false)
+    expect(canAccessPage(viewerContext, '/realtime')).toBe(true)
+  })
+
+  it('allows explicit route permissions for user and admin roles', () => {
+    expect(canAccessPage({ role: 'user', permissions: ['agent:execute'], frontendPages: [] }, '/realtime', 'agent:execute')).toBe(true)
+    expect(canAccessPage({ role: 'admin', permissions: [], frontendPages: [] }, '/realtime', 'agent:execute')).toBe(true)
   })
 })
 

@@ -22,7 +22,7 @@ export function hasPermission(ctx: PermissionContext, permission?: string) {
 
 export function canAccessPage(ctx: PermissionContext, path: string, permission?: string) {
   if (ctx.role === 'admin') return true
-  if (permission && hasPermission(ctx, permission)) return true
+  if (permission) return hasPermission(ctx, permission)
   return Boolean(ctx.frontendPages?.some(page => matchPathPattern(page, path)))
 }
 
