@@ -37,6 +37,8 @@ SKIP_PATH_PARTS = {
     "tests\\test_brand_consistency", "tests/test_brand_consistency",
     "tests\\test_config_consistency", "tests/test_config_consistency",
     "tests\\test_frontend_verification", "tests/test_frontend_verification",
+    ".claude",
+    "改造计划.md",
 }
 
 INTENTIONAL_KEEP_FILES = {

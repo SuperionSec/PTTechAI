@@ -195,11 +195,11 @@ class TestLLMManager:
     """Test LLM manager module."""
 
     def test_llm_manager_import(self):
-        from core.llm_manager import LLMManager
+        from backend.pentest.core.llm_manager import LLMManager
         assert LLMManager is not None
 
     def test_llm_manager_instantiation(self):
-        from core.llm_manager import LLMManager
+        from backend.pentest.core.llm_manager import LLMManager
         config = {
             "llm": {
                 "default_profile": "test",
