@@ -6,7 +6,6 @@ import {
   AUTH_URL,
   getStoredRefreshToken,
   getStoredToken,
-  isAuthRefreshRequest,
   refreshAccessToken,
   removeStoredToken,
   setStoredRefreshToken,
@@ -53,14 +52,6 @@ function getTokenExp(token: string): number {
   }
 }
 
-axios.interceptors.request.use((config) => {
-  const token = getStoredToken()
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
-})
-
 // Note: Navigation is handled by AuthProvider using event emitter pattern
 // to avoid full page reloads
 const authEvents = {
@@ -73,30 +64,6 @@ const authEvents = {
     return () => { this.listeners.delete(fn) }
   }
 }
-
-axios.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthRefreshRequest(originalRequest.url)) {
-      try {
-        originalRequest._retry = true
-        const accessToken = await refreshAccessToken()
-        originalRequest.headers.Authorization = `Bearer ${accessToken}`
-        return axios(originalRequest)
-      } catch {
-        removeStoredToken()
-        authEvents.emit()
-        return Promise.reject(error)
-      }
-    }
-    if (error.response?.status === 401 && isAuthRefreshRequest(originalRequest?.url)) {
-      removeStoredToken()
-      authEvents.emit()
-    }
-    return Promise.reject(error)
-  }
-)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -151,10 +118,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Fetch user permissions after user is loaded
       await fetchUserPermissions()
     } catch (error: any) {
-      // 401 will be handled by axios interceptor (refresh + redirect)
-      // Network errors: keep token, don't clear
-      if (!error.response || error.response.status !== 401) {
-        // Keep existing auth state on network error
+      // 401: token expired, clear auth state; Network errors: keep token
+      if (error.response?.status === 401) {
+        removeStoredToken()
+        authEvents.emit()
       }
     } finally {
       setLoading(false)
