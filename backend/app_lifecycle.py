@@ -13,7 +13,7 @@ from backend.common.db.database import close_db, init_db
 async def execute_scheduled_scan(target: str, scan_type: str, agent_role: str | None, llm_profile: str | None) -> dict:
     from backend.common.db.database import async_session_factory
     from backend.models import Scan, Target
-    from backend.services.scan_service import run_scan_task
+    from backend.pentest.backend.services.scan_service import run_scan_task
 
     async with async_session_factory() as db:
         config = {}
@@ -73,7 +73,7 @@ async def startup_app(app: FastAPI) -> None:
         if config_path.exists():
             with open(config_path) as f:
                 config = json.load(f)
-            from backend.core.scheduler import ScanScheduler
+            from backend.pentest.core.scheduler import ScanScheduler
             scan_scheduler = ScanScheduler(config)
             scan_scheduler.set_scan_callback(execute_scheduled_scan)
             scan_scheduler.start()
@@ -86,7 +86,7 @@ async def startup_app(app: FastAPI) -> None:
         app.state.scheduler = None
 
     try:
-        from backend.core.container_pool import get_pool
+        from backend.pentest.core.container_pool import get_pool
         pool = get_pool()
         await pool.cleanup_orphans()
         print("Sandbox pool initialized (orphan cleanup done)")
@@ -94,7 +94,7 @@ async def startup_app(app: FastAPI) -> None:
         print(f"Sandbox pool init skipped: {e}")
 
     try:
-        from backend.core.smart_router import init_router
+        from backend.pentest.backend.core.smart_router import init_router
         await init_router()
     except Exception as e:
         print(f"Smart Router init skipped: {e}")
@@ -102,13 +102,13 @@ async def startup_app(app: FastAPI) -> None:
 
 async def shutdown_app(app: FastAPI) -> None:
     try:
-        from backend.core.smart_router import shutdown_router
+        from backend.pentest.backend.core.smart_router import shutdown_router
         await shutdown_router()
     except Exception:
         pass
 
     try:
-        from backend.core.container_pool import get_pool
+        from backend.pentest.core.container_pool import get_pool
         await get_pool().cleanup_all()
         print("Sandbox containers cleaned up")
     except Exception:

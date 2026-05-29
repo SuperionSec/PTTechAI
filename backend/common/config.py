@@ -27,10 +27,10 @@ class Settings(BaseSettings):
 
     # Paths
     BASE_DIR: Path = Path(__file__).parent.parent.parent
-    DATA_DIR: Path = BASE_DIR / "data"
+    DATA_DIR: Path = BASE_DIR / "backend" / "pentest" / "data"
     REPORTS_DIR: Path = DATA_DIR / "reports"
     SCANS_DIR: Path = DATA_DIR / "scans"
-    PROMPTS_DIR: Path = BASE_DIR / "prompts"
+    PROMPTS_DIR: Path = BASE_DIR / "backend" / "pentest" / "prompts"
 
     # LLM Settings
     ANTHROPIC_API_KEY: Optional[str] = os.getenv("ANTHROPIC_API_KEY")

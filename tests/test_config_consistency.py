@@ -54,13 +54,13 @@ class TestConfigJson:
     """Test config/config.json consistency."""
 
     def test_config_json_is_valid(self):
-        config_path = PROJECT_ROOT / "config" / "config.json"
+        config_path = PROJECT_ROOT / "backend" / "pentest" / "config" / "config.json"
         with open(config_path, encoding="utf-8") as f:
             data = json.load(f)
         assert isinstance(data, dict), "config.json should be a valid JSON object"
 
     def test_llm_profiles_exist(self):
-        config_path = PROJECT_ROOT / "config" / "config.json"
+        config_path = PROJECT_ROOT / "backend" / "pentest" / "config" / "config.json"
         with open(config_path, encoding="utf-8") as f:
             data = json.load(f)
         assert "llm" in data, "config.json should have 'llm' section"
@@ -68,13 +68,13 @@ class TestConfigJson:
         assert len(data["llm"]["profiles"]) > 0, "Should have at least one LLM profile"
 
     def test_sandbox_config_exists(self):
-        config_path = PROJECT_ROOT / "config" / "config.json"
+        config_path = PROJECT_ROOT / "backend" / "pentest" / "config" / "config.json"
         with open(config_path, encoding="utf-8") as f:
             data = json.load(f)
         assert "sandbox" in data, "config.json should have 'sandbox' section"
 
     def test_agent_roles_exist(self):
-        config_path = PROJECT_ROOT / "config" / "config.json"
+        config_path = PROJECT_ROOT / "backend" / "pentest" / "config" / "config.json"
         with open(config_path, encoding="utf-8") as f:
             data = json.load(f)
         assert "agent_roles" in data, "config.json should have 'agent_roles' section"
@@ -90,8 +90,8 @@ class TestPostgreSqlRuntimeConfig:
             PROJECT_ROOT / "backend" / "requirements.txt",
             PROJECT_ROOT / "backend" / "common" / "config.py",
             PROJECT_ROOT / "backend" / "tests" / "conftest.py",
-            PROJECT_ROOT / "config" / "config.json",
-            PROJECT_ROOT / "core" / "scheduler.py",
+            PROJECT_ROOT / "backend" / "pentest" / "config" / "config.json",
+            PROJECT_ROOT / "backend" / "pentest" / "core" / "scheduler.py",
             PROJECT_ROOT / "docker" / "Dockerfile.backend",
             PROJECT_ROOT / "docker" / "Dockerfile.backend.lite",
             PROJECT_ROOT / "tests" / "test_rbac_service.py",
@@ -216,7 +216,7 @@ class TestRbacFrontendRouteConsistency:
         return paths
 
     def test_menu_routes_are_registered_in_rbac_service(self):
-        rbac_service = (PROJECT_ROOT / "backend" / "services" / "rbac_service.py").read_text(encoding="utf-8")
+        rbac_service = (PROJECT_ROOT / "backend" / "pentest" / "backend" / "services" / "rbac_service.py").read_text(encoding="utf-8")
         missing = [path for path in self._frontend_menu_paths() if f'("{path}",' not in rbac_service]
         assert missing == [], f"Menu routes missing from RBAC frontend route registry: {missing}"
 

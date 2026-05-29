@@ -209,11 +209,11 @@ class TestBrandRenameConsistency:
         assert len(missing) == 0, f"New brand 'PTTechAI' missing from key files: {missing}"
 
     def test_vuln_engine_markers_still_functional(self):
-        from backend.core.vuln_engine.testers.injection import XSSReflectedTester
+        from backend.pentest.backend.core.vuln_engine.testers.injection import XSSReflectedTester
         tester = XSSReflectedTester()
         assert tester is not None
 
     def test_payload_generator_still_functional(self):
-        from backend.core.vuln_engine.payload_generator import PayloadGenerator
+        from backend.pentest.backend.core.vuln_engine.payload_generator import PayloadGenerator
         gen = PayloadGenerator()
         assert gen is not None

@@ -9,8 +9,8 @@ from fastapi.responses import FileResponse
 from pathlib import Path
 
 from backend.common.config import settings
-from backend.api.v1.routes import register_v1_routers
-from backend.api.websocket import manager as ws_manager
+from backend.routes import register_v1_routers
+from backend.pentest.backend.api.websocket import manager as ws_manager
 from backend.app_lifecycle import shutdown_app, startup_app
 
 

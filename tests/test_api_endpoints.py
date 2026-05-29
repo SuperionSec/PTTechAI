@@ -75,7 +75,7 @@ class TestRouterRegistration:
         assert len(missing) == 0, f"Missing API routes: {missing}"
 
     def test_v1_router_registry_keeps_system_and_pentest_boundaries(self):
-        from backend.api.v1.routes import PENTEST_ROUTERS, SYSTEM_ROUTERS
+        from backend.routes import PENTEST_ROUTERS, SYSTEM_ROUTERS
 
         system_prefixes = {spec.prefix for spec in SYSTEM_ROUTERS}
         pentest_prefixes = {spec.prefix for spec in PENTEST_ROUTERS}
@@ -270,7 +270,7 @@ class TestRbacEndpoints:
     def test_default_backend_resource_mappings_cover_registered_apis(self, app):
         from backend.common.infra.rbac.matcher import match_api_resource
         from backend.scripts.init_permissions import PERMISSION_BACKEND_APIS
-        from backend.services.rbac_service import PUBLIC_API_RESOURCES, discover_api_routes
+        from backend.pentest.backend.services.rbac_service import PUBLIC_API_RESOURCES, discover_api_routes
 
         registered = discover_api_routes(app) - PUBLIC_API_RESOURCES
         patterns = {pattern for api_patterns in PERMISSION_BACKEND_APIS.values() for pattern in api_patterns}

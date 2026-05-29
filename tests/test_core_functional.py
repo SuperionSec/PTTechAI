@@ -16,17 +16,17 @@ class TestVulnerabilityRegistry:
     """Test the vulnerability registry functionality."""
 
     def test_registry_instantiation(self):
-        from backend.core.vuln_engine.registry import VulnerabilityRegistry
+        from backend.pentest.backend.core.vuln_engine.registry import VulnerabilityRegistry
         registry = VulnerabilityRegistry()
         assert registry is not None
 
     def test_vuln_info_count(self):
-        from backend.core.vuln_engine.registry import VulnerabilityRegistry
+        from backend.pentest.backend.core.vuln_engine.registry import VulnerabilityRegistry
         registry = VulnerabilityRegistry()
         assert len(registry.VULNERABILITY_INFO) >= 90
 
     def test_key_vuln_types_present(self):
-        from backend.core.vuln_engine.registry import VulnerabilityRegistry
+        from backend.pentest.backend.core.vuln_engine.registry import VulnerabilityRegistry
         registry = VulnerabilityRegistry()
         key_types = [
             "xss_reflected", "xss_stored", "xss_dom",
@@ -39,7 +39,7 @@ class TestVulnerabilityRegistry:
         assert len(missing) == 0, f"Missing key vuln types: {missing}"
 
     def test_vuln_info_has_required_fields(self):
-        from backend.core.vuln_engine.registry import VulnerabilityRegistry
+        from backend.pentest.backend.core.vuln_engine.registry import VulnerabilityRegistry
         registry = VulnerabilityRegistry()
         required_fields = {"title", "severity", "cwe_id"}
         for vuln_type, info in list(registry.VULNERABILITY_INFO.items())[:10]:
@@ -47,13 +47,13 @@ class TestVulnerabilityRegistry:
             assert len(missing) == 0, f"Vuln type '{vuln_type}' missing fields: {missing}"
 
     def test_get_tester_for_type(self):
-        from backend.core.vuln_engine.registry import VulnerabilityRegistry
+        from backend.pentest.backend.core.vuln_engine.registry import VulnerabilityRegistry
         registry = VulnerabilityRegistry()
         tester = registry.get_tester("xss_reflected")
         assert tester is not None, "Should get tester for xss_reflected"
 
     def test_severity_values_valid(self):
-        from backend.core.vuln_engine.registry import VulnerabilityRegistry
+        from backend.pentest.backend.core.vuln_engine.registry import VulnerabilityRegistry
         registry = VulnerabilityRegistry()
         valid_severities = {"critical", "high", "medium", "low", "info", "varies"}
         for vuln_type, info in registry.VULNERABILITY_INFO.items():
@@ -65,12 +65,12 @@ class TestPayloadGenerator:
     """Test the payload generator."""
 
     def test_generator_instantiation(self):
-        from backend.core.vuln_engine.payload_generator import PayloadGenerator
+        from backend.pentest.backend.core.vuln_engine.payload_generator import PayloadGenerator
         gen = PayloadGenerator()
         assert gen is not None
 
     def test_has_payloads(self):
-        from backend.core.vuln_engine.payload_generator import PayloadGenerator
+        from backend.pentest.backend.core.vuln_engine.payload_generator import PayloadGenerator
         gen = PayloadGenerator()
         assert gen is not None
         assert callable(getattr(gen, "generate", None)) or callable(getattr(gen, "get_payloads", None)) or hasattr(gen, "PAYLOADS") or hasattr(gen, "payloads"), \
@@ -81,7 +81,7 @@ class TestAgentMemory:
     """Test agent memory module."""
 
     def test_memory_instantiation(self):
-        from backend.core.agent_memory import AgentMemory
+        from backend.pentest.backend.core.agent_memory import AgentMemory
         memory = AgentMemory()
         assert memory is not None
 
@@ -90,7 +90,7 @@ class TestNegativeControl:
     """Test negative control engine."""
 
     def test_engine_instantiation(self):
-        from backend.core.negative_control import NegativeControlEngine
+        from backend.pentest.backend.core.negative_control import NegativeControlEngine
         engine = NegativeControlEngine()
         assert engine is not None
 
@@ -99,7 +99,7 @@ class TestConfidenceScorer:
     """Test confidence scorer."""
 
     def test_scorer_instantiation(self):
-        from backend.core.confidence_scorer import ConfidenceScorer
+        from backend.pentest.backend.core.confidence_scorer import ConfidenceScorer
         scorer = ConfidenceScorer()
         assert scorer is not None
 
@@ -108,7 +108,7 @@ class TestValidationJudge:
     """Test validation judge."""
 
     def test_judge_import(self):
-        from backend.core.validation_judge import ValidationJudge
+        from backend.pentest.backend.core.validation_judge import ValidationJudge
         assert ValidationJudge is not None
 
 
@@ -116,7 +116,7 @@ class TestChainEngine:
     """Test chain engine."""
 
     def test_engine_instantiation(self):
-        from backend.core.chain_engine import ChainEngine
+        from backend.pentest.backend.core.chain_engine import ChainEngine
         engine = ChainEngine()
         assert engine is not None
 
@@ -125,7 +125,7 @@ class TestWAFDetector:
     """Test WAF detector."""
 
     def test_detector_instantiation(self):
-        from backend.core.waf_detector import WAFDetector
+        from backend.pentest.backend.core.waf_detector import WAFDetector
         detector = WAFDetector()
         assert detector is not None
 
@@ -134,7 +134,7 @@ class TestStrategyAdapter:
     """Test strategy adapter."""
 
     def test_adapter_instantiation(self):
-        from backend.core.strategy_adapter import StrategyAdapter
+        from backend.pentest.backend.core.strategy_adapter import StrategyAdapter
         adapter = StrategyAdapter()
         assert adapter is not None
 
@@ -143,7 +143,7 @@ class TestRequestEngine:
     """Test request engine."""
 
     def test_engine_import(self):
-        from backend.core.request_engine import RequestEngine
+        from backend.pentest.backend.core.request_engine import RequestEngine
         assert RequestEngine is not None
 
 
@@ -151,7 +151,7 @@ class TestResponseVerifier:
     """Test response verifier."""
 
     def test_verifier_instantiation(self):
-        from backend.core.response_verifier import ResponseVerifier
+        from backend.pentest.backend.core.response_verifier import ResponseVerifier
         verifier = ResponseVerifier()
         assert verifier is not None
 
@@ -160,7 +160,7 @@ class TestAuthManager:
     """Test auth manager."""
 
     def test_manager_instantiation(self):
-        from backend.core.auth_manager import AuthManager
+        from backend.pentest.backend.core.auth_manager import AuthManager
         manager = AuthManager()
         assert manager is not None
 
@@ -169,14 +169,14 @@ class TestProofOfExecution:
     """Test proof of execution module."""
 
     def test_module_import(self):
-        from backend.core.proof_of_execution import ProofOfExecution
+        from backend.pentest.backend.core.proof_of_execution import ProofOfExecution
         poe = ProofOfExecution()
         assert poe is not None
 
 
 class TestKnowledgeProcessor:
     def test_pdf_support_flag_is_defined_with_correct_name(self):
-        import backend.core.knowledge_processor as knowledge_processor
+        import backend.pentest.backend.core.knowledge_processor as knowledge_processor
 
         assert hasattr(knowledge_processor, "HAS_PYPDF2")
         assert not hasattr(knowledge_processor, "HAS_PYPDKF2")

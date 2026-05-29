@@ -49,15 +49,15 @@ class TestBackendModelsImport:
 
     @pytest.mark.parametrize("module_name", [
         "backend.common.models.user",
-        "backend.models.scan",
-        "backend.models.target",
-        "backend.models.vulnerability",
-        "backend.models.report",
-        "backend.models.prompt",
+        "backend.pentest.backend.models.scan",
+        "backend.pentest.backend.models.target",
+        "backend.pentest.backend.models.vulnerability",
+        "backend.pentest.backend.models.report",
+        "backend.pentest.backend.models.prompt",
         "backend.common.models.permission",
-        "backend.models.endpoint",
-        "backend.models.agent_task",
-        "backend.models.vuln_lab",
+        "backend.pentest.backend.models.endpoint",
+        "backend.pentest.backend.models.agent_task",
+        "backend.pentest.backend.models.vuln_lab",
     ])
     def test_model_import(self, module_name):
         mod = importlib.import_module(module_name)
@@ -69,12 +69,12 @@ class TestBackendSchemasImport:
 
     @pytest.mark.parametrize("module_name", [
         "backend.common.schemas.auth",
-        "backend.schemas.scan",
-        "backend.schemas.target",
-        "backend.schemas.vulnerability",
-        "backend.schemas.report",
-        "backend.schemas.prompt",
-        "backend.schemas.agent_task",
+        "backend.pentest.backend.schemas.scan",
+        "backend.pentest.backend.schemas.target",
+        "backend.pentest.backend.schemas.vulnerability",
+        "backend.pentest.backend.schemas.report",
+        "backend.pentest.backend.schemas.prompt",
+        "backend.pentest.backend.schemas.agent_task",
         "backend.common.schemas.rbac",
     ])
     def test_schema_import(self, module_name):
@@ -86,38 +86,38 @@ class TestBackendCoreModulesImport:
     """Test that core backend modules can be imported."""
 
     @pytest.mark.parametrize("module_name", [
-        "backend.core.agent_memory",
-        "backend.core.auth_manager",
-        "backend.core.chain_engine",
-        "backend.core.confidence_scorer",
-        "backend.core.negative_control",
-        "backend.core.proof_of_execution",
-        "backend.core.request_engine",
-        "backend.core.response_verifier",
-        "backend.core.strategy_adapter",
-        "backend.core.validation_judge",
-        "backend.core.waf_detector",
-        "backend.core.access_control_learner",
-        "backend.core.payload_mutator",
-        "backend.core.xss_context_analyzer",
-        "backend.core.xss_validator",
-        "backend.core.banner_analyzer",
-        "backend.core.site_analyzer",
-        "backend.core.param_analyzer",
-        "backend.core.endpoint_classifier",
-        "backend.core.execution_history",
+        "backend.pentest.backend.core.agent_memory",
+        "backend.pentest.backend.core.auth_manager",
+        "backend.pentest.backend.core.chain_engine",
+        "backend.pentest.backend.core.confidence_scorer",
+        "backend.pentest.backend.core.negative_control",
+        "backend.pentest.backend.core.proof_of_execution",
+        "backend.pentest.backend.core.request_engine",
+        "backend.pentest.backend.core.response_verifier",
+        "backend.pentest.backend.core.strategy_adapter",
+        "backend.pentest.backend.core.validation_judge",
+        "backend.pentest.backend.core.waf_detector",
+        "backend.pentest.backend.core.access_control_learner",
+        "backend.pentest.backend.core.payload_mutator",
+        "backend.pentest.backend.core.xss_context_analyzer",
+        "backend.pentest.backend.core.xss_validator",
+        "backend.pentest.backend.core.banner_analyzer",
+        "backend.pentest.backend.core.site_analyzer",
+        "backend.pentest.backend.core.param_analyzer",
+        "backend.pentest.backend.core.endpoint_classifier",
+        "backend.pentest.backend.core.execution_history",
         "backend.common.infra.notification_manager",
-        "backend.core.checkpoint_manager",
+        "backend.pentest.backend.core.checkpoint_manager",
         "backend.common.infra.token_manager",
-        "backend.core.methodology_loader",
-        "backend.core.report_generator",
-        "backend.core.exploit_generator",
-        "backend.core.poc_generator",
-        "backend.core.poc_validator",
+        "backend.pentest.backend.core.methodology_loader",
+        "backend.pentest.backend.core.report_generator",
+        "backend.pentest.backend.core.exploit_generator",
+        "backend.pentest.backend.core.poc_generator",
+        "backend.pentest.backend.core.poc_validator",
         "backend.common.infra.rbac.access_helpers",
-        "backend.api.v1.routes",
+        "backend.routes",
         "backend.app_lifecycle",
-        "backend.services.rbac_service",
+        "backend.pentest.backend.services.rbac_service",
     ])
     def test_core_module_import(self, module_name):
         mod = importlib.import_module(module_name)
@@ -133,7 +133,7 @@ class TestBackendCoreModulesImport:
         assert "set_scan_callback(execute_scheduled_scan)" in lifecycle_content
 
     def test_system_router_is_composition_layer_only(self):
-        system_content = (BACKEND_DIR / "api" / "v1" / "system.py").read_text(encoding="utf-8")
+        system_content = (BACKEND_DIR / "pentest" / "backend" / "api" / "v1" / "system.py").read_text(encoding="utf-8")
         assert "include_router(rbac.router)" in system_content
         assert "include_router(users.router" in system_content
         assert "include_router(auth.router" in system_content
@@ -146,28 +146,28 @@ class TestVulnEngineImport:
     """Test that the vulnerability engine modules can be imported."""
 
     def test_vuln_registry_import(self):
-        from backend.core.vuln_engine.registry import VulnerabilityRegistry
+        from backend.pentest.backend.core.vuln_engine.registry import VulnerabilityRegistry
         registry = VulnerabilityRegistry()
         assert registry is not None
 
     def test_vuln_registry_has_entries(self):
-        from backend.core.vuln_engine.registry import VulnerabilityRegistry
+        from backend.pentest.backend.core.vuln_engine.registry import VulnerabilityRegistry
         registry = VulnerabilityRegistry()
         info = registry.VULNERABILITY_INFO
         assert len(info) >= 90, f"Expected >= 90 vuln types, got {len(info)}"
 
     def test_payload_generator_import(self):
-        from backend.core.vuln_engine.payload_generator import PayloadGenerator
+        from backend.pentest.backend.core.vuln_engine.payload_generator import PayloadGenerator
         gen = PayloadGenerator()
         assert gen is not None
 
     def test_system_prompts_import(self):
-        from backend.core.vuln_engine.system_prompts import get_system_prompt, get_prompt_for_vuln_type
+        from backend.pentest.backend.core.vuln_engine.system_prompts import get_system_prompt, get_prompt_for_vuln_type
         assert callable(get_system_prompt)
         assert callable(get_prompt_for_vuln_type)
 
     def test_ai_prompts_import(self):
-        from backend.core.vuln_engine.ai_prompts import get_verification_prompt, get_poc_prompt
+        from backend.pentest.backend.core.vuln_engine.ai_prompts import get_verification_prompt, get_poc_prompt
         assert callable(get_verification_prompt)
         assert callable(get_poc_prompt)
 
@@ -193,11 +193,11 @@ class TestRAGModulesImport:
     """Test RAG engine modules."""
 
     def test_rag_engine_import(self):
-        from backend.core.rag.engine import RAGEngine
+        from backend.pentest.backend.core.rag.engine import RAGEngine
         assert RAGEngine is not None
 
     def test_rag_vectorstore_import(self):
-        from backend.core.rag.vectorstore import BaseVectorStore, BM25VectorStore
+        from backend.pentest.backend.core.rag.vectorstore import BaseVectorStore, BM25VectorStore
         assert BaseVectorStore is not None
         assert BM25VectorStore is not None
 
@@ -206,7 +206,7 @@ class TestReportEngineImport:
     """Test report engine modules."""
 
     def test_report_generator_import(self):
-        from backend.core.report_engine.generator import ReportGenerator
+        from backend.pentest.backend.core.report_engine.generator import ReportGenerator
         assert ReportGenerator is not None
 
 
@@ -214,11 +214,11 @@ class TestSmartRouterImport:
     """Test smart router modules."""
 
     def test_provider_registry_import(self):
-        from backend.core.smart_router.provider_registry import ProviderRegistry
+        from backend.pentest.backend.core.smart_router.provider_registry import ProviderRegistry
         assert ProviderRegistry is not None
 
     def test_router_import(self):
-        from backend.core.smart_router.router import SmartRouter
+        from backend.pentest.backend.core.smart_router.router import SmartRouter
         assert SmartRouter is not None
 
 
@@ -226,5 +226,5 @@ class TestPromptEngineImport:
     """Test prompt engine modules."""
 
     def test_parser_import(self):
-        from backend.core.prompt_engine.parser import PromptParser
+        from backend.pentest.backend.core.prompt_engine.parser import PromptParser
         assert PromptParser is not None
