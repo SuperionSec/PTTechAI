@@ -220,7 +220,7 @@ class CLIAgentRunner:
             # 3. Create Kali sandbox container
             await self._log("info", "Creating Kali sandbox container...")
             try:
-                from core.container_pool import get_pool
+                from backend.pentest.core.container_pool import get_pool
                 pool = get_pool()
                 self._sandbox = await pool.get_or_create(
                     scan_id=f"cli-agent-{self.scan_id}",
@@ -322,7 +322,7 @@ class CLIAgentRunner:
 
         if self._sandbox:
             try:
-                from core.container_pool import get_pool
+                from backend.pentest.core.container_pool import get_pool
                 await get_pool().destroy(f"cli-agent-{self.scan_id}")
                 await self._log("info", "Container destroyed")
             except Exception as e:

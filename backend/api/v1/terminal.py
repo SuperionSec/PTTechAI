@@ -16,8 +16,8 @@ from typing import Dict, List, Optional
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
 from pydantic import BaseModel
 
-from core.llm_manager import LLMManager
-from core.sandbox_manager import get_sandbox
+from backend.pentest.core.llm_manager import LLMManager
+from backend.pentest.core.sandbox_manager import get_sandbox
 
 logger = logging.getLogger(__name__)
 
@@ -295,7 +295,7 @@ async def create_session(req: CreateSessionRequest, current_user: User = Depends
 
     # Provision a per-session Kali container (best-effort)
     try:
-        from core.container_pool import get_pool
+        from backend.pentest.core.container_pool import get_pool
         pool = get_pool()
         sandbox = await pool.get_or_create(f"terminal-{session_id}", enable_vpn=True)
         session_sandboxes[session_id] = sandbox
@@ -368,7 +368,7 @@ async def delete_session(session_id: str, current_user: User = Depends(get_curre
     sandbox = session_sandboxes.pop(session_id, None)
     if sandbox:
         try:
-            from core.container_pool import get_pool
+            from backend.pentest.core.container_pool import get_pool
             pool = get_pool()
             await pool.destroy(f"terminal-{session_id}")
         except Exception as exc:

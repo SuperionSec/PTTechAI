@@ -1,1 +1,1 @@
-from core.scheduler import ScanScheduler
+from backend.pentest.core.scheduler import ScanScheduler

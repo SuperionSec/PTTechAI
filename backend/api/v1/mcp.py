@@ -273,7 +273,7 @@ async def list_server_tools(name: str, current_user: User = Depends(get_current_
     # For builtin server, return tools from the MCP server module
     if name == BUILTIN_SERVER:
         try:
-            from core.mcp_server import TOOLS
+            from backend.pentest.core.mcp_server import TOOLS
             return [
                 MCPToolResponse(
                     name=t["name"],
@@ -287,7 +287,7 @@ async def list_server_tools(name: str, current_user: User = Depends(get_current_
 
     # For external servers, try to connect via MCPToolClient
     try:
-        from core.mcp_client import MCPToolClient
+        from backend.pentest.core.mcp_client import MCPToolClient
         
         # Build minimal config for this single server
         client_config = {

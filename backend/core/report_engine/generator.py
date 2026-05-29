@@ -114,7 +114,7 @@ class ReportGenerator:
 
         # Fallback to legacy LLMManager (synchronous)
         try:
-            from core.llm_manager import LLMManager
+            from backend.pentest.core.llm_manager import LLMManager
             llm = LLMManager()
             return llm.generate(prompt, system_prompt)
         except Exception as e:

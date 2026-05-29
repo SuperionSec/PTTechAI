@@ -33,7 +33,7 @@ def _get_deep_recon():
     global _deep_recon
     if _deep_recon is None:
         try:
-            from core.deep_recon import DeepRecon
+            from backend.pentest.core.deep_recon import DeepRecon
             _deep_recon = DeepRecon
         except ImportError:
             _deep_recon = False
@@ -44,7 +44,7 @@ def _get_banner_analyzer():
     global _banner_analyzer
     if _banner_analyzer is None:
         try:
-            from core.banner_analyzer import BannerAnalyzer
+            from backend.pentest.core.banner_analyzer import BannerAnalyzer
             _banner_analyzer = BannerAnalyzer
         except ImportError:
             _banner_analyzer = False
@@ -55,7 +55,7 @@ def _get_cve_hunter():
     global _cve_hunter
     if _cve_hunter is None:
         try:
-            from core.cve_hunter import CVEHunter
+            from backend.pentest.core.cve_hunter import CVEHunter
             _cve_hunter = CVEHunter
         except ImportError:
             _cve_hunter = False
@@ -66,7 +66,7 @@ def _get_payload_mutator():
     global _payload_mutator
     if _payload_mutator is None:
         try:
-            from core.payload_mutator import PayloadMutator
+            from backend.pentest.core.payload_mutator import PayloadMutator
             _payload_mutator = PayloadMutator
         except ImportError:
             _payload_mutator = False
@@ -77,7 +77,7 @@ def _get_param_analyzer():
     global _param_analyzer
     if _param_analyzer is None:
         try:
-            from core.param_analyzer import ParameterAnalyzer
+            from backend.pentest.core.param_analyzer import ParameterAnalyzer
             _param_analyzer = ParameterAnalyzer
         except ImportError:
             _param_analyzer = False
@@ -88,7 +88,7 @@ def _get_endpoint_classifier():
     global _endpoint_classifier
     if _endpoint_classifier is None:
         try:
-            from core.endpoint_classifier import EndpointClassifier
+            from backend.pentest.core.endpoint_classifier import EndpointClassifier
             _endpoint_classifier = EndpointClassifier
         except ImportError:
             _endpoint_classifier = False
@@ -99,7 +99,7 @@ def _get_exploit_generator():
     global _exploit_generator
     if _exploit_generator is None:
         try:
-            from core.exploit_generator import ExploitGenerator
+            from backend.pentest.core.exploit_generator import ExploitGenerator
             _exploit_generator = ExploitGenerator
         except ImportError:
             _exploit_generator = False
@@ -110,7 +110,7 @@ def _get_poc_validator():
     global _poc_validator
     if _poc_validator is None:
         try:
-            from core.poc_validator import PoCValidator
+            from backend.pentest.core.poc_validator import PoCValidator
             _poc_validator = PoCValidator
         except ImportError:
             _poc_validator = False

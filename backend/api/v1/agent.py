@@ -578,7 +578,7 @@ async def _run_agent_task(
         # Guarantee container cleanup regardless of outcome
         if scan_id and enable_kali_sandbox:
             try:
-                from core.container_pool import get_pool
+                from backend.pentest.core.container_pool import get_pool
                 pool = get_pool()
                 await pool.destroy(str(scan_id))
                 logger.info(f"[CONTAINER] Guaranteed cleanup for scan {scan_id}")

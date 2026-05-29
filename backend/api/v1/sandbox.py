@@ -27,7 +27,7 @@ def _docker_available() -> bool:
 async def list_sandboxes(current_user: User = Depends(get_current_user)):
     """List all sandbox containers with pool status."""
     try:
-        from core.container_pool import get_pool
+        from backend.pentest.core.container_pool import get_pool
         pool = get_pool()
     except Exception as e:
         return {
@@ -76,7 +76,7 @@ async def list_sandboxes(current_user: User = Depends(get_current_user)):
 async def get_sandbox(scan_id: str, current_user: User = Depends(get_current_user)):
     """Get health check for a specific sandbox container."""
     try:
-        from core.container_pool import get_pool
+        from backend.pentest.core.container_pool import get_pool
         pool = get_pool()
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
@@ -97,7 +97,7 @@ async def get_sandbox(scan_id: str, current_user: User = Depends(get_current_use
 async def destroy_sandbox(scan_id: str, current_user: User = Depends(get_current_user)):
     """Destroy a specific sandbox container."""
     try:
-        from core.container_pool import get_pool
+        from backend.pentest.core.container_pool import get_pool
         pool = get_pool()
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
@@ -114,7 +114,7 @@ async def destroy_sandbox(scan_id: str, current_user: User = Depends(get_current
 async def cleanup_expired(current_user: User = Depends(get_current_user)):
     """Remove containers that have exceeded their TTL."""
     try:
-        from core.container_pool import get_pool
+        from backend.pentest.core.container_pool import get_pool
         pool = get_pool()
         await pool.cleanup_expired()
         return {"message": "Expired containers cleaned up"}
@@ -126,7 +126,7 @@ async def cleanup_expired(current_user: User = Depends(get_current_user)):
 async def cleanup_orphans(current_user: User = Depends(get_current_user)):
     """Remove orphan containers not tracked by the pool."""
     try:
-        from core.container_pool import get_pool
+        from backend.pentest.core.container_pool import get_pool
         pool = get_pool()
         await pool.cleanup_orphans()
         return {"message": "Orphan containers cleaned up"}

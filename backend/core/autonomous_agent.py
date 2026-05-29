@@ -203,7 +203,7 @@ except ImportError:
     get_router = None
 
 try:
-    from core.browser_validator import BrowserValidator, embed_screenshot, HAS_PLAYWRIGHT
+    from backend.pentest.core.browser_validator import BrowserValidator, embed_screenshot, HAS_PLAYWRIGHT
 except ImportError:
     HAS_PLAYWRIGHT = False
     BrowserValidator = None
@@ -249,7 +249,7 @@ except ImportError:
 
 # Security sandbox (Docker-based real tools)
 try:
-    from core.sandbox_manager import get_sandbox, SandboxManager
+    from backend.pentest.core.sandbox_manager import get_sandbox, SandboxManager
     HAS_SANDBOX = True
 except ImportError:
     HAS_SANDBOX = False
@@ -4007,7 +4007,7 @@ NOT_VULNERABLE: <reason>"""
             try:
                 _cname = getattr(self._sandbox, 'container_name', 'unknown')
                 await self.log("info", f"[CONTAINER] Destroying Kali container {_cname}...")
-                from core.container_pool import get_pool
+                from backend.pentest.core.container_pool import get_pool
                 await get_pool().destroy(self.scan_id)
                 self._sandbox = None
                 if self.container_status:
@@ -6824,7 +6824,7 @@ API Endpoints: {self.recon.api_endpoints[:5] if self.recon.api_endpoints else 'N
         # Fallback to keyword-based augmentor if no RAG
         if not rag_strategy_context:
             try:
-                from core.knowledge_augmentor import KnowledgeAugmentor
+                from backend.pentest.core.knowledge_augmentor import KnowledgeAugmentor
                 augmentor = KnowledgeAugmentor()
                 for tech in self.recon.technologies[:3]:
                     patterns = augmentor.get_relevant_patterns_with_custom(

@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 try:
-    from core.browser_validator import BrowserValidator, HAS_PLAYWRIGHT
+    from backend.pentest.core.browser_validator import BrowserValidator, HAS_PLAYWRIGHT
 except ImportError:
     HAS_PLAYWRIGHT = False
     BrowserValidator = None

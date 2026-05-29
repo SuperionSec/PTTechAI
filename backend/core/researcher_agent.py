@@ -31,14 +31,14 @@ logger = logging.getLogger(__name__)
 
 # Optional imports with guards
 try:
-    from core.kali_sandbox import KaliSandbox
-    from core.tool_registry import ToolRegistry
+    from backend.pentest.core.kali_sandbox import KaliSandbox
+    from backend.pentest.core.tool_registry import ToolRegistry
     HAS_KALI = True
 except ImportError:
     HAS_KALI = False
 
 try:
-    from core.sandbox_manager import SandboxResult
+    from backend.pentest.core.sandbox_manager import SandboxResult
     HAS_SANDBOX_RESULT = True
 except ImportError:
     HAS_SANDBOX_RESULT = False
