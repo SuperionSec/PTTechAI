@@ -1,12 +1,6 @@
-# PTTechAI v3 - Docker Compose Configuration
-# Usage:
-#   docker compose up -d              # Start all services
-#   docker compose up -d postgres     # Start only PostgreSQL (for local dev)
-#   docker compose logs -f backend    # View backend logs
-#
-# Database auto-initialization:
-#   The backend container automatically runs init_db + init_admin + init_permissions
-#   on first startup. No manual setup needed.
+# PTTechAI v3 - LITE Docker Compose
+# Fast builds without external security tools
+# Usage: docker compose -f docker-compose.lite.yml up --build
 
 services:
   postgres:
@@ -29,20 +23,17 @@ services:
 
   backend:
     build:
-      context: .
-      # Use Dockerfile.backend.lite for faster builds (no security tools)
-      # Use Dockerfile.backend for full version with all tools
-      dockerfile: docker/Dockerfile.backend
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.backend.lite
     container_name: pttechai-backend
     env_file:
-      - .env
+      - ../.env
     environment:
-      # These override .env if set
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - DATABASE_URL=postgresql+asyncpg://pttechai:pttechai@postgres:5432/pttechai
     volumes:
-      - pttechai-data:/app/data
+      - pttechai-data:/app/backend/pentest/data
     ports:
       - "8000:8000"
     depends_on:
@@ -57,8 +48,8 @@ services:
 
   frontend:
     build:
-      context: .
-      dockerfile: docker/Dockerfile.frontend
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.frontend
     container_name: pttechai-frontend
     ports:
       - "3000:80"

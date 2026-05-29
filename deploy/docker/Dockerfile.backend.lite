@@ -18,11 +18,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY backend/ ./backend/
-COPY prompts/ ./prompts/
 
 # Create data directories
-RUN mkdir -p data/reports data/scans data/recon /opt/Prompts-PenTest && \
-    cp prompts/agents/Pentestfull.md /opt/Prompts-PenTest/pentestcompleto.md
+RUN mkdir -p backend/pentest/data/reports backend/pentest/data/scans backend/pentest/data/recon /opt/Prompts-PenTest && \
+    cp backend/pentest/prompts/agents/Pentestfull.md /opt/Prompts-PenTest/pentestcompleto.md
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

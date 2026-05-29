@@ -92,8 +92,8 @@ class TestPostgreSqlRuntimeConfig:
             PROJECT_ROOT / "backend" / "tests" / "conftest.py",
             PROJECT_ROOT / "backend" / "pentest" / "config" / "config.json",
             PROJECT_ROOT / "backend" / "pentest" / "core" / "scheduler.py",
-            PROJECT_ROOT / "docker" / "Dockerfile.backend",
-            PROJECT_ROOT / "docker" / "Dockerfile.backend.lite",
+            PROJECT_ROOT / "deploy" / "docker" / "Dockerfile.backend",
+            PROJECT_ROOT / "deploy" / "docker" / "Dockerfile.backend.lite",
             PROJECT_ROOT / "tests" / "test_rbac_service.py",
         ]
         forbidden = ["sqlite" + "+aiosqlite", "sqlite" + ":///", "aiosqlite", "pttechai_scheduler" + ".db"]

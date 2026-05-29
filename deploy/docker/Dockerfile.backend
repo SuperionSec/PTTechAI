@@ -82,13 +82,10 @@ ENV PYTHONPATH=/app:/app/backend
 
 # Copy application code
 COPY backend/ ./backend/
-COPY core/ ./core/
-COPY config/ ./config/
-COPY prompts/ ./prompts/
 
 # Create data directories
-RUN mkdir -p data/reports data/scans data/recon /root/.config/nuclei /opt/Prompts-PenTest && \
-    cp prompts/agents/Pentestfull.md /opt/Prompts-PenTest/pentestcompleto.md
+RUN mkdir -p backend/pentest/data/reports backend/pentest/data/scans backend/pentest/data/recon /root/.config/nuclei /opt/Prompts-PenTest && \
+    cp backend/pentest/prompts/agents/Pentestfull.md /opt/Prompts-PenTest/pentestcompleto.md
 
 # Download wordlists (small subset for faster builds)
 RUN mkdir -p /opt/wordlists && \

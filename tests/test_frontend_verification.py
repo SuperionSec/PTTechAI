@@ -282,7 +282,7 @@ class TestFrontendPages:
         assert "'/api':" not in content
 
     def test_frontend_nginx_api_proxy_does_not_capture_api_keys_route(self):
-        content = (PROJECT_ROOT / "docker" / "nginx.conf").read_text(encoding="utf-8")
+        content = (PROJECT_ROOT / "deploy" / "docker" / "nginx.conf").read_text(encoding="utf-8")
         assert "location /api/" in content
         assert "location /api {" not in content
 
