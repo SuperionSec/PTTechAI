@@ -29,7 +29,7 @@ from backend.common.infra.auth import (
     security,
 )
 from backend.common.infra.token_manager import store_token, revoke_token, is_token_revoked
-from backend.pentest.backend.services.rbac_service import resolve_active_role
+from backend.system.rbac.service import resolve_active_role
 from backend.common.config import settings
 
 

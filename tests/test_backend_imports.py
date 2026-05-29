@@ -117,7 +117,7 @@ class TestBackendCoreModulesImport:
         "backend.common.infra.rbac.access_helpers",
         "backend.routes",
         "backend.app_lifecycle",
-        "backend.pentest.backend.services.rbac_service",
+        "backend.system.rbac.service",
     ])
     def test_core_module_import(self, module_name):
         mod = importlib.import_module(module_name)
@@ -133,7 +133,7 @@ class TestBackendCoreModulesImport:
         assert "set_scan_callback(execute_scheduled_scan)" in lifecycle_content
 
     def test_system_router_is_composition_layer_only(self):
-        system_content = (BACKEND_DIR / "pentest" / "backend" / "api" / "v1" / "system.py").read_text(encoding="utf-8")
+        system_content = (BACKEND_DIR / "system" / "system" / "api.py").read_text(encoding="utf-8")
         assert "include_router(rbac.router)" in system_content
         assert "include_router(users.router" in system_content
         assert "include_router(auth.router" in system_content

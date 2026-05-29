@@ -17,7 +17,7 @@ from backend.common.schemas.rbac import (
     RoleUpdate,
     UnmappedResourceOut,
 )
-from backend.pentest.backend.services import rbac_service
+from backend.system.rbac import service as rbac_service
 
 router = APIRouter()
 

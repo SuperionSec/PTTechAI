@@ -16,7 +16,7 @@ from backend.common.models.user import User, Role
 from backend.common.infra.auth import get_current_user, require_role
 from backend.common.infra.resource_guard import resource_guard
 from backend.common.schemas.rbac import RoleCreate as RbacRoleCreate
-from backend.pentest.backend.services import rbac_service
+from backend.system.rbac import service as rbac_service
 
 router = APIRouter()
 

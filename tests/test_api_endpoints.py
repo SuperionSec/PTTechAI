@@ -270,7 +270,7 @@ class TestRbacEndpoints:
     def test_default_backend_resource_mappings_cover_registered_apis(self, app):
         from backend.common.infra.rbac.matcher import match_api_resource
         from backend.scripts.init_permissions import PERMISSION_BACKEND_APIS
-        from backend.pentest.backend.services.rbac_service import PUBLIC_API_RESOURCES, discover_api_routes
+        from backend.system.rbac.service import PUBLIC_API_RESOURCES, discover_api_routes
 
         registered = discover_api_routes(app) - PUBLIC_API_RESOURCES
         patterns = {pattern for api_patterns in PERMISSION_BACKEND_APIS.values() for pattern in api_patterns}

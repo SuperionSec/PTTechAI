@@ -5,28 +5,28 @@ from fastapi import FastAPI
 from backend.pentest.backend.api.v1 import (
     agent,
     agent_tasks,
-    auth,
     cli_agent,
     dashboard,
     full_ia,
     knowledge,
     mcp,
-    permissions,
     prompts,
     providers,
-    rbac,
     reports,
     sandbox,
     scheduler,
     scans,
     settings as settings_router,
-    system,
     targets,
     terminal,
-    users,
     vuln_lab,
     vulnerabilities,
 )
+from backend.system.auth import api as auth
+from backend.system.users import api as users
+from backend.system.rbac import permissions_api as permissions
+from backend.system.rbac import rbac_api as rbac
+from backend.system.system import api as system
 
 
 @dataclass(frozen=True)

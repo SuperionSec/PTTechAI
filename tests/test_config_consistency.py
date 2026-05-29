@@ -216,7 +216,7 @@ class TestRbacFrontendRouteConsistency:
         return paths
 
     def test_menu_routes_are_registered_in_rbac_service(self):
-        rbac_service = (PROJECT_ROOT / "backend" / "pentest" / "backend" / "services" / "rbac_service.py").read_text(encoding="utf-8")
+        rbac_service = (PROJECT_ROOT / "backend" / "system" / "rbac" / "service.py").read_text(encoding="utf-8")
         missing = [path for path in self._frontend_menu_paths() if f'("{path}",' not in rbac_service]
         assert missing == [], f"Menu routes missing from RBAC frontend route registry: {missing}"
 

@@ -6,7 +6,7 @@ from fastapi import HTTPException
 from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from backend.pentest.backend.api.v1.permissions import (
+from backend.system.rbac.permissions_api import (
     CreateResourceMappingRequest,
     UpdateRoleRequest,
     assign_permission_to_role as assign_legacy_permission_to_role,
@@ -19,7 +19,7 @@ from backend.pentest.backend.api.v1.permissions import (
     revoke_permission_from_role as revoke_legacy_permission_from_role,
     update_role_permissions as update_legacy_role_permissions,
 )
-from backend.pentest.backend.api.v1.users import get_users
+from backend.system.users.api import get_users
 from backend.common.config import settings
 from backend.common.infra.permissions import PermissionChecker, get_role_permissions as get_legacy_role_permissions, has_permission
 from backend.common.infra.resource_guard import resource_guard
@@ -28,7 +28,7 @@ import backend.pentest.backend.models
 from backend.common.models.permission import Permission, PermissionAction, PermissionScope, ResourceMapping, RolePermission
 from backend.common.models.user import RoleModel, User
 from backend.common.schemas.rbac import RoleCreate, RoleUpdate
-from backend.pentest.backend.services.rbac_service import (
+from backend.system.rbac.service import (
     _normalize_resource_mapping_input,
     _normalize_role_name,
     build_menu_items,
