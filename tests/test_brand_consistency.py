@@ -47,6 +47,7 @@ INTENTIONAL_KEEP_FILES = {
     "ai_prompts.py",
     "container_pool.py",
     "kali_sandbox.py",
+    "CLAUDE.md",  # Documents project structure, references neurosploit.py as filename
 }
 
 INTENTIONAL_KEEP_DIRS = {
