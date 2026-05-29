@@ -20,6 +20,7 @@ import {
   UserOutlined,
   KeyOutlined,
   SafetyCertificateOutlined,
+  MenuOutlined,
 } from '@ant-design/icons'
 import LoginPage from '../pages/LoginPage'
 import RegisterPage from '../pages/RegisterPage'
@@ -44,6 +45,7 @@ import FullIATestingPage from '../pages/FullIATestingPage'
 import {
   APIKeysPage,
   LanguagesPage,
+  MenuManagementPage,
   RoleManagementPage,
   UnmappedResourcesPage,
   UserManagementPage,
@@ -87,6 +89,7 @@ export const appRoutes: AppRoute[] = [
   { path: '/agent/:agentId', name: 'pages.agentStatus', element: <AgentStatusPage />, access: 'canAccessPage', permission: 'agent:read', hideInMenu: true },
   { path: '/users', name: 'usersManagement.title', element: <UserManagementPage />, icon: <TeamOutlined />, access: 'canAccessPage', permission: 'user:manage', group: 'system' },
   { path: '/roles', name: 'roleManagement.title', element: <RoleManagementPage />, icon: <SafetyCertificateOutlined />, access: 'canAccessPage', permission: 'user:manage', group: 'system' },
+  { path: '/menus', name: 'menuManagement.title', element: <MenuManagementPage />, icon: <MenuOutlined />, access: 'canAccessPage', permission: 'settings:manage', group: 'system' },
   { path: '/unmapped-resources', name: 'accessCoverage.title', element: <UnmappedResourcesPage />, icon: <UserSwitchOutlined />, access: 'canAccessPage', permission: 'user:manage', group: 'system' },
   { path: '/languages', name: 'languageManagement.title', element: <LanguagesPage />, icon: <TranslationOutlined />, access: 'canAccessPage', permission: 'settings:read', group: 'system' },
   { path: '/settings', name: 'sidebar.settings', element: <SettingsPage />, icon: <SettingOutlined />, access: 'canAccessPage', permission: 'settings:read', group: 'pentest' },

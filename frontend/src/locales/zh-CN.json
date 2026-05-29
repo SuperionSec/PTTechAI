@@ -2243,5 +2243,33 @@
     "subtitle": "审计已发现但尚未绑定明确权限的前端页面和后端 API，帮助管理员补齐权限映射缺口。",
     "title": "访问覆盖",
     "warning": "列表中的资源在绑定明确权限前，将由服务端回退策略控制。"
+  },
+  "menuManagement": {
+    "title": "菜单管理",
+    "subtitle": "配置侧边栏导航菜单"
+  },
+  "menu": {
+    "name": "名称",
+    "path": "路径",
+    "icon": "图标",
+    "permission": "权限",
+    "sortOrder": "排序",
+    "visible": "可见",
+    "active": "启用",
+    "parent": "上级菜单",
+    "component": "组件",
+    "rootMenu": "根菜单",
+    "create": "创建菜单",
+    "edit": "编辑菜单",
+    "addChild": "添加子菜单",
+    "deleteConfirm": "删除此菜单及其所有子菜单？",
+    "empty": "暂无菜单配置",
+    "selectParent": "选择上级菜单",
+    "selectIcon": "选择图标",
+    "nameRequired": "菜单名称不能为空",
+    "namePlaceholder": "菜单显示名称或国际化键",
+    "pathPlaceholder": "/example/path",
+    "componentPlaceholder": "pages/example/Page",
+    "permissionPlaceholder": "例如：scan:read"
   }
 }

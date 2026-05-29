@@ -102,3 +102,75 @@ export const apiKeysApi = {
     return response.data
   },
 }
+
+export interface Menu {
+  id: string
+  parent_id: string | null
+  name: string
+  path: string | null
+  component: string | null
+  icon: string | null
+  sort_order: number
+  permission: string | null
+  is_visible: boolean
+  is_active: boolean
+  created_at?: string
+  updated_at?: string
+  children?: Menu[]
+}
+
+export interface MenuCreate {
+  parent_id?: string | null
+  name: string
+  path?: string | null
+  component?: string | null
+  icon?: string | null
+  sort_order?: number
+  permission?: string | null
+  is_visible?: boolean
+  is_active?: boolean
+}
+
+export interface MenuUpdate {
+  parent_id?: string | null
+  name?: string
+  path?: string | null
+  component?: string | null
+  icon?: string | null
+  sort_order?: number
+  permission?: string | null
+  is_visible?: boolean
+  is_active?: boolean
+}
+
+export const menuApi = {
+  list: async () => {
+    const response = await api.get<Menu[]>('/menus')
+    return response.data
+  },
+  tree: async () => {
+    const response = await api.get<{ menus: Menu[]; total: number }>('/menus/tree')
+    return response.data
+  },
+  userTree: async () => {
+    const response = await api.get<{ menus: Menu[]; total: number }>('/menus/user')
+    return response.data
+  },
+  get: async (id: string) => {
+    const response = await api.get<Menu>(`/menus/${id}`)
+    return response.data
+  },
+  create: async (data: MenuCreate) => {
+    const response = await api.post<Menu>('/menus', data)
+    return response.data
+  },
+  update: async (id: string, data: MenuUpdate) => {
+    const response = await api.put<Menu>(`/menus/${id}`, data)
+    return response.data
+  },
+  delete: async (id: string) => {
+    const response = await api.delete<void>(`/menus/${id}`)
+    return response.data
+  },
+}
+

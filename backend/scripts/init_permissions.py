@@ -140,7 +140,7 @@ PERMISSION_FRONTEND_PAGES = {
     "vulnerability:update": ["/vuln-lab"],
     "settings:read": ["/settings", "/languages"],
     "settings:update": ["/settings"],
-    "settings:manage": ["/settings", "/languages", "/mcp", "/unmapped-resources"],
+    "settings:manage": ["/settings", "/languages", "/mcp", "/unmapped-resources", "/menus"],
     "user:create": ["/users"],
     "user:read": ["/users", "/profile"],
     "user:update": ["/users"],

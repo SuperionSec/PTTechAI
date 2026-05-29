@@ -69,6 +69,16 @@ async def startup_app(app: FastAPI) -> None:
         print(f"Permission init warning: {e}")
 
     try:
+        from backend.scripts.init_menus import init_menus
+        from backend.common.db.database import async_session_factory
+        async with async_session_factory() as db:
+            count = await init_menus(db)
+            if count > 0:
+                print(f"Menu initialization complete: {count} menus created")
+    except Exception as e:
+        print(f"Menu init warning: {e}")
+
+    try:
         config_path = Path(__file__).parent.parent / "config" / "config.json"
         if config_path.exists():
             with open(config_path) as f:

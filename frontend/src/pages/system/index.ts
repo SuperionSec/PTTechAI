@@ -1,5 +1,6 @@
 export { default as APIKeysPage } from './APIKeysPage'
 export { default as LanguagesPage } from './LanguagesPage'
+export { default as MenuManagementPage } from './MenuManagementPage'
 export { default as RoleManagementPage } from './RoleManagementPage'
 export { default as UnmappedResourcesPage } from './UnmappedResourcesPage'
 export { default as UserManagementPage } from './UserManagementPage'

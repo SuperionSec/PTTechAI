@@ -2243,5 +2243,33 @@
     "subtitle": "Audit discovered frontend pages and backend APIs that are not bound to explicit permissions so administrators can close access-rule gaps.",
     "title": "Access Coverage",
     "warning": "Resources listed here are using the server-side fallback policy until you bind them to explicit permissions."
+  },
+  "menuManagement": {
+    "title": "Menu Management",
+    "subtitle": "Configure sidebar navigation menus"
+  },
+  "menu": {
+    "name": "Name",
+    "path": "Path",
+    "icon": "Icon",
+    "permission": "Permission",
+    "sortOrder": "Sort",
+    "visible": "Visible",
+    "active": "Active",
+    "parent": "Parent Menu",
+    "component": "Component",
+    "rootMenu": "Root Menu",
+    "create": "Create Menu",
+    "edit": "Edit Menu",
+    "addChild": "Add Child",
+    "deleteConfirm": "Delete this menu and all children?",
+    "empty": "No menus configured",
+    "selectParent": "Select parent menu",
+    "selectIcon": "Select icon",
+    "nameRequired": "Menu name is required",
+    "namePlaceholder": "Menu display name or i18n key",
+    "pathPlaceholder": "/example/path",
+    "componentPlaceholder": "pages/example/Page",
+    "permissionPlaceholder": "e.g., scan:read"
   }
 }

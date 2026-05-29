@@ -70,6 +70,7 @@ const allNavGroups: NavGroup[] = [
       { path: '/languages', icon: TranslationOutlined, labelKey: 'languageManagement.title', requiredPermission: 'settings:read' },
       { path: '/users', icon: UsergroupAddOutlined, labelKey: 'usersManagement.title', requiredPermission: 'user:manage' },
       { path: '/roles', icon: UserSwitchOutlined, labelKey: 'roleManagement.title', requiredPermission: 'user:manage' },
+      { path: '/menus', icon: SettingOutlined, labelKey: 'menuManagement.title', requiredPermission: 'settings:manage' },
       { path: '/settings', icon: SettingOutlined, labelKey: 'sidebar.settings', requiredPermission: 'settings:read' },
     ],
   },
