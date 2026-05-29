@@ -28,7 +28,7 @@ class Target(Base):
     status: Mapped[str] = mapped_column(String(50), default="pending")  # pending, scanning, completed, failed
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     # Relationships
     scan: Mapped["Scan"] = relationship("Scan", back_populates="targets")

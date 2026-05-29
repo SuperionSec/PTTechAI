@@ -37,9 +37,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     """Create a JWT access token with JTI for revocation support"""
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = datetime.now(timezone.utc).replace(tzinfo=None) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     jti = str(uuid.uuid4())
     to_encode.update({"exp": expire, "type": "access", "jti": jti})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
@@ -50,9 +50,9 @@ def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None) 
     """Create a JWT refresh token with JTI for revocation support"""
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = datetime.now(timezone.utc).replace(tzinfo=None) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+        expire = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     jti = str(uuid.uuid4())
     to_encode.update({"exp": expire, "type": "refresh", "jti": jti})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
@@ -232,10 +232,10 @@ async def verify_api_key(db: AsyncSession, api_key: str) -> Optional[User]:
     for key in api_keys:
         if pwd_context.verify(api_key, key.key_hash):
             # Update last_used timestamp
-            key.last_used = datetime.now(timezone.utc)
+            key.last_used = datetime.now(timezone.utc).replace(tzinfo=None)
             await db.commit()
             # Check expiration
-            if key.expires_at and datetime.now(timezone.utc) > key.expires_at:
+            if key.expires_at and datetime.now(timezone.utc).replace(tzinfo=None) > key.expires_at:
                 return None
             return key.user
     return None

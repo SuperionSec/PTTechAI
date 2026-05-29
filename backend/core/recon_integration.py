@@ -74,7 +74,7 @@ class ReconIntegration:
 
         results = {
             "target": target,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             "depth": depth,
             "subdomains": [],
             "live_hosts": [],

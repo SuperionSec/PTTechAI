@@ -49,7 +49,7 @@ class Permission(Base):
     scope: Mapped[PermissionScope] = mapped_column(SQLEnum(PermissionScope), nullable=False)
     action: Mapped[PermissionAction] = mapped_column(SQLEnum(PermissionAction), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     # Relationships
     role_permissions: Mapped[List["RolePermission"]] = relationship("RolePermission", back_populates="permission", cascade="all, delete-orphan")
@@ -75,7 +75,7 @@ class RolePermission(Base):
     role: Mapped[str] = mapped_column(String(50), nullable=False, index=True)  # legacy role name
     role_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("roles.id"), nullable=True)
     permission_id: Mapped[str] = mapped_column(String(36), ForeignKey("permissions.id", ondelete="CASCADE"), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     # Relationships
     permission: Mapped["Permission"] = relationship("Permission", back_populates="role_permissions")
@@ -102,7 +102,7 @@ class ResourceMapping(Base):
     resource_path: Mapped[str] = mapped_column(String(255), nullable=False)  # '/scan/new' or 'POST /api/v1/scans'
     version: Mapped[int] = mapped_column(default=1)
     updated_by: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     # Relationships
     permission: Mapped["Permission"] = relationship("Permission", back_populates="resource_mappings")
@@ -129,7 +129,7 @@ class ResourceMappingHistory(Base):
     resource_path: Mapped[str] = mapped_column(String(255), nullable=False)
     action: Mapped[str] = mapped_column(String(10), nullable=False)  # 'added' | 'removed' | 'modified'
     changed_by: Mapped[str] = mapped_column(String(36), nullable=False)
-    changed_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    changed_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     def to_dict(self):
         return {

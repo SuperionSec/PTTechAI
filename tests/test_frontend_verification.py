@@ -340,10 +340,11 @@ class TestFrontendServices:
         assert "let refreshPromise: Promise<string> | null = null" in helper_content
         assert "if (!refreshPromise)" in helper_content
         assert "finally(() =>" in helper_content
-        assert "isAuthRefreshRequest" in auth_content
-        assert "!isAuthRefreshRequest(originalRequest.url)" in auth_content
-        assert "isAuthRefreshRequest(originalRequest?.url)" in auth_content
-        assert "refreshAccessToken()" in auth_content
+        # AuthContext no longer has global interceptors (v1 cleanup)
+        # Interceptors live in api.ts which uses isAuthRefreshRequest
+        assert "isAuthRefreshRequest" in api_content
+        assert "!isAuthRefreshRequest(originalRequest.url)" in api_content
+        assert "refreshAccessToken()" in api_content
         assert "refreshAccessToken()" in api_content
         assert "!isAuthRefreshRequest(originalRequest.url)" in api_content
         assert "axios.post(`${AUTH_URL}/refresh`" not in auth_content

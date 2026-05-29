@@ -43,7 +43,7 @@ async def list_sandboxes(current_user: User = Depends(get_current_user)):
         }
 
     sandboxes = pool.list_sandboxes()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     containers = []
     for info in sandboxes.values():

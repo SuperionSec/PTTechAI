@@ -128,7 +128,7 @@ class NotificationManager:
 
     def _build_discord_embed(self, event: NotificationEvent, data: Dict) -> Dict:
         """Build Discord embed object."""
-        ts = datetime.now(timezone.utc).isoformat()
+        ts = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
 
         if event == NotificationEvent.SCAN_STARTED:
             return {

@@ -45,7 +45,7 @@ class Task:
 
     def __post_init__(self):
         if not self.created_at:
-            self.created_at = datetime.now(timezone.utc).isoformat()
+            self.created_at = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
         if not self.updated_at:
             self.updated_at = self.created_at
         if self.tools_required is None:
@@ -80,7 +80,7 @@ class TaskLibrary:
         """Save tasks to library file"""
         data = {
             "version": "1.0",
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             "tasks": [asdict(task) for task in self.tasks.values()]
         }
         with open(self.library_path, 'w') as f:
@@ -1429,8 +1429,8 @@ Chain vulnerabilities for maximum impact. Document everything for blue team impr
     def create_task(self, task: Task) -> Task:
         """Create a new task"""
         if not task.id:
-            task.id = f"custom_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
-        task.created_at = datetime.now(timezone.utc).isoformat()
+            task.id = f"custom_{datetime.now(timezone.utc).replace(tzinfo=None).strftime('%Y%m%d_%H%M%S')}"
+        task.created_at = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
         task.updated_at = task.created_at
         self.tasks[task.id] = task
         self._save_library()
@@ -1444,7 +1444,7 @@ Chain vulnerabilities for maximum impact. Document everything for blue team impr
         for key, value in updates.items():
             if hasattr(task, key):
                 setattr(task, key, value)
-        task.updated_at = datetime.now(timezone.utc).isoformat()
+        task.updated_at = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
         self._save_library()
         return task
 

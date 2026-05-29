@@ -39,7 +39,7 @@ class FeedbackRecord:
 
     def __post_init__(self):
         if not self.timestamp:
-            self.timestamp = datetime.now(timezone.utc).isoformat()
+            self.timestamp = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
 
 
 @dataclass
@@ -57,7 +57,7 @@ class LearnedPattern:
 
     def __post_init__(self):
         if not self.last_updated:
-            self.last_updated = datetime.now(timezone.utc).isoformat()
+            self.last_updated = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
 
 
 class AdaptiveLearner:
@@ -96,7 +96,7 @@ class AdaptiveLearner:
             "metadata": {
                 "total_feedback": len(self._feedback),
                 "total_patterns": sum(len(p) for p in self._patterns.values()),
-                "last_updated": datetime.now(timezone.utc).isoformat(),
+                "last_updated": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             }
         }
         try:
@@ -188,7 +188,7 @@ class AdaptiveLearner:
 
         if existing:
             existing.feedback_count += 1
-            existing.last_updated = datetime.now(timezone.utc).isoformat()
+            existing.last_updated = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
 
             # Recalculate FP/TP ratio
             fb_for_pattern = [

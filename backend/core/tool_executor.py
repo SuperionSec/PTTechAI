@@ -274,7 +274,7 @@ class DockerToolExecutor:
                 command += f" {key} {value}"
 
         timeout = timeout or self.DEFAULT_TIMEOUT
-        started_at = datetime.now(timezone.utc)
+        started_at = datetime.now(timezone.utc).replace(tzinfo=None)
 
         result = ToolResult(
             tool=tool_name,
@@ -365,7 +365,7 @@ class DockerToolExecutor:
                     pass
                 self.active_containers.pop(container.id[:12], None)
 
-        completed_at = datetime.now(timezone.utc)
+        completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
         result.completed_at = completed_at.isoformat()
         result.duration_seconds = (completed_at - started_at).total_seconds()
 

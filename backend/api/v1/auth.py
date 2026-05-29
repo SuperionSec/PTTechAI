@@ -106,7 +106,7 @@ async def login(
         )
 
     # Update last login
-    user.last_login = datetime.now(timezone.utc)
+    user.last_login = datetime.now(timezone.utc).replace(tzinfo=None)
     await db.commit()
 
     # Revoke all existing tokens for this user (single sign-on: new login invalidates old tokens)
@@ -135,7 +135,7 @@ async def login(
         user_id=user.id,
         token_jti=access_payload.get("jti"),
         token_type="access",
-        expires_at=datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+        expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
         ip_address=client_host,
         user_agent=user_agent,
         device_info=device_info,
@@ -146,7 +146,7 @@ async def login(
         user_id=user.id,
         token_jti=refresh_payload.get("jti"),
         token_type="refresh",
-        expires_at=datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+        expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
         ip_address=client_host,
         user_agent=user_agent,
         device_info=device_info,
@@ -230,7 +230,7 @@ async def refresh_token(
         user_id=user.id,
         token_jti=access_payload.get("jti"),
         token_type="access",
-        expires_at=datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+        expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
         ip_address=client_host,
         user_agent=user_agent,
         device_info=device_info,
@@ -241,7 +241,7 @@ async def refresh_token(
         user_id=user.id,
         token_jti=refresh_payload.get("jti"),
         token_type="refresh",
-        expires_at=datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+        expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
         ip_address=client_host,
         user_agent=user_agent,
         device_info=device_info,

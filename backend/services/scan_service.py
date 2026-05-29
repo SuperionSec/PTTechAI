@@ -182,7 +182,7 @@ class ScanService:
 
             # Update status
             scan.status = "running"
-            scan.started_at = datetime.now(timezone.utc)
+            scan.started_at = datetime.now(timezone.utc).replace(tzinfo=None)
             scan.current_phase = "initializing"
             scan.progress = 2
             await self.db.commit()
@@ -706,7 +706,7 @@ class ScanService:
 
             # Phase 4: Complete
             scan.status = "completed"
-            scan.completed_at = datetime.now(timezone.utc)
+            scan.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
             scan.progress = 100
             scan.current_phase = "completed"
 
@@ -759,7 +759,7 @@ class ScanService:
                 if scan:
                     scan.status = "failed"
                     scan.error_message = str(e)
-                    scan.completed_at = datetime.now(timezone.utc)
+                    scan.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
                     await self.db.commit()
             except:
                 pass

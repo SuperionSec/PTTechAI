@@ -45,7 +45,7 @@ class AgentTask(Base):
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Metadata
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     # Relationships
     scan: Mapped["Scan"] = relationship("Scan", back_populates="agent_tasks")
@@ -76,12 +76,12 @@ class AgentTask(Base):
     def start(self):
         """Mark task as started"""
         self.status = "running"
-        self.started_at = datetime.now(timezone.utc)
+        self.started_at = datetime.now(timezone.utc).replace(tzinfo=None)
 
     def complete(self, items_processed: int = 0, items_found: int = 0, summary: str = None):
         """Mark task as completed"""
         self.status = "completed"
-        self.completed_at = datetime.now(timezone.utc)
+        self.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
         self.items_processed = items_processed
         self.items_found = items_found
         self.result_summary = summary
@@ -91,7 +91,7 @@ class AgentTask(Base):
     def fail(self, error: str):
         """Mark task as failed"""
         self.status = "failed"
-        self.completed_at = datetime.now(timezone.utc)
+        self.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
         self.error_message = error
         if self.started_at:
             self.duration_ms = int((self.completed_at - self.started_at).total_seconds() * 1000)

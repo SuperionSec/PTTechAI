@@ -144,7 +144,7 @@ class DynamicVulnerabilityEngine:
             "url": endpoint.url,
             "method": endpoint.method,
             "payload": payload,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
         }
 
         try:

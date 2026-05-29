@@ -37,7 +37,7 @@ class Endpoint(Base):
     interesting: Mapped[bool] = mapped_column(default=False)  # Marked as interesting for testing
 
     # Timestamps
-    discovered_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    discovered_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     # Relationships
     scan: Mapped["Scan"] = relationship("Scan", back_populates="endpoints")

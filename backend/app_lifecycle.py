@@ -23,12 +23,12 @@ async def execute_scheduled_scan(target: str, scan_type: str, agent_role: str | 
             config["llm_profile"] = llm_profile
 
         scan = Scan(
-            name=f"Scheduled Scan {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')}",
+            name=f"Scheduled Scan {datetime.now(timezone.utc).replace(tzinfo=None).strftime('%Y-%m-%d %H:%M')}",
             scan_type=scan_type,
             recon_enabled=True,
             config=config,
             status="running",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(timezone.utc).replace(tzinfo=None),
             current_phase="initializing",
             progress=0,
         )

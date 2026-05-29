@@ -37,7 +37,7 @@ class Scan(Base):
     custom_headers: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # Additional HTTP headers
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     duration: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Duration in seconds

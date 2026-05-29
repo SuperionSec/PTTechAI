@@ -30,7 +30,7 @@ class Report(Base):
     is_partial: Mapped[bool] = mapped_column(Boolean, default=False)  # True if generated from stopped/incomplete scan
 
     # Timestamps
-    generated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    generated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     # Relationships
     scan: Mapped["Scan"] = relationship("Scan", back_populates="reports")

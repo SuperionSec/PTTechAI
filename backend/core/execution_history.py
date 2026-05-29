@@ -56,7 +56,7 @@ class ExecutionHistory:
             self.history_file.write_text(json.dumps({
                 "attacks": self._attacks[-self.MAX_ATTACKS:],
                 "tech_success": self._tech_success,
-                "saved_at": datetime.now(timezone.utc).isoformat(),
+                "saved_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             }, indent=2, default=str))
             self._dirty = False
         except Exception as e:
@@ -80,7 +80,7 @@ class ExecutionHistory:
             "target_domain": domain,
             "success": success,
             "evidence_preview": (evidence or "")[:100],
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         })
 
         # Update aggregated tech_success counters

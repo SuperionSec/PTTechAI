@@ -48,7 +48,7 @@ async def update_token_last_used(db: AsyncSession, token_jti: str) -> bool:
     )
     token = result.scalar_one_or_none()
     if token:
-        token.last_used_at = datetime.now(timezone.utc)
+        token.last_used_at = datetime.now(timezone.utc).replace(tzinfo=None)
         await db.commit()
         return True
     return False
@@ -64,7 +64,7 @@ async def revoke_token(db: AsyncSession, token_jti: str) -> bool:
     token = result.scalar_one_or_none()
     if token:
         token.is_revoked = True
-        token.revoked_at = datetime.now(timezone.utc)
+        token.revoked_at = datetime.now(timezone.utc).replace(tzinfo=None)
         await db.commit()
         return True
     return False
@@ -77,7 +77,7 @@ async def revoke_all_user_tokens(db: AsyncSession, user_id: str, except_jti: Opt
             and_(
                 UserToken.user_id == user_id,
                 UserToken.is_revoked == False,
-                UserToken.expires_at > datetime.now(timezone.utc)
+                UserToken.expires_at > datetime.now(timezone.utc).replace(tzinfo=None)
             )
         )
     )
@@ -87,7 +87,7 @@ async def revoke_all_user_tokens(db: AsyncSession, user_id: str, except_jti: Opt
         if except_jti and token.token_jti == except_jti:
             continue
         token.is_revoked = True
-        token.revoked_at = datetime.now(timezone.utc)
+        token.revoked_at = datetime.now(timezone.utc).replace(tzinfo=None)
         revoked_count += 1
     if revoked_count > 0:
         await db.commit()
@@ -104,7 +104,7 @@ async def is_token_revoked(db: AsyncSession, token_jti: str) -> bool:
         return False  # Token not in DB, assume valid (backward compatible)
     if token.is_revoked:
         return True
-    if token.expires_at < datetime.now(timezone.utc):
+    if token.expires_at < datetime.now(timezone.utc).replace(tzinfo=None):
         return True  # Expired
     return False
 
@@ -116,7 +116,7 @@ async def get_user_tokens(db: AsyncSession, user_id: str) -> list:
             and_(
                 UserToken.user_id == user_id,
                 UserToken.is_revoked == False,
-                UserToken.expires_at > datetime.now(timezone.utc)
+                UserToken.expires_at > datetime.now(timezone.utc).replace(tzinfo=None)
             )
         ).order_by(UserToken.created_at.desc())
     )
@@ -128,7 +128,7 @@ async def cleanup_expired_tokens(db: AsyncSession) -> int:
     result = await db.execute(
         select(UserToken).where(
             and_(
-                UserToken.expires_at < datetime.now(timezone.utc),
+                UserToken.expires_at < datetime.now(timezone.utc).replace(tzinfo=None),
                 UserToken.is_revoked == True
             )
         )

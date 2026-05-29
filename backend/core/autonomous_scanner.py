@@ -233,7 +233,7 @@ class AutonomousScanner:
 
         results = {
             "target": target_url,
-            "started_at": datetime.now(timezone.utc).isoformat(),
+            "started_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             "endpoints": [],
             "vulnerabilities": [],
             "parameters_found": [],
@@ -321,7 +321,7 @@ class AutonomousScanner:
             for v in self.vulnerabilities
         ]
 
-        results["completed_at"] = datetime.now(timezone.utc).isoformat()
+        results["completed_at"] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
         results["summary"] = {
             "endpoints_tested": len(self.tested_urls),
             "vulnerabilities_found": len(self.vulnerabilities),
