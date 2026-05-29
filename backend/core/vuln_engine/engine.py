@@ -8,7 +8,7 @@ what vulnerabilities are extracted from the user's prompt.
 import asyncio
 import aiohttp
 from typing import List, Dict, Optional, Any
-from datetime import datetime
+from datetime import datetime, timezone
 
 from backend.core.vuln_engine.registry import VulnerabilityRegistry
 from backend.core.vuln_engine.payload_generator import PayloadGenerator
@@ -144,7 +144,7 @@ class DynamicVulnerabilityEngine:
             "url": endpoint.url,
             "method": endpoint.method,
             "payload": payload,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         try:

@@ -1,7 +1,7 @@
 """
 PTTechAI v3 - Endpoint Model
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 from sqlalchemy import String, Integer, DateTime, Text, JSON, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -37,7 +37,7 @@ class Endpoint(Base):
     interesting: Mapped[bool] = mapped_column(default=False)  # Marked as interesting for testing
 
     # Timestamps
-    discovered_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    discovered_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     scan: Mapped["Scan"] = relationship("Scan", back_populates="endpoints")

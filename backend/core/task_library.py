@@ -9,7 +9,7 @@ Manage reusable tasks and prompts for the AI Agent.
 
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
@@ -45,7 +45,7 @@ class Task:
 
     def __post_init__(self):
         if not self.created_at:
-            self.created_at = datetime.utcnow().isoformat()
+            self.created_at = datetime.now(timezone.utc).isoformat()
         if not self.updated_at:
             self.updated_at = self.created_at
         if self.tools_required is None:
@@ -80,7 +80,7 @@ class TaskLibrary:
         """Save tasks to library file"""
         data = {
             "version": "1.0",
-            "updated_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
             "tasks": [asdict(task) for task in self.tasks.values()]
         }
         with open(self.library_path, 'w') as f:
@@ -1429,8 +1429,8 @@ Chain vulnerabilities for maximum impact. Document everything for blue team impr
     def create_task(self, task: Task) -> Task:
         """Create a new task"""
         if not task.id:
-            task.id = f"custom_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
-        task.created_at = datetime.utcnow().isoformat()
+            task.id = f"custom_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
+        task.created_at = datetime.now(timezone.utc).isoformat()
         task.updated_at = task.created_at
         self.tasks[task.id] = task
         self._save_library()
@@ -1444,7 +1444,7 @@ Chain vulnerabilities for maximum impact. Document everything for blue team impr
         for key, value in updates.items():
             if hasattr(task, key):
                 setattr(task, key, value)
-        task.updated_at = datetime.utcnow().isoformat()
+        task.updated_at = datetime.now(timezone.utc).isoformat()
         self._save_library()
         return task
 

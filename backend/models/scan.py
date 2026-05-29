@@ -1,7 +1,7 @@
 """
 PTTechAI v3 - Scan Model
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 from sqlalchemy import String, Integer, Boolean, DateTime, Text, JSON, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -37,7 +37,7 @@ class Scan(Base):
     custom_headers: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # Additional HTTP headers
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     duration: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Duration in seconds

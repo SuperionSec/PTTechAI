@@ -1,7 +1,7 @@
 """
 PTTechAI v3 - Target Model
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy import String, Integer, DateTime, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -28,7 +28,7 @@ class Target(Base):
     status: Mapped[str] = mapped_column(String(50), default="pending")  # pending, scanning, completed, failed
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     scan: Mapped["Scan"] = relationship("Scan", back_populates="targets")

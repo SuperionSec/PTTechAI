@@ -5,7 +5,7 @@ Generates beautiful, comprehensive security assessment reports
 
 import json
 import base64
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
@@ -589,7 +589,7 @@ class HTMLReportGenerator:
         """Generate report header"""
         target = session_data.get('target', 'Unknown Target')
         name = session_data.get('name', 'Security Assessment')
-        created = session_data.get('created_at', datetime.utcnow().isoformat())
+        created = session_data.get('created_at', datetime.now(timezone.utc).isoformat())
 
         try:
             created_dt = datetime.fromisoformat(created.replace('Z', '+00:00'))
@@ -1120,7 +1120,7 @@ class HTMLReportGenerator:
             <div class="logo">⚡ PTTechAI</div>
             <p>AI-Powered Security Assessment Platform</p>
             <p style="margin-top: 16px; font-size: 0.75rem;">
-                Report generated on {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}
+                Report generated on {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}
             </p>
             <p style="margin-top: 8px; font-size: 0.75rem;">
                 This report contains confidential security information. Handle with care.

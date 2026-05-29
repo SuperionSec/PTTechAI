@@ -11,7 +11,7 @@ import asyncio
 import base64
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote
@@ -128,7 +128,7 @@ class NotificationManager:
 
     def _build_discord_embed(self, event: NotificationEvent, data: Dict) -> Dict:
         """Build Discord embed object."""
-        ts = datetime.utcnow().isoformat()
+        ts = datetime.now(timezone.utc).isoformat()
 
         if event == NotificationEvent.SCAN_STARTED:
             return {

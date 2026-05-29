@@ -4,7 +4,7 @@ PTTechAI v3 - Sandbox Container Management API
 Real-time monitoring and management of per-scan Kali Linux containers.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends
 
 from backend.core.auth import get_current_user
@@ -43,7 +43,7 @@ async def list_sandboxes(current_user: User = Depends(get_current_user)):
         }
 
     sandboxes = pool.list_sandboxes()
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     containers = []
     for info in sandboxes.values():

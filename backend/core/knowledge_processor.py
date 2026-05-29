@@ -10,7 +10,7 @@ import re
 import uuid
 import shutil
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Optional, Any
 import logging
 
@@ -115,7 +115,7 @@ class KnowledgeProcessor:
 
     def _save_index(self):
         """Persist index to disk."""
-        self._index["updated_at"] = datetime.utcnow().isoformat()
+        self._index["updated_at"] = datetime.now(timezone.utc).isoformat()
         INDEX_FILE.write_text(json.dumps(self._index, indent=2))
 
     async def process_upload(self, file_bytes: bytes, filename: str) -> dict:
@@ -150,7 +150,7 @@ class KnowledgeProcessor:
             "filename": filename,
             "title": analysis.get("title", filename),
             "source_type": ext.lstrip("."),
-            "uploaded_at": datetime.utcnow().isoformat(),
+            "uploaded_at": datetime.now(timezone.utc).isoformat(),
             "processed": True,
             "file_size_bytes": len(file_bytes),
             "summary": analysis.get("summary", ""),

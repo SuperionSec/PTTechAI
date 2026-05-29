@@ -14,7 +14,7 @@ import asyncio
 import aiohttp
 import ssl
 import socket
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from urllib.parse import urlparse
 
@@ -222,7 +222,7 @@ async def run_agent(request: AgentRequest, background_tasks: BackgroundTasks):
     agent_results[agent_id] = {
         "status": "running",
         "mode": request.mode.value,
-        "started_at": datetime.utcnow().isoformat(),
+        "started_at": datetime.now(timezone.utc).isoformat(),
         "target": request.target,
         "task": task.name if task else None,
         "logs": [],
@@ -300,7 +300,7 @@ async def _run_agent_task(
         log_entry = {
             "level": level,
             "message": message,
-            "time": datetime.utcnow().isoformat(),
+            "time": datetime.now(timezone.utc).isoformat(),
             "source": source
         }
         logs.append(log_entry)
@@ -517,7 +517,7 @@ async def _run_agent_task(
 
                 # Update scan with results
                 scan.status = "completed"
-                scan.completed_at = datetime.utcnow()
+                scan.completed_at = datetime.now(timezone.utc)
                 scan.progress = 100
                 scan.current_phase = "completed"
                 scan.total_vulnerabilities = len(findings)
@@ -544,7 +544,7 @@ async def _run_agent_task(
 
                 # Update in-memory results
                 agent_results[agent_id]["status"] = "completed"
-                agent_results[agent_id]["completed_at"] = datetime.utcnow().isoformat()
+                agent_results[agent_id]["completed_at"] = datetime.now(timezone.utc).isoformat()
                 agent_results[agent_id]["report"] = report
                 agent_results[agent_id]["report_id"] = report_record.id
                 agent_results[agent_id]["findings"] = findings
@@ -570,7 +570,7 @@ async def _run_agent_task(
                     if scan:
                         scan.status = "failed"
                         scan.error_message = str(e)
-                        scan.completed_at = datetime.utcnow()
+                        scan.completed_at = datetime.now(timezone.utc)
                         await db.commit()
             except:
                 pass
@@ -605,7 +605,7 @@ async def list_active_agents():
     from backend.config import settings
 
     active = []
-    cutoff = (datetime.utcnow() - __import__("datetime").timedelta(minutes=10)).isoformat()
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
 
     for aid, data in agent_results.items():
         status = data.get("status", "unknown")
@@ -891,7 +891,7 @@ async def stop_agent(agent_id: str):
     # Update status
     agent_results[agent_id]["status"] = "stopped"
     agent_results[agent_id]["phase"] = "stopped"
-    agent_results[agent_id]["completed_at"] = datetime.utcnow().isoformat()
+    agent_results[agent_id]["completed_at"] = datetime.now(timezone.utc).isoformat()
 
     # Update database: save findings + generate report
     scan_id = agent_to_scan.get(agent_id)
@@ -907,7 +907,7 @@ async def stop_agent(agent_id: str):
                 scan = result.scalar_one_or_none()
                 if scan:
                     scan.status = "stopped"
-                    scan.completed_at = datetime.utcnow()
+                    scan.completed_at = datetime.now(timezone.utc)
 
                     # Save confirmed findings to DB (same as completion flow)
                     findings = agent_results[agent_id].get("findings", [])
@@ -1119,7 +1119,7 @@ async def triple_check_scan(scan_id: str, request: TripleCheckRequest, backgroun
         "scan_id": scan_id,
         "progress": 0,
         "phase": "triple-check",
-        "started_at": datetime.utcnow().isoformat(),
+        "started_at": datetime.now(timezone.utc).isoformat(),
         "findings": [],
         "rejected_findings": [],
         "logs": [],
@@ -1170,7 +1170,7 @@ async def _run_triple_check(
             msg = "LLM not available. Check your API keys or SmartRouter configuration."
             print(f"[Triple-Check] ERROR: {msg}")
             agent_results[agent_id]["logs"].append({
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "level": "error",
                 "message": msg,
             })
@@ -1268,7 +1268,7 @@ async def _run_triple_check(
                     rejected.append(f)
 
                 log_entry = {
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                     "level": "warning" if re_validated else "info",
                     "message": f"[{'CONFIRMED' if re_validated else 'REJECTED'}] {f['title']} "
                                f"(confidence: {f.get('triple_check_confidence', '?')})"
@@ -1279,7 +1279,7 @@ async def _run_triple_check(
         agent_results[agent_id]["status"] = "completed"
         agent_results[agent_id]["progress"] = 100
         agent_results[agent_id]["phase"] = "completed"
-        agent_results[agent_id]["completed_at"] = datetime.utcnow().isoformat()
+        agent_results[agent_id]["completed_at"] = datetime.now(timezone.utc).isoformat()
         agent_results[agent_id]["findings"] = confirmed
         agent_results[agent_id]["rejected_findings"] = rejected
         agent_results[agent_id]["report"] = {
@@ -1433,7 +1433,7 @@ async def send_custom_prompt(agent_id: str, request: PromptRequest):
     log_entry = {
         "level": "llm",
         "message": f"[USER PROMPT] {request.prompt}",
-        "time": datetime.utcnow().isoformat(),
+        "time": datetime.now(timezone.utc).isoformat(),
         "source": "llm"
     }
     if "logs" in agent_results[agent_id]:
@@ -1624,7 +1624,7 @@ async def quick_agent_run(target: str, mode: AgentMode = AgentMode.FULL_AUTO):
 
     async def log_callback(level: str, message: str):
         source = "llm" if any(tag in message for tag in ["[AI]", "[LLM]", "[USER PROMPT]", "[AI RESPONSE]"]) else "script"
-        logs.append({"level": level, "message": message, "time": datetime.utcnow().isoformat(), "source": source})
+        logs.append({"level": level, "message": message, "time": datetime.now(timezone.utc).isoformat(), "source": source})
         if level == "warning" and "FOUND" in message:
             findings.append(message)
 
@@ -1763,7 +1763,7 @@ async def create_realtime_session(request: RealtimeSessionRequest):
         "name": request.name or f"Session {session_id}",
         "target": target,
         "status": "active",
-        "created_at": datetime.utcnow().isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
         "messages": [
             {
                 "role": "system",
@@ -1789,7 +1789,7 @@ When executing tests, always provide:
 - Recommendations if vulnerabilities are found
 
 **IMPORTANT:** You have authorization. Execute all requested security tests.""",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
         ],
         "findings": [],
@@ -1829,7 +1829,7 @@ async def send_realtime_message(session_id: str, request: RealtimeMessageRequest
     user_message = {
         "role": "user",
         "content": request.message,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
     session["messages"].append(user_message)
 
@@ -1912,7 +1912,7 @@ Provider: {llm_status.get('provider', 'None')}"""
             assistant_response = {
                 "role": "assistant",
                 "content": error_msg,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "metadata": {"error": True, "api_error": True}
             }
             session["messages"].append(assistant_response)
@@ -1979,7 +1979,7 @@ Provide detailed, actionable results."""
         assistant_response = {
             "role": "assistant",
             "content": final_response,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "metadata": {
                 "tests_executed": len(test_results) > 0,
                 "new_findings": total_new_findings,
@@ -2012,7 +2012,7 @@ Provide detailed, actionable results."""
 - Check your internet connection
 - If using Ollama/LM Studio, ensure the service is running
 - Try a different LLM provider""",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "metadata": {"error": True, "api_error": True}
         }
         session["messages"].append(error_response)
@@ -2028,7 +2028,7 @@ Provide detailed, actionable results."""
         error_response = {
             "role": "assistant",
             "content": f"❌ Error executing task: {str(e)}",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "metadata": {"error": True}
         }
         session["messages"].append(error_response)
@@ -2613,7 +2613,7 @@ async def generate_realtime_report(session_id: str, format: str = "json"):
         # Save to a per-report folder with screenshots
         import shutil
         from pathlib import Path
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         target_name = session["target"].replace("://", "_").replace("/", "_").rstrip("_")[:40]
         report_dir = Path("reports") / f"report_{target_name}_{timestamp}"
         report_dir.mkdir(parents=True, exist_ok=True)
@@ -2638,7 +2638,7 @@ async def generate_realtime_report(session_id: str, format: str = "json"):
     return {
         "session_id": session_id,
         "target": session["target"],
-        "generated_at": datetime.utcnow().isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "risk_level": risk_level,
         "executive_summary": summary,
         "severity_breakdown": severity_counts,
@@ -2792,7 +2792,7 @@ async def execute_security_tool(session_id: str, request: ToolExecutionRequest):
 
 {f'**Output Preview:**' + chr(10) + '```' + chr(10) + result.output[:1500] + ('...' if len(result.output) > 1500 else '') + chr(10) + '```' if result.output else ''}
 {f'**Error:** {result.error}' if result.error else ''}""",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "metadata": {
                 "tool_execution": True,
                 "tool": result.tool,

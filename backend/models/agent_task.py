@@ -3,7 +3,7 @@ PTTechAI v3 - Agent Task Model
 
 Tracks all agent activities during scans for dashboard visibility.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy import String, Integer, DateTime, Text, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -45,7 +45,7 @@ class AgentTask(Base):
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Metadata
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     scan: Mapped["Scan"] = relationship("Scan", back_populates="agent_tasks")
@@ -76,12 +76,12 @@ class AgentTask(Base):
     def start(self):
         """Mark task as started"""
         self.status = "running"
-        self.started_at = datetime.utcnow()
+        self.started_at = datetime.now(timezone.utc)
 
     def complete(self, items_processed: int = 0, items_found: int = 0, summary: str = None):
         """Mark task as completed"""
         self.status = "completed"
-        self.completed_at = datetime.utcnow()
+        self.completed_at = datetime.now(timezone.utc)
         self.items_processed = items_processed
         self.items_found = items_found
         self.result_summary = summary
@@ -91,7 +91,7 @@ class AgentTask(Base):
     def fail(self, error: str):
         """Mark task as failed"""
         self.status = "failed"
-        self.completed_at = datetime.utcnow()
+        self.completed_at = datetime.now(timezone.utc)
         self.error_message = error
         if self.started_at:
             self.duration_ms = int((self.completed_at - self.started_at).total_seconds() * 1000)

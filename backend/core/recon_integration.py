@@ -19,7 +19,7 @@ import os
 import sys
 import shutil
 from typing import Optional, Callable, List, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -74,7 +74,7 @@ class ReconIntegration:
 
         results = {
             "target": target,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "depth": depth,
             "subdomains": [],
             "live_hosts": [],

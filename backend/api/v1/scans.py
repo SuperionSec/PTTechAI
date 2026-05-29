@@ -2,7 +2,7 @@
 PTTechAI v3 - Scans API Endpoints
 """
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -180,7 +180,7 @@ async def start_scan(
 
     # Update scan status
     scan.status = "running"
-    scan.started_at = datetime.utcnow()
+    scan.started_at = datetime.now(timezone.utc)
     scan.current_phase = "initializing"
     scan.progress = 0
     await db.commit()
@@ -218,7 +218,7 @@ async def stop_scan(scan_id: str, db: AsyncSession = Depends(get_db), current_us
 
     # Update scan status
     scan.status = "stopped"
-    scan.completed_at = datetime.utcnow()
+    scan.completed_at = datetime.now(timezone.utc)
     scan.current_phase = "stopped"
 
     # Calculate duration

@@ -16,7 +16,7 @@ import os
 import hashlib
 from typing import Dict, List, Any, Optional, Callable, Tuple
 from dataclasses import dataclass, field, asdict
-from datetime import datetime
+from datetime import datetime, timezone
 from urllib.parse import urljoin, urlparse, parse_qs, urlencode
 from enum import Enum
 from pathlib import Path
@@ -3865,7 +3865,7 @@ NOT_VULNERABLE: <reason>"""
         return "\n".join(parts)
 
     async def _default_log(self, level: str, message: str):
-        timestamp = datetime.utcnow().strftime("%H:%M:%S")
+        timestamp = datetime.now(timezone.utc).strftime("%H:%M:%S")
         print(f"[{timestamp}] [{level.upper()}] {message}")
 
     async def __aenter__(self):
@@ -10443,7 +10443,7 @@ Respond with your execution plan in JSON format:
             "type": "analysis_only",
             "target": self.target,
             "mode": self.mode.value,
-            "scan_date": datetime.utcnow().isoformat(),
+            "scan_date": datetime.now(timezone.utc).isoformat(),
             "analysis": analysis,
             "recon": {
                 "endpoints": len(self.recon.endpoints),
@@ -10497,7 +10497,7 @@ Provide your analysis:"""
             "type": "reconnaissance",
             "target": self.target,
             "mode": self.mode.value,
-            "scan_date": datetime.utcnow().isoformat(),
+            "scan_date": datetime.now(timezone.utc).isoformat(),
             "summary": {
                 "target": self.target,
                 "endpoints_found": len(self.recon.endpoints),
@@ -10592,7 +10592,7 @@ Provide your analysis:"""
             "target": self.target,
             "mode": self.mode.value,
             "scan_id": self.scan_id,
-            "scan_date": datetime.utcnow().isoformat(),
+            "scan_date": datetime.now(timezone.utc).isoformat(),
             "duration": "N/A",
             "summary": {
                 "target": self.target,

@@ -12,7 +12,7 @@ real HTTP evidence, duplicates are suppressed, baselines are cached.
 import hashlib
 import re
 from dataclasses import dataclass, field, asdict
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any, Set
 from collections import OrderedDict
 from urllib.parse import urlparse
@@ -34,7 +34,7 @@ class TestedCombination:
 
     def __post_init__(self):
         if not self.tested_at:
-            self.tested_at = datetime.utcnow().isoformat()
+            self.tested_at = datetime.now(timezone.utc).isoformat()
 
 
 @dataclass
@@ -53,7 +53,7 @@ class EndpointFingerprint:
 
     def __post_init__(self):
         if not self.fingerprinted_at:
-            self.fingerprinted_at = datetime.utcnow().isoformat()
+            self.fingerprinted_at = datetime.now(timezone.utc).isoformat()
 
 
 @dataclass
@@ -68,7 +68,7 @@ class RejectedFinding:
 
     def __post_init__(self):
         if not self.rejected_at:
-            self.rejected_at = datetime.utcnow().isoformat()
+            self.rejected_at = datetime.now(timezone.utc).isoformat()
 
 
 # ---------------------------------------------------------------------------
@@ -188,7 +188,7 @@ class AgentMemory:
             "body_hash": hashlib.md5(body.encode("utf-8", errors="replace")).hexdigest(),
             "body": body[:5000],  # store first 5k chars for comparison
             "headers": response.get("headers", {}),
-            "fetched_at": datetime.utcnow().isoformat(),
+            "fetched_at": datetime.now(timezone.utc).isoformat(),
         }
         self._enforce_limit(self.baseline_responses, self.MAX_BASELINES)
 

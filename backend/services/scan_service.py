@@ -14,7 +14,7 @@ All tests are performed with explicit authorization from the target owner.
 The AI agent has full permission to test for vulnerabilities.
 """
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -182,7 +182,7 @@ class ScanService:
 
             # Update status
             scan.status = "running"
-            scan.started_at = datetime.utcnow()
+            scan.started_at = datetime.now(timezone.utc)
             scan.current_phase = "initializing"
             scan.progress = 2
             await self.db.commit()
@@ -706,7 +706,7 @@ class ScanService:
 
             # Phase 4: Complete
             scan.status = "completed"
-            scan.completed_at = datetime.utcnow()
+            scan.completed_at = datetime.now(timezone.utc)
             scan.progress = 100
             scan.current_phase = "completed"
 
@@ -759,7 +759,7 @@ class ScanService:
                 if scan:
                     scan.status = "failed"
                     scan.error_message = str(e)
-                    scan.completed_at = datetime.utcnow()
+                    scan.completed_at = datetime.now(timezone.utc)
                     await self.db.commit()
             except:
                 pass

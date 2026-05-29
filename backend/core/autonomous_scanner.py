@@ -23,7 +23,7 @@ import os
 from typing import Dict, List, Any, Optional, Callable
 from urllib.parse import urljoin, urlparse, parse_qs, urlencode
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 @dataclass
@@ -233,7 +233,7 @@ class AutonomousScanner:
 
         results = {
             "target": target_url,
-            "started_at": datetime.utcnow().isoformat(),
+            "started_at": datetime.now(timezone.utc).isoformat(),
             "endpoints": [],
             "vulnerabilities": [],
             "parameters_found": [],
@@ -321,7 +321,7 @@ class AutonomousScanner:
             for v in self.vulnerabilities
         ]
 
-        results["completed_at"] = datetime.utcnow().isoformat()
+        results["completed_at"] = datetime.now(timezone.utc).isoformat()
         results["summary"] = {
             "endpoints_tested": len(self.tested_urls),
             "vulnerabilities_found": len(self.vulnerabilities),

@@ -10,7 +10,7 @@ import os
 import re
 import tempfile
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
@@ -274,7 +274,7 @@ class DockerToolExecutor:
                 command += f" {key} {value}"
 
         timeout = timeout or self.DEFAULT_TIMEOUT
-        started_at = datetime.utcnow()
+        started_at = datetime.now(timezone.utc)
 
         result = ToolResult(
             tool=tool_name,
@@ -365,7 +365,7 @@ class DockerToolExecutor:
                     pass
                 self.active_containers.pop(container.id[:12], None)
 
-        completed_at = datetime.utcnow()
+        completed_at = datetime.now(timezone.utc)
         result.completed_at = completed_at.isoformat()
         result.duration_seconds = (completed_at - started_at).total_seconds()
 

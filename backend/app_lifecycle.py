@@ -1,6 +1,6 @@
 import asyncio
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -23,12 +23,12 @@ async def execute_scheduled_scan(target: str, scan_type: str, agent_role: str | 
             config["llm_profile"] = llm_profile
 
         scan = Scan(
-            name=f"Scheduled Scan {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}",
+            name=f"Scheduled Scan {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')}",
             scan_type=scan_type,
             recon_enabled=True,
             config=config,
             status="running",
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(timezone.utc),
             current_phase="initializing",
             progress=0,
         )

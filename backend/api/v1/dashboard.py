@@ -5,7 +5,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from backend.db.database import get_db
 from backend.models import Scan, Vulnerability, Endpoint, AgentTask, Report
@@ -73,7 +73,7 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db), current_user: 
     total_endpoints = endpoints_result.scalar() or 0
 
     # Recent activity (last 7 days)
-    week_ago = datetime.utcnow() - timedelta(days=7)
+    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
     recent_scans_query = select(func.count()).select_from(Scan).where(Scan.created_at >= week_ago)
     if current_user.role != Role.ADMIN:
         recent_scans_query = recent_scans_query.where(Scan.user_id == current_user.id)
@@ -190,7 +190,7 @@ async def get_scan_history(
     db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """Get scan history for charts"""
-    start_date = datetime.utcnow() - timedelta(days=days)
+    start_date = datetime.now(timezone.utc) - timedelta(days=days)
 
     # Get scans grouped by date (filtered by user)
     scans_query = select(Scan).where(Scan.created_at >= start_date).order_by(Scan.created_at)

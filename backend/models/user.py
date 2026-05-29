@@ -1,7 +1,7 @@
 """
 PTTechAI v3 - User and API Key Models
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 from enum import Enum
 from sqlalchemy import String, DateTime, Text, ForeignKey, Boolean
@@ -28,8 +28,8 @@ class RoleModel(Base):
     description: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     is_system: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # Relationships
     users: Mapped[List["User"]] = relationship("User", back_populates="role_ref", foreign_keys="User.role_id")
@@ -58,7 +58,7 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(50), default="user")  # legacy string field — preserved
     role_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("roles.id"), nullable=True)  # new FK
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_login: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     # Relationships
@@ -96,7 +96,7 @@ class APIKey(Base):
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
     name: Mapped[str] = mapped_column(String(255))
     key_hash: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_used: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
@@ -124,7 +124,7 @@ class UserToken(Base):
     token_jti: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     token_type: Mapped[str] = mapped_column(String(20), default="access")  # access or refresh
     is_revoked: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)

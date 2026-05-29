@@ -7,7 +7,7 @@ Test individual vuln types one at a time and track results.
 from typing import Optional, Dict, List
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import select, func, text
 
 from backend.core.autonomous_agent import AutonomousAgent, OperationMode
@@ -233,7 +233,7 @@ async def run_vuln_lab(request: VulnLabRunRequest, background_tasks: BackgroundT
             auth_value=request.auth_value,
             status="running",
             agent_id=agent_id,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(timezone.utc),
             notes=request.notes,
         )
         db.add(challenge)
@@ -256,7 +256,7 @@ async def run_vuln_lab(request: VulnLabRunRequest, background_tasks: BackgroundT
     agent_results[agent_id] = {
         "status": "running",
         "mode": "full_auto",
-        "started_at": datetime.utcnow().isoformat(),
+        "started_at": datetime.now(timezone.utc).isoformat(),
         "target": request.target_url,
         "task": f"VulnLab: {vuln_info.get('title', request.vuln_type)}",
         "logs": [],
@@ -306,7 +306,7 @@ async def _run_lab_test(
 
     async def log_callback(level: str, message: str):
         source = "llm" if any(tag in message for tag in ["[AI]", "[LLM]", "[USER PROMPT]", "[AI RESPONSE]"]) else "script"
-        entry = {"level": level, "message": message, "time": datetime.utcnow().isoformat(), "source": source}
+        entry = {"level": level, "message": message, "time": datetime.now(timezone.utc).isoformat(), "source": source}
         logs.append(entry)
         # Update local tracking
         if challenge_id in lab_results:
@@ -509,7 +509,7 @@ async def _run_lab_test(
 
                 # Update scan
                 scan.status = "completed"
-                scan.completed_at = datetime.utcnow()
+                scan.completed_at = datetime.now(timezone.utc)
                 scan.progress = 100
                 scan.current_phase = "completed"
                 scan.total_vulnerabilities = len(findings)
@@ -541,8 +541,8 @@ async def _run_lab_test(
                 if challenge:
                     challenge.status = "completed"
                     challenge.result = result_status
-                    challenge.completed_at = datetime.utcnow()
-                    challenge.duration = int((datetime.utcnow() - challenge.started_at).total_seconds()) if challenge.started_at else 0
+                    challenge.completed_at = datetime.now(timezone.utc)
+                    challenge.duration = int((datetime.now(timezone.utc) - challenge.started_at).total_seconds()) if challenge.started_at else 0
                     challenge.findings_count = len(findings)
                     challenge.critical_count = severity_counts["critical"]
                     challenge.high_count = severity_counts["high"]
@@ -565,7 +565,7 @@ async def _run_lab_test(
 
                 if agent_id in agent_results:
                     agent_results[agent_id]["status"] = "completed"
-                    agent_results[agent_id]["completed_at"] = datetime.utcnow().isoformat()
+                    agent_results[agent_id]["completed_at"] = datetime.now(timezone.utc).isoformat()
                     agent_results[agent_id]["report"] = report
                     agent_results[agent_id]["findings"] = findings
                     agent_results[agent_id]["progress"] = 100
@@ -597,7 +597,7 @@ async def _run_lab_test(
                 if challenge:
                     challenge.status = "failed"
                     challenge.result = "error"
-                    challenge.completed_at = datetime.utcnow()
+                    challenge.completed_at = datetime.now(timezone.utc)
                     challenge.notes = (challenge.notes or "") + f"\nError: {str(e)}"
                     challenge.logs = persisted_logs
                     await db.commit()
@@ -608,7 +608,7 @@ async def _run_lab_test(
                     if scan:
                         scan.status = "failed"
                         scan.error_message = str(e)
-                        scan.completed_at = datetime.utcnow()
+                        scan.completed_at = datetime.now(timezone.utc)
                         await db.commit()
         except:
             pass
@@ -814,7 +814,7 @@ async def stop_challenge(challenge_id: str, current_user: User = Depends(get_cur
             challenge = result.scalar_one_or_none()
             if challenge:
                 challenge.status = "stopped"
-                challenge.completed_at = datetime.utcnow()
+                challenge.completed_at = datetime.now(timezone.utc)
                 await db.commit()
     except:
         pass

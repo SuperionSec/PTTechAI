@@ -9,7 +9,7 @@ and to be more aggressive on confirmed true positive patterns.
 import json
 import re
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from dataclasses import dataclass, field, asdict
 from typing import List, Dict, Optional, Tuple
 from collections import defaultdict
@@ -39,7 +39,7 @@ class FeedbackRecord:
 
     def __post_init__(self):
         if not self.timestamp:
-            self.timestamp = datetime.utcnow().isoformat()
+            self.timestamp = datetime.now(timezone.utc).isoformat()
 
 
 @dataclass
@@ -57,7 +57,7 @@ class LearnedPattern:
 
     def __post_init__(self):
         if not self.last_updated:
-            self.last_updated = datetime.utcnow().isoformat()
+            self.last_updated = datetime.now(timezone.utc).isoformat()
 
 
 class AdaptiveLearner:
@@ -96,7 +96,7 @@ class AdaptiveLearner:
             "metadata": {
                 "total_feedback": len(self._feedback),
                 "total_patterns": sum(len(p) for p in self._patterns.values()),
-                "last_updated": datetime.utcnow().isoformat(),
+                "last_updated": datetime.now(timezone.utc).isoformat(),
             }
         }
         try:
@@ -188,7 +188,7 @@ class AdaptiveLearner:
 
         if existing:
             existing.feedback_count += 1
-            existing.last_updated = datetime.utcnow().isoformat()
+            existing.last_updated = datetime.now(timezone.utc).isoformat()
 
             # Recalculate FP/TP ratio
             fb_for_pattern = [

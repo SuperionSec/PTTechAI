@@ -8,7 +8,7 @@ Used by the AI to prioritize tests based on historical data.
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 from collections import defaultdict
@@ -56,7 +56,7 @@ class ExecutionHistory:
             self.history_file.write_text(json.dumps({
                 "attacks": self._attacks[-self.MAX_ATTACKS:],
                 "tech_success": self._tech_success,
-                "saved_at": datetime.utcnow().isoformat(),
+                "saved_at": datetime.now(timezone.utc).isoformat(),
             }, indent=2, default=str))
             self._dirty = False
         except Exception as e:
@@ -80,7 +80,7 @@ class ExecutionHistory:
             "target_domain": domain,
             "success": success,
             "evidence_preview": (evidence or "")[:100],
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         })
 
         # Update aggregated tech_success counters
