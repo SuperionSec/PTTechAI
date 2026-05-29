@@ -18,8 +18,8 @@ from backend.models.user import User, Role, APIKey
 from backend.core.token_manager import is_token_revoked, update_token_last_used
 
 
-# Use sha256_crypt for better compatibility and performance
-pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
+# Use bcrypt for password hashing (passlib auto-verifies old sha256_crypt hashes via deprecated="auto")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
 

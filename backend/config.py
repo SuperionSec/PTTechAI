@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     # Application
     APP_NAME: str = "PTTechAI渗透测试系统"
     APP_VERSION: str = "3.0.0"
-    DEBUG: bool = True
+    DEBUG: bool = False
 
     # Server
     HOST: str = "0.0.0.0"
@@ -90,7 +90,16 @@ class Settings(BaseSettings):
         extra = "ignore"
 
 
+_PLACEHOLDER_SECRET_KEY = "your-super-secret-key-change-this-in-production"
+
 settings = Settings()
+
+# Security: enforce SECRET_KEY in production
+if not settings.DEBUG and settings.SECRET_KEY == _PLACEHOLDER_SECRET_KEY:
+    raise ValueError(
+        "SECRET_KEY is using the default placeholder value. "
+        "Set a secure SECRET_KEY environment variable when DEBUG=False."
+    )
 
 # Ensure directories exist
 settings.DATA_DIR.mkdir(parents=True, exist_ok=True)
