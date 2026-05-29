@@ -3,7 +3,7 @@ PTTechAI v3 - Authentication Schemas
 """
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, ConfigDict, Field, EmailStr
 
 
 class UserLogin(BaseModel):
@@ -39,8 +39,7 @@ class UserResponse(BaseModel):
     created_at: Optional[str] = None
     last_login: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class Token(BaseModel):
@@ -82,5 +81,4 @@ class APIKeyResponse(BaseModel):
     last_used: Optional[datetime]
     expires_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
