@@ -38,6 +38,8 @@ services:
       - ../.env
     environment:
       # These override .env if set
+      - DEBUG=true
+      - SECRET_KEY=development-secret-key-change-in-production
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - DATABASE_URL=postgresql+asyncpg://pttechai:pttechai@postgres:5432/pttechai
