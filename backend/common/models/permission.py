@@ -9,8 +9,8 @@ from typing import Optional, List
 from sqlalchemy import Column, String, DateTime, ForeignKey, Table, Enum as SQLEnum, Boolean, JSON
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
-from backend.db.database import Base
-from backend.models.user import RoleModel
+from backend.common.db.database import Base
+from backend.common.models.user import RoleModel
 
 
 class PermissionScope(str, Enum):

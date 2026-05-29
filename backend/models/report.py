@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy import String, DateTime, Text, ForeignKey, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from backend.db.database import Base
+from backend.common.db.database import Base
 import uuid
 
 

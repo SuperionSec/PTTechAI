@@ -29,8 +29,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from backend.config import settings
-from backend.db.database import init_db, close_db, engine
+from backend.common.config import settings
+from backend.common.db.database import init_db, close_db, engine
 from backend.scripts.init_admin import init_admin
 from backend.scripts.init_permissions import init_permissions
 

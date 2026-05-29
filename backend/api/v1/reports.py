@@ -8,14 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pathlib import Path
 
-from backend.db.database import get_db
+from backend.common.db.database import get_db
 from backend.models import Scan, Report, Vulnerability, Endpoint
 from backend.schemas.report import ReportGenerate, ReportResponse, ReportListResponse
 from backend.core.report_engine.generator import ReportGenerator
-from backend.config import settings
-from backend.core.auth import get_current_user, get_current_user_optional
-from backend.models.user import User, Role
-from backend.core.permissions import require_report_read, require_report_create, require_report_delete
+from backend.common.config import settings
+from backend.common.infra.auth import get_current_user, get_current_user_optional
+from backend.common.models.user import User, Role
+from backend.common.infra.permissions import require_report_read, require_report_create, require_report_delete
 
 router = APIRouter()
 

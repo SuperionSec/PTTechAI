@@ -8,7 +8,7 @@ Provides SmartRouter singleton for LLM request routing.
 import logging
 from typing import Optional
 
-from backend.config import settings
+from backend.common.config import settings
 
 logger = logging.getLogger(__name__)
 

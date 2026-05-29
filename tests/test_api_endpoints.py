@@ -261,14 +261,14 @@ class TestRbacEndpoints:
                 f"RBAC permissions should require auth, got {response.status_code}"
 
     def test_rbac_me_response_model_has_frontend_contract_fields(self):
-        from backend.schemas.rbac import MenuItemOut, RbacMeOut
+        from backend.common.schemas.rbac import MenuItemOut, RbacMeOut
 
         assert set(RbacMeOut.model_fields) == {"role", "permissions", "frontend_pages", "backend_apis", "access", "menus"}
         assert set(MenuItemOut.model_fields) == {"path", "name", "permission", "icon", "locale", "access", "children"}
 
 
     def test_default_backend_resource_mappings_cover_registered_apis(self, app):
-        from backend.core.rbac.matcher import match_api_resource
+        from backend.common.infra.rbac.matcher import match_api_resource
         from backend.scripts.init_permissions import PERMISSION_BACKEND_APIS
         from backend.services.rbac_service import PUBLIC_API_RESOURCES, discover_api_routes
 
@@ -329,7 +329,7 @@ class TestRbacEndpoints:
         assert any(getattr(dependency, "__name__", "") == "_check_permission" for dependency in dependencies)
 
     def test_prompts_are_not_hard_coded_to_settings_manage(self):
-        resource_guard = (PROJECT_ROOT / "backend" / "core" / "resource_guard.py").read_text(encoding="utf-8")
+        resource_guard = (PROJECT_ROOT / "backend" / "common" / "infra" / "resource_guard.py").read_text(encoding="utf-8")
 
         assert 'path.startswith("/api/v1/prompts")' not in resource_guard
 

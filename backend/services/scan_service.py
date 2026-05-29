@@ -22,7 +22,7 @@ from sqlalchemy import select
 from backend.models import Scan, Target, Endpoint, Vulnerability, VulnerabilityTest, AgentTask
 from backend.api.websocket import manager as ws_manager
 from backend.api.v1.prompts import PRESET_PROMPTS
-from backend.db.database import async_session_factory
+from backend.common.db.database import async_session_factory
 from backend.core.recon_integration import ReconIntegration, check_tools_installed
 from backend.core.ai_prompt_processor import AIPromptProcessor, AIVulnerabilityAnalyzer
 from backend.core.vuln_engine.engine import DynamicVulnerabilityEngine

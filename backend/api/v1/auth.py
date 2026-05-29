@@ -6,9 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.db.database import get_db
-from backend.models.user import User, Role
-from backend.schemas.auth import (
+from backend.common.db.database import get_db
+from backend.common.models.user import User, Role
+from backend.common.schemas.auth import (
     UserLogin,
     UserCreate,
     UserUpdate,
@@ -17,7 +17,7 @@ from backend.schemas.auth import (
     RefreshTokenRequest,
     ChangePassword,
 )
-from backend.core.auth import (
+from backend.common.infra.auth import (
     authenticate_user,
     create_access_token,
     create_refresh_token,
@@ -28,9 +28,9 @@ from backend.core.auth import (
     decode_token,
     security,
 )
-from backend.core.token_manager import store_token, revoke_token, is_token_revoked
+from backend.common.infra.token_manager import store_token, revoke_token, is_token_revoked
 from backend.services.rbac_service import resolve_active_role
-from backend.config import settings
+from backend.common.config import settings
 
 
 def parse_device_info(user_agent: str | None) -> str | None:
@@ -110,7 +110,7 @@ async def login(
     await db.commit()
 
     # Revoke all existing tokens for this user (single sign-on: new login invalidates old tokens)
-    from backend.core.token_manager import revoke_all_user_tokens
+    from backend.common.infra.token_manager import revoke_all_user_tokens
     revoked_count = await revoke_all_user_tokens(db, user.id)
     if revoked_count > 0:
         print(f"[AUTH] Revoked {revoked_count} old tokens for user {user.email}")
@@ -314,7 +314,7 @@ async def change_password(
     db: AsyncSession = Depends(get_db)
 ):
     """Change current user password"""
-    from backend.core.auth import verify_password
+    from backend.common.infra.auth import verify_password
     
     # Verify current password
     if not verify_password(password_data.current_password, current_user.hashed_password):
@@ -337,7 +337,7 @@ async def logout(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     """Logout - revoke current access token"""
-    from backend.core.token_manager import revoke_token
+    from backend.common.infra.token_manager import revoke_token
     try:
         payload = decode_token(credentials.credentials)
         jti = payload.get("jti")
@@ -355,7 +355,7 @@ async def logout_all(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     """Logout from all other sessions except current one"""
-    from backend.core.token_manager import revoke_all_user_tokens
+    from backend.common.infra.token_manager import revoke_all_user_tokens
     try:
         payload = decode_token(credentials.credentials)
         jti = payload.get("jti")

@@ -14,10 +14,10 @@ sys.path.insert(0, str(project_root))
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy import text
 
-from backend.config import settings
-from backend.db.database import Base, get_db
-from backend.models.user import User, Role
-from backend.models.permission import Permission, RolePermission, ResourceMapping, PermissionScope, PermissionAction
+from backend.common.config import settings
+from backend.common.db.database import Base, get_db
+from backend.common.models.user import User, Role
+from backend.common.models.permission import Permission, RolePermission, ResourceMapping, PermissionScope, PermissionAction
 from backend.main import app
 
 

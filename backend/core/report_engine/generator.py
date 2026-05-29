@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import List, Tuple, Optional
 
 from backend.models import Scan, Vulnerability, Endpoint
-from backend.config import settings
+from backend.common.config import settings
 
 
 class ReportGenerator:

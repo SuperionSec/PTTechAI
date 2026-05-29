@@ -38,15 +38,15 @@ class TestBackendConfig:
     """Test backend/config.py consistency."""
 
     def test_app_name_contains_pttechai(self):
-        content = (PROJECT_ROOT / "backend" / "config.py").read_text(encoding="utf-8")
+        content = (PROJECT_ROOT / "backend" / "common" / "config.py").read_text(encoding="utf-8")
         assert "PTTechAI" in content, "config.py APP_NAME should contain 'PTTechAI'"
 
     def test_version_3_0_0(self):
-        content = (PROJECT_ROOT / "backend" / "config.py").read_text(encoding="utf-8")
+        content = (PROJECT_ROOT / "backend" / "common" / "config.py").read_text(encoding="utf-8")
         assert '"3.0.0"' in content or "'3.0.0'" in content, "config.py version should be '3.0.0'"
 
     def test_no_stale_brand_in_comments(self):
-        content = (PROJECT_ROOT / "backend" / "config.py").read_text(encoding="utf-8")
+        content = (PROJECT_ROOT / "backend" / "common" / "config.py").read_text(encoding="utf-8")
         assert "NeuroSploit" not in content, "config.py should not contain 'NeuroSploit'"
 
 
@@ -88,7 +88,7 @@ class TestPostgreSqlRuntimeConfig:
         checked_paths = [
             PROJECT_ROOT / "pyproject.toml",
             PROJECT_ROOT / "backend" / "requirements.txt",
-            PROJECT_ROOT / "backend" / "config.py",
+            PROJECT_ROOT / "backend" / "common" / "config.py",
             PROJECT_ROOT / "backend" / "tests" / "conftest.py",
             PROJECT_ROOT / "config" / "config.json",
             PROJECT_ROOT / "core" / "scheduler.py",
@@ -121,7 +121,7 @@ class TestRbacPolicyDefaults:
     """Test RBAC migration-safe policy defaults."""
 
     def test_unmapped_api_policy_defaults_to_allow(self):
-        from backend.core.rbac.policies import UnmappedApiPolicy, get_unmapped_api_policy
+        from backend.common.infra.rbac.policies import UnmappedApiPolicy, get_unmapped_api_policy
 
         original = os.environ.pop("RBAC_UNMAPPED_API_POLICY", None)
         try:
@@ -131,7 +131,7 @@ class TestRbacPolicyDefaults:
                 os.environ["RBAC_UNMAPPED_API_POLICY"] = original
 
     def test_invalid_unmapped_api_policy_falls_back_to_allow(self):
-        from backend.core.rbac.policies import UnmappedApiPolicy, get_unmapped_api_policy
+        from backend.common.infra.rbac.policies import UnmappedApiPolicy, get_unmapped_api_policy
 
         original = os.environ.get("RBAC_UNMAPPED_API_POLICY")
         os.environ["RBAC_UNMAPPED_API_POLICY"] = "invalid"
@@ -144,7 +144,7 @@ class TestRbacPolicyDefaults:
                 os.environ["RBAC_UNMAPPED_API_POLICY"] = original
 
     def test_role_permission_reset_defaults_to_disabled(self):
-        from backend.core.rbac.policies import should_reset_role_permissions_on_startup
+        from backend.common.infra.rbac.policies import should_reset_role_permissions_on_startup
 
         original = os.environ.pop("RBAC_RESET_ON_STARTUP", None)
         try:
@@ -297,5 +297,5 @@ class TestVersionConsistency:
             pkg = json.load(f)
         assert pkg["version"] == expected_version
 
-        config_py = (PROJECT_ROOT / "backend" / "config.py").read_text(encoding="utf-8")
+        config_py = (PROJECT_ROOT / "backend" / "common" / "config.py").read_text(encoding="utf-8")
         assert expected_version in config_py

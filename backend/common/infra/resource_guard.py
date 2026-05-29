@@ -7,13 +7,13 @@ from fastapi import HTTPException, Depends, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.models.permission import Permission, RolePermission, ResourceMapping
-from backend.models.user import User
-from backend.core.auth import get_current_user
-from backend.core.rbac.access_helpers import is_admin_role, role_permission_filter
-from backend.core.rbac.matcher import find_best_api_matches
-from backend.core.rbac.policies import UnmappedApiPolicy, get_unmapped_api_policy
-from backend.db.database import get_db
+from backend.common.models.permission import Permission, RolePermission, ResourceMapping
+from backend.common.models.user import User
+from backend.common.infra.auth import get_current_user
+from backend.common.infra.rbac.access_helpers import is_admin_role, role_permission_filter
+from backend.common.infra.rbac.matcher import find_best_api_matches
+from backend.common.infra.rbac.policies import UnmappedApiPolicy, get_unmapped_api_policy
+from backend.common.db.database import get_db
 
 
 class PermissionDenied(HTTPException):

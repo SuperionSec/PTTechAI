@@ -7,11 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from datetime import datetime, timedelta, timezone
 
-from backend.db.database import get_db
+from backend.common.db.database import get_db
 from backend.models import Scan, Vulnerability, Endpoint, AgentTask, Report
-from backend.core.auth import get_current_user
-from backend.models.user import User, Role
-from backend.core.permissions import require_dashboard_read
+from backend.common.infra.auth import get_current_user
+from backend.common.models.user import User, Role
+from backend.common.infra.permissions import require_dashboard_read
 
 router = APIRouter()
 

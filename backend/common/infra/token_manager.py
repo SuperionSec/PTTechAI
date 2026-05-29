@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 import uuid
 
-from backend.models.user import UserToken
+from backend.common.models.user import UserToken
 
 
 async def store_token(

@@ -20,13 +20,13 @@ from urllib.parse import urlparse
 
 from backend.core.autonomous_agent import AutonomousAgent, OperationMode
 from backend.core.task_library import get_task_library
-from backend.db.database import async_session_factory
+from backend.common.db.database import async_session_factory
 from backend.models import Scan, Target, Vulnerability, Endpoint, Report
 
-from backend.core.auth import get_current_user
-from backend.models.user import User
-from backend.core.resource_guard import require_api_permission
-from backend.core.permissions import require_agent_read, require_agent_execute
+from backend.common.infra.auth import get_current_user
+from backend.common.models.user import User
+from backend.common.infra.resource_guard import require_api_permission
+from backend.common.infra.permissions import require_agent_read, require_agent_execute
 from fastapi import Request
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
@@ -174,7 +174,7 @@ async def run_agent(request: AgentRequest, background_tasks: BackgroundTasks):
     3. Generate detailed findings with CVSS, descriptions, PoC
     4. Create professional reports
     """
-    from backend.config import settings
+    from backend.common.config import settings
 
     # Enforce concurrent scan limit
     active_count = sum(
@@ -602,7 +602,7 @@ async def list_md_agents():
 @router.get("/active", dependencies=[Depends(require_agent_read())])
 async def list_active_agents():
     """List all active and recently completed agent sessions."""
-    from backend.config import settings
+    from backend.common.config import settings
 
     active = []
     cutoff = (datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=10)).isoformat()
@@ -651,7 +651,7 @@ async def get_agent_history(
 ):
     """Get history of all past pentest scans from database."""
     from sqlalchemy import select, func, desc
-    from backend.db.database import async_session_factory
+    from backend.common.db.database import async_session_factory
 
     async with async_session_factory() as db:
         # Base query
@@ -1070,7 +1070,7 @@ async def triple_check_scan(scan_id: str, request: TripleCheckRequest, backgroun
     that were found, using a different AI model for validation.
     """
     from sqlalchemy import select
-    from backend.db.database import async_session_factory
+    from backend.common.db.database import async_session_factory
     import uuid
 
     # Load existing findings from DB

@@ -7,11 +7,11 @@ from fastapi import Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.db.database import get_db
-from backend.models.permission import Permission, RolePermission, PermissionScope, PermissionAction
-from backend.models.user import RoleModel, User
-from backend.core.auth import get_current_user
-from backend.core.rbac.access_helpers import is_admin_role, role_name_for, role_permission_filter
+from backend.common.db.database import get_db
+from backend.common.models.permission import Permission, RolePermission, PermissionScope, PermissionAction
+from backend.common.models.user import RoleModel, User
+from backend.common.infra.auth import get_current_user
+from backend.common.infra.rbac.access_helpers import is_admin_role, role_name_for, role_permission_filter
 
 
 class PermissionDenied(HTTPException):

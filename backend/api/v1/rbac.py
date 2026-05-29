@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, Request, status, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.core.auth import get_current_user, require_role
-from backend.core.resource_guard import resource_guard
-from backend.db.database import get_db
-from backend.models.user import Role, User
-from backend.schemas.rbac import (
+from backend.common.infra.auth import get_current_user, require_role
+from backend.common.infra.resource_guard import resource_guard
+from backend.common.db.database import get_db
+from backend.common.models.user import Role, User
+from backend.common.schemas.rbac import (
     PermissionOut,
     RbacMeOut,
     ResourceMappingCreate,

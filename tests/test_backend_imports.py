@@ -22,23 +22,23 @@ class TestBackendConfigImport:
     """Test core configuration module."""
 
     def test_import_settings(self):
-        from backend.config import settings
+        from backend.common.config import settings
         assert settings is not None
 
     def test_app_name_is_pttechai(self):
-        from backend.config import settings
+        from backend.common.config import settings
         assert "PTTechAI" in settings.APP_NAME, f"APP_NAME should contain 'PTTechAI', got: {settings.APP_NAME}"
 
     def test_app_version_format(self):
-        from backend.config import settings
+        from backend.common.config import settings
         assert settings.APP_VERSION == "3.0.0", f"APP_VERSION should be '3.0.0', got: {settings.APP_VERSION}"
 
     def test_database_url_not_empty(self):
-        from backend.config import settings
+        from backend.common.config import settings
         assert settings.DATABASE_URL, "DATABASE_URL should not be empty"
 
     def test_jwt_config_present(self):
-        from backend.config import settings
+        from backend.common.config import settings
         assert settings.SECRET_KEY, "SECRET_KEY should be set"
         assert settings.ALGORITHM == "HS256"
         assert settings.ACCESS_TOKEN_EXPIRE_MINUTES > 0
@@ -48,13 +48,13 @@ class TestBackendModelsImport:
     """Test that all ORM models can be imported."""
 
     @pytest.mark.parametrize("module_name", [
-        "backend.models.user",
+        "backend.common.models.user",
         "backend.models.scan",
         "backend.models.target",
         "backend.models.vulnerability",
         "backend.models.report",
         "backend.models.prompt",
-        "backend.models.permission",
+        "backend.common.models.permission",
         "backend.models.endpoint",
         "backend.models.agent_task",
         "backend.models.vuln_lab",
@@ -68,14 +68,14 @@ class TestBackendSchemasImport:
     """Test that all Pydantic schemas can be imported."""
 
     @pytest.mark.parametrize("module_name", [
-        "backend.schemas.auth",
+        "backend.common.schemas.auth",
         "backend.schemas.scan",
         "backend.schemas.target",
         "backend.schemas.vulnerability",
         "backend.schemas.report",
         "backend.schemas.prompt",
         "backend.schemas.agent_task",
-        "backend.schemas.rbac",
+        "backend.common.schemas.rbac",
     ])
     def test_schema_import(self, module_name):
         mod = importlib.import_module(module_name)
@@ -106,15 +106,15 @@ class TestBackendCoreModulesImport:
         "backend.core.param_analyzer",
         "backend.core.endpoint_classifier",
         "backend.core.execution_history",
-        "backend.core.notification_manager",
+        "backend.common.infra.notification_manager",
         "backend.core.checkpoint_manager",
-        "backend.core.token_manager",
+        "backend.common.infra.token_manager",
         "backend.core.methodology_loader",
         "backend.core.report_generator",
         "backend.core.exploit_generator",
         "backend.core.poc_generator",
         "backend.core.poc_validator",
-        "backend.core.rbac.access_helpers",
+        "backend.common.infra.rbac.access_helpers",
         "backend.api.v1.routes",
         "backend.app_lifecycle",
         "backend.services.rbac_service",

@@ -5,10 +5,10 @@ PTTechAI v0.1.0 - RBAC Permission System
 import uuid
 import asyncio
 from sqlalchemy import select, delete, update
-from backend.db.database import async_session_factory
-from backend.models.permission import Permission, RolePermission, ResourceMapping, PermissionScope, PermissionAction
-from backend.models.user import RoleModel, User
-from backend.core.rbac.policies import should_reset_role_permissions_on_startup
+from backend.common.db.database import async_session_factory
+from backend.common.models.permission import Permission, RolePermission, ResourceMapping, PermissionScope, PermissionAction
+from backend.common.models.user import RoleModel, User
+from backend.common.infra.rbac.policies import should_reset_role_permissions_on_startup
 
 
 # Default permission definitions

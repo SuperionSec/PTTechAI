@@ -10,12 +10,12 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from backend.db.database import get_db
-from backend.models.permission import Permission, RolePermission, ResourceMapping, PermissionScope, PermissionAction
-from backend.models.user import User, Role
-from backend.core.auth import get_current_user, require_role
-from backend.core.resource_guard import resource_guard
-from backend.schemas.rbac import RoleCreate as RbacRoleCreate
+from backend.common.db.database import get_db
+from backend.common.models.permission import Permission, RolePermission, ResourceMapping, PermissionScope, PermissionAction
+from backend.common.models.user import User, Role
+from backend.common.infra.auth import get_current_user, require_role
+from backend.common.infra.resource_guard import resource_guard
+from backend.common.schemas.rbac import RoleCreate as RbacRoleCreate
 from backend.services import rbac_service
 
 router = APIRouter()

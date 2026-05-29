@@ -6,17 +6,17 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
-from backend.db.database import get_db
+from backend.common.db.database import get_db
 from backend.models import AgentTask, Scan
-from backend.core.auth import get_current_user
-from backend.models.user import User, Role
+from backend.common.infra.auth import get_current_user
+from backend.common.models.user import User, Role
 from backend.schemas.agent_task import (
     AgentTaskResponse,
     AgentTaskListResponse,
     AgentTaskSummary
 )
-from backend.core.resource_guard import require_api_permission
-from backend.core.permissions import require_agent_read
+from backend.common.infra.resource_guard import require_api_permission
+from backend.common.infra.permissions import require_agent_read
 
 router = APIRouter()
 

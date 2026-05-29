@@ -9,9 +9,9 @@ from fastapi import APIRouter, HTTPException, Depends
 
 logger = logging.getLogger(__name__)
 
-from backend.core.auth import get_current_user
-from backend.models.user import User, Role
-from backend.core.resource_guard import require_api_permission
+from backend.common.infra.auth import get_current_user
+from backend.common.models.user import User, Role
+from backend.common.infra.resource_guard import require_api_permission
 from fastapi import HTTPException
 
 router = APIRouter()

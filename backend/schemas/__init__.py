@@ -34,7 +34,7 @@ from backend.schemas.agent_task import (
     AgentTaskListResponse,
     AgentTaskSummary
 )
-from backend.schemas.auth import (
+from backend.common.schemas.auth import (
     UserLogin,
     UserCreate,
     UserUpdate,

@@ -5,11 +5,11 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from backend.core.rbac.access_helpers import is_admin_role, role_name_for, role_permission_filter
-from backend.core.rbac.matcher import match_api_resource
-from backend.models.permission import Permission, ResourceMapping, RolePermission
-from backend.models.user import RoleModel, User
-from backend.schemas.rbac import MenuItemOut, PermissionOut, ResourceMappingOut, RoleCreate, RoleDetailOut, RoleSummaryOut, RoleUpdate, UnmappedResourceOut
+from backend.common.infra.rbac.access_helpers import is_admin_role, role_name_for, role_permission_filter
+from backend.common.infra.rbac.matcher import match_api_resource
+from backend.common.models.permission import Permission, ResourceMapping, RolePermission
+from backend.common.models.user import RoleModel, User
+from backend.common.schemas.rbac import MenuItemOut, PermissionOut, ResourceMappingOut, RoleCreate, RoleDetailOut, RoleSummaryOut, RoleUpdate, UnmappedResourceOut
 
 DEFAULT_ROLE_NAMES = {"admin", "user", "viewer", "service"}
 ROLE_NAME_PATTERN = re.compile(r"^[a-z0-9_]{1,50}$")

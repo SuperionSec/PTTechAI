@@ -192,7 +192,7 @@ class TestBrandRenameConsistency:
 
     def test_new_brand_present_in_key_files(self):
         key_files = [
-            "backend/config.py",
+            "backend/common/config.py",
             "pyproject.toml",
             "frontend/package.json",
             "README.md",

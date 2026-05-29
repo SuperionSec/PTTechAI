@@ -12,10 +12,10 @@ from sqlalchemy import select
 import uuid
 import secrets
 
-from backend.config import settings
-from backend.db.database import get_db, engine, ensure_rbac_role_schema
-from backend.models.user import User, Role, APIKey
-from backend.core.token_manager import is_token_revoked, update_token_last_used
+from backend.common.config import settings
+from backend.common.db.database import get_db, engine, ensure_rbac_role_schema
+from backend.common.models.user import User, Role, APIKey
+from backend.common.infra.token_manager import is_token_revoked, update_token_last_used
 
 
 # Use bcrypt for password hashing (passlib auto-verifies old sha256_crypt hashes via deprecated="auto")
@@ -73,7 +73,7 @@ def decode_token(token: str) -> dict:
 
 
 async def ensure_auth_schema_ready() -> None:
-    from backend.db import database
+    from backend.common.db import database
 
     if database._rbac_schema_checked:
         return

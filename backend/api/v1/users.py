@@ -7,11 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from backend.db.database import get_db
-from backend.models.user import User
-from backend.schemas.auth import UserResponse, UserUpdate, UserCreate
-from backend.core.auth import get_current_user, get_password_hash, get_user_by_id, get_user
-from backend.core.permissions import require_user_manage, require_user_read, require_user_create, require_user_update, require_user_delete
+from backend.common.db.database import get_db
+from backend.common.models.user import User
+from backend.common.schemas.auth import UserResponse, UserUpdate, UserCreate
+from backend.common.infra.auth import get_current_user, get_password_hash, get_user_by_id, get_user
+from backend.common.infra.permissions import require_user_manage, require_user_read, require_user_create, require_user_update, require_user_delete
 from backend.services.rbac_service import resolve_active_role
 
 router = APIRouter()

@@ -1,5 +1,5 @@
-from backend.models.permission import RolePermission
-from backend.models.user import Role, User
+from backend.common.models.permission import RolePermission
+from backend.common.models.user import Role, User
 
 
 def role_name_for(user_or_role) -> str:

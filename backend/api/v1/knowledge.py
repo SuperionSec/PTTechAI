@@ -8,9 +8,9 @@ from typing import Optional, List
 from fastapi import APIRouter, HTTPException, UploadFile, File, Query, Depends
 from pydantic import BaseModel
 
-from backend.core.auth import get_current_user
-from backend.models.user import User, Role
-from backend.core.resource_guard import require_api_permission
+from backend.common.infra.auth import get_current_user
+from backend.common.models.user import User, Role
+from backend.common.infra.resource_guard import require_api_permission
 from fastapi import HTTPException
 
 router = APIRouter()

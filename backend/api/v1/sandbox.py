@@ -7,9 +7,9 @@ Real-time monitoring and management of per-scan Kali Linux containers.
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends
 
-from backend.core.auth import get_current_user
-from backend.models.user import User, Role
-from backend.core.resource_guard import require_api_permission
+from backend.common.infra.auth import get_current_user
+from backend.common.models.user import User, Role
+from backend.common.infra.resource_guard import require_api_permission
 
 router = APIRouter()
 

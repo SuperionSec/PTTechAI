@@ -11,11 +11,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, text
 from pydantic import BaseModel
 
-from backend.db.database import get_db, engine
+from backend.common.db.database import get_db, engine
 from backend.models import Scan, Target, Endpoint, Vulnerability, VulnerabilityTest, Report, AgentTask, VulnLabChallenge, Prompt
-from backend.core.auth import get_current_user
-from backend.models.user import User, Role
-from backend.core.permissions import require_settings_read, require_settings_manage
+from backend.common.infra.auth import get_current_user
+from backend.common.models.user import User, Role
+from backend.common.infra.permissions import require_settings_read, require_settings_manage
 
 router = APIRouter()
 
@@ -403,7 +403,7 @@ async def update_settings(settings_data: SettingsUpdate, current_user: User = De
 
     # Reload notification config if any notification-related fields changed
     try:
-        from backend.core.notification_manager import notification_manager
+        from backend.common.infra.notification_manager import notification_manager
         notification_manager.reload_config()
     except ImportError:
         pass
@@ -415,7 +415,7 @@ async def update_settings(settings_data: SettingsUpdate, current_user: User = De
 async def test_notification_channel(channel: str, current_user: User = Depends(get_current_user)):
     """Send a test notification to a specific channel (discord, telegram, whatsapp)."""
     try:
-        from backend.core.notification_manager import notification_manager
+        from backend.common.infra.notification_manager import notification_manager
         result = await notification_manager.test_channel(channel)
         return result
     except ImportError:

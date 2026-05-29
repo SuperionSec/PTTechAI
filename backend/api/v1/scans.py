@@ -9,14 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from urllib.parse import urlparse
 
-from backend.db.database import get_db
+from backend.common.db.database import get_db
 from backend.models import Scan, Target, Endpoint, Vulnerability
-from backend.models.user import User, Role
+from backend.common.models.user import User, Role
 from backend.schemas.scan import ScanCreate, ScanUpdate, ScanResponse, ScanListResponse, ScanProgress
 from backend.services.scan_service import run_scan_task, skip_to_phase as _skip_to_phase, PHASE_ORDER
-from backend.core.auth import get_current_user
-from backend.core.permissions import require_permission, require_scan_read, require_scan_create, require_scan_update, require_scan_delete, require_scan_execute
-from backend.models.permission import PermissionAction, PermissionScope
+from backend.common.infra.auth import get_current_user
+from backend.common.infra.permissions import require_permission, require_scan_read, require_scan_create, require_scan_update, require_scan_delete, require_scan_execute
+from backend.common.models.permission import PermissionAction, PermissionScope
 
 router = APIRouter()
 

@@ -20,14 +20,14 @@ from backend.api.v1.permissions import (
     update_role_permissions as update_legacy_role_permissions,
 )
 from backend.api.v1.users import get_users
-from backend.config import settings
-from backend.core.permissions import PermissionChecker, get_role_permissions as get_legacy_role_permissions, has_permission
-from backend.core.resource_guard import resource_guard
-from backend.db.database import Base
+from backend.common.config import settings
+from backend.common.infra.permissions import PermissionChecker, get_role_permissions as get_legacy_role_permissions, has_permission
+from backend.common.infra.resource_guard import resource_guard
+from backend.common.db.database import Base
 import backend.models
-from backend.models.permission import Permission, PermissionAction, PermissionScope, ResourceMapping, RolePermission
-from backend.models.user import RoleModel, User
-from backend.schemas.rbac import RoleCreate, RoleUpdate
+from backend.common.models.permission import Permission, PermissionAction, PermissionScope, ResourceMapping, RolePermission
+from backend.common.models.user import RoleModel, User
+from backend.common.schemas.rbac import RoleCreate, RoleUpdate
 from backend.services.rbac_service import (
     _normalize_resource_mapping_input,
     _normalize_role_name,
@@ -173,8 +173,8 @@ def test_normalize_resource_mapping_input_rejects_invalid_values(resource_type, 
 
 
 def test_access_helper_role_name_and_admin_detection():
-    from backend.core.rbac.access_helpers import is_admin_role, role_name_for
-    from backend.models.user import Role
+    from backend.common.infra.rbac.access_helpers import is_admin_role, role_name_for
+    from backend.common.models.user import Role
 
     admin = User(id="admin-id", email="admin@example.com", hashed_password="hashed", role=Role.ADMIN, is_active=True)
     custom = User(id="custom-id", email="custom@example.com", hashed_password="hashed", role="auditor", is_active=True)
@@ -186,7 +186,7 @@ def test_access_helper_role_name_and_admin_detection():
 
 
 def test_access_helper_role_permission_filter_includes_role_id_fallback():
-    from backend.core.rbac.access_helpers import role_permission_filter
+    from backend.common.infra.rbac.access_helpers import role_permission_filter
 
     user = User(id="user-id", email="user@example.com", hashed_password="hashed", role="auditor", role_id="role-id", is_active=True)
     expression = str(role_permission_filter(user))
@@ -196,7 +196,7 @@ def test_access_helper_role_permission_filter_includes_role_id_fallback():
 
 
 def test_access_helper_role_permission_filter_uses_role_without_role_id():
-    from backend.core.rbac.access_helpers import role_permission_filter
+    from backend.common.infra.rbac.access_helpers import role_permission_filter
 
     user = User(id="user-id", email="user@example.com", hashed_password="hashed", role="auditor", is_active=True)
     expression = str(role_permission_filter(user))

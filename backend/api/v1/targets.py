@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from urllib.parse import urlparse
 import re
 
-from backend.db.database import get_db
+from backend.common.db.database import get_db
 from backend.schemas.target import TargetCreate, TargetBulkCreate, TargetValidation, TargetResponse
 
 router = APIRouter()

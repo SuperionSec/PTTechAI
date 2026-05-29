@@ -6,12 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from backend.db.database import get_db
+from backend.common.db.database import get_db
 from backend.models import Vulnerability
-from backend.core.auth import get_current_user
-from backend.models.user import User, Role
+from backend.common.infra.auth import get_current_user
+from backend.common.models.user import User, Role
 from backend.schemas.vulnerability import VulnerabilityResponse, VulnerabilityTypeInfo
-from backend.core.resource_guard import require_api_permission
+from backend.common.infra.resource_guard import require_api_permission
 
 router = APIRouter()
 

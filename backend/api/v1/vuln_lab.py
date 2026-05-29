@@ -12,7 +12,7 @@ from sqlalchemy import select, func, text
 
 from backend.core.autonomous_agent import AutonomousAgent, OperationMode
 from backend.core.vuln_engine.registry import VulnerabilityRegistry
-from backend.db.database import async_session_factory
+from backend.common.db.database import async_session_factory
 from backend.models import Scan, Target, Vulnerability, Endpoint, Report, VulnLabChallenge
 
 # Import agent.py's shared dicts so ScanDetailsPage can find our scans
@@ -20,9 +20,9 @@ from backend.api.v1.agent import (
     agent_results, agent_instances, agent_to_scan, scan_to_agent
 )
 
-from backend.core.auth import get_current_user
-from backend.models.user import User, Role
-from backend.core.resource_guard import require_api_permission
+from backend.common.infra.auth import get_current_user
+from backend.common.models.user import User, Role
+from backend.common.infra.resource_guard import require_api_permission
 from fastapi import HTTPException
 
 router = APIRouter()

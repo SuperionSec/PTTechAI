@@ -6,12 +6,12 @@ from urllib.parse import urlparse
 
 from fastapi import FastAPI
 
-from backend.config import settings
-from backend.db.database import close_db, init_db
+from backend.common.config import settings
+from backend.common.db.database import close_db, init_db
 
 
 async def execute_scheduled_scan(target: str, scan_type: str, agent_role: str | None, llm_profile: str | None) -> dict:
-    from backend.db.database import async_session_factory
+    from backend.common.db.database import async_session_factory
     from backend.models import Scan, Target
     from backend.services.scan_service import run_scan_task
 

@@ -6,9 +6,9 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from sqlalchemy import select
-from backend.db.database import async_session_factory
-from backend.models.user import User, Role, RoleModel
-from backend.core.auth import get_password_hash, verify_password
+from backend.common.db.database import async_session_factory
+from backend.common.models.user import User, Role, RoleModel
+from backend.common.infra.auth import get_password_hash, verify_password
 
 
 async def init_admin():

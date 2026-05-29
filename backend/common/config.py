@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     )
 
     # Paths
-    BASE_DIR: Path = Path(__file__).parent.parent
+    BASE_DIR: Path = Path(__file__).parent.parent.parent
     DATA_DIR: Path = BASE_DIR / "data"
     REPORTS_DIR: Path = DATA_DIR / "reports"
     SCANS_DIR: Path = DATA_DIR / "scans"

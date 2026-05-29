@@ -7,7 +7,7 @@ import json
 import asyncio
 
 try:
-    from backend.core.notification_manager import notification_manager, NotificationEvent
+    from backend.common.infra.notification_manager import notification_manager, NotificationEvent
     HAS_NOTIFICATIONS = True
 except ImportError:
     HAS_NOTIFICATIONS = False

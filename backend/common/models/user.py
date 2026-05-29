@@ -6,7 +6,7 @@ from typing import Optional, List
 from enum import Enum
 from sqlalchemy import String, DateTime, Text, ForeignKey, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from backend.db.database import Base
+from backend.common.db.database import Base
 import uuid
 
 

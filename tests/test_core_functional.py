@@ -186,7 +186,7 @@ class TestDatabaseModule:
     """Test database module."""
 
     def test_database_import(self):
-        from backend.db.database import init_db, close_db
+        from backend.common.db.database import init_db, close_db
         assert callable(init_db)
         assert callable(close_db)
 
