@@ -15,7 +15,7 @@ import logging
 import time
 from typing import Any, Dict, List, Optional
 
-from core.agent_base import SpecialistAgent, AgentResult
+from backend.core.agent_base import SpecialistAgent, AgentResult
 
 logger = logging.getLogger(__name__)
 

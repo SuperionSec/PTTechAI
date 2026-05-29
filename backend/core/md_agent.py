@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from core.agent_base import SpecialistAgent, AgentResult
+from backend.core.agent_base import SpecialistAgent, AgentResult
 
 logger = logging.getLogger(__name__)
 
