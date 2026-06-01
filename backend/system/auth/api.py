@@ -292,6 +292,7 @@ async def get_me(current_user: User = Depends(get_current_user)):
 @router.put("/me", response_model=UserResponse)
 async def update_me(
     user_data: UserUpdate,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -313,6 +314,15 @@ async def update_me(
     if user_data.password is not None:
         current_user.hashed_password = get_password_hash(user_data.password)
     
+    await record_audit_log(
+        db,
+        user=current_user,
+        action="profile.update",
+        resource_type="profile",
+        resource_id=current_user.id,
+        details={"updated_fields": sorted(user_data.model_dump(exclude_unset=True).keys())},
+        request=request,
+    )
     await db.commit()
     await db.refresh(current_user)
 
@@ -330,6 +340,7 @@ async def update_me(
 @router.put("/change-password")
 async def change_password(
     password_data: ChangePassword,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -345,6 +356,14 @@ async def change_password(
     
     # Update to new password
     current_user.hashed_password = get_password_hash(password_data.new_password)
+    await record_audit_log(
+        db,
+        user=current_user,
+        action="profile.change_password",
+        resource_type="profile",
+        resource_id=current_user.id,
+        request=request,
+    )
     await db.commit()
     
     return {"message": "Password changed successfully"}
@@ -352,6 +371,7 @@ async def change_password(
 
 @router.post("/logout")
 async def logout(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -363,6 +383,15 @@ async def logout(
         jti = payload.get("jti")
         if jti:
             await revoke_token(db, jti)
+        await record_audit_log(
+            db,
+            user=current_user,
+            action="auth.logout",
+            resource_type="auth",
+            details={"jti": jti},
+            request=request,
+        )
+        await db.commit()
     except Exception:
         pass
     return {"message": "Logged out successfully"}

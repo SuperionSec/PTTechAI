@@ -3,7 +3,7 @@ PTTechAI v3 - User Management API Routes (Admin Only)
 """
 from typing import List, Optional
 from pydantic import BaseModel
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -13,6 +13,7 @@ from backend.common.schemas.auth import UserResponse, UserUpdate, UserCreate
 from backend.common.infra.auth import get_current_user, get_password_hash, get_user_by_id, get_user
 from backend.common.infra.permissions import require_user_manage, require_user_read, require_user_create, require_user_update, require_user_delete
 from backend.system.rbac.service import resolve_active_role
+from backend.system.audit.service import record_audit_log
 
 router = APIRouter()
 
@@ -24,6 +25,7 @@ class ResetPasswordRequest(BaseModel):
 @router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def create_user(
     user_data: UserCreate,
+    request: Request,
     current_user: User = Depends(require_user_create()),
     db: AsyncSession = Depends(get_db)
 ):
@@ -46,6 +48,16 @@ async def create_user(
         is_active=True,
     )
     db.add(db_user)
+    await db.flush()
+    await record_audit_log(
+        db,
+        user=current_user,
+        action="user.create",
+        resource_type="user",
+        resource_id=db_user.id,
+        details={"email": db_user.email, "role": db_user.role},
+        request=request,
+    )
     await db.commit()
     await db.refresh(db_user)
 
@@ -141,6 +153,7 @@ async def get_user_by_id_route(
 async def update_user(
     user_id: str,
     user_data: UserUpdate,
+    request: Request,
     current_user: User = Depends(require_user_update()),
     db: AsyncSession = Depends(get_db)
 ):
@@ -176,6 +189,16 @@ async def update_user(
         user.role = role_model.name
         user.role_id = role_model.id
 
+    updated_fields = sorted(user_data.model_dump(exclude_unset=True).keys())
+    await record_audit_log(
+        db,
+        user=current_user,
+        action="user.update",
+        resource_type="user",
+        resource_id=user.id,
+        details={"updated_fields": updated_fields, "email": user.email},
+        request=request,
+    )
     await db.commit()
     await db.refresh(user)
 
@@ -193,6 +216,7 @@ async def update_user(
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: str,
+    request: Request,
     current_user: User = Depends(require_user_delete()),
     db: AsyncSession = Depends(get_db)
 ):
@@ -211,6 +235,15 @@ async def delete_user(
             detail="User not found"
         )
     
+    await record_audit_log(
+        db,
+        user=current_user,
+        action="user.delete",
+        resource_type="user",
+        resource_id=user.id,
+        details={"email": user.email},
+        request=request,
+    )
     await db.delete(user)
     await db.commit()
     
@@ -220,12 +253,13 @@ async def delete_user(
 @router.post("/{user_id}/reset-password")
 async def reset_user_password(
     user_id: str,
-    request: ResetPasswordRequest,
+    request: Request,
+    body: ResetPasswordRequest,
     current_user: User = Depends(require_user_manage()),
     db: AsyncSession = Depends(get_db)
 ):
     """Reset user password (Admin only)"""
-    if len(request.new_password) < 6:
+    if len(body.new_password) < 6:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Password must be at least 6 characters"
@@ -238,7 +272,16 @@ async def reset_user_password(
             detail="User not found"
         )
     
-    user.hashed_password = get_password_hash(request.new_password)
+    user.hashed_password = get_password_hash(body.new_password)
+    await record_audit_log(
+        db,
+        user=current_user,
+        action="user.reset_password",
+        resource_type="user",
+        resource_id=user.id,
+        details={"email": user.email},
+        request=request,
+    )
     await db.commit()
     
     return {"message": "Password reset successfully"}
