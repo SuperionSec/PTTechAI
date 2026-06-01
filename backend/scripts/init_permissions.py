@@ -204,6 +204,8 @@ PERMISSION_BACKEND_APIS = {
         "POST /api/v1/menus", "POST /api/v1/menus/*",
         "PUT /api/v1/menus/*",
         "DELETE /api/v1/menus/*",
+        "GET /api/v1/audit", "GET /api/v1/audit/*",
+        "GET /api/v1/monitor", "GET /api/v1/monitor/*",
         "POST /api/v1/settings/notifications/test/*",
         "POST /api/v1/settings/clear-database",
         "GET /api/v1/settings/models/*",

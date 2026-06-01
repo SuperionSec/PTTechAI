@@ -28,6 +28,8 @@ from backend.system.rbac import permissions_api as permissions
 from backend.system.rbac import rbac_api as rbac
 from backend.system.system import api as system
 from backend.system.menu import api as menu
+from backend.system.audit import api as audit
+from backend.system.monitor import api as monitor
 
 
 @dataclass(frozen=True)
@@ -44,6 +46,8 @@ SYSTEM_ROUTERS = [
     RouterSpec(system.router, "/api/v1/system", ["System Management"]),
     RouterSpec(rbac.router, "/api/v1/rbac", ["RBAC"]),
     RouterSpec(menu.router, "/api/v1/menus", ["Menu Management"]),
+    RouterSpec(audit.router, "/api/v1/audit", ["Audit Logs"]),
+    RouterSpec(monitor.router, "/api/v1/monitor", ["System Monitor"]),
 ]
 
 PENTEST_ROUTERS = [

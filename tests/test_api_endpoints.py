@@ -80,7 +80,7 @@ class TestRouterRegistration:
         system_prefixes = {spec.prefix for spec in SYSTEM_ROUTERS}
         pentest_prefixes = {spec.prefix for spec in PENTEST_ROUTERS}
 
-        assert system_prefixes == {"/api/v1/auth", "/api/v1/users", "/api/v1/permissions", "/api/v1/system", "/api/v1/rbac", "/api/v1/menus"}
+        assert system_prefixes == {"/api/v1/auth", "/api/v1/users", "/api/v1/permissions", "/api/v1/system", "/api/v1/rbac", "/api/v1/menus", "/api/v1/audit", "/api/v1/monitor"}
         assert "/api/v1/settings" in pentest_prefixes
         assert "/api/v1/scheduler" in pentest_prefixes
         assert "/api/v1/knowledge" in pentest_prefixes

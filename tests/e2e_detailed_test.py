@@ -9,6 +9,7 @@ import time
 import sys
 
 BASE_URL = "http://localhost:8000"
+__test__ = False
 
 class E2ETestRunner:
     def __init__(self):
@@ -383,15 +384,27 @@ class E2ETestRunner:
         resp = self.make_request('GET', '/api/v1/terminal/status', token=self.admin_token)
         self.log_test("Get terminal status", resp and resp.status_code == 200)
 
-        # Test 6.8: Get sandbox list
+        # Test 6.8: Get audit logs
+        resp = self.make_request('GET', '/api/v1/audit', token=self.admin_token)
+        self.log_test("Get audit logs", resp and resp.status_code == 200)
+
+        # Test 6.9: Get monitor health
+        resp = self.make_request('GET', '/api/v1/monitor/health', token=self.admin_token)
+        self.log_test("Get monitor health", resp and resp.status_code == 200)
+
+        # Test 6.10: Get database monitor
+        resp = self.make_request('GET', '/api/v1/monitor/database', token=self.admin_token)
+        self.log_test("Get database monitor", resp and resp.status_code == 200)
+
+        # Test 6.11: Get sandbox list
         resp = self.make_request('GET', '/api/v1/sandbox/', token=self.admin_token)
         self.log_test("Get sandbox list", resp and resp.status_code in [200, 404])
 
-        # Test 6.9: Get API docs
+        # Test 6.12: Get API docs
         resp = self.make_request('GET', '/api/docs', token=None)
         self.log_test("Get API docs", resp and resp.status_code == 200)
 
-        # Test 6.10: Get OpenAPI spec
+        # Test 6.13: Get OpenAPI spec
         resp = self.make_request('GET', '/openapi.json', token=None)
         self.log_test("Get OpenAPI spec", resp and resp.status_code == 200)
 

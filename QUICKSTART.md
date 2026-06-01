@@ -103,7 +103,35 @@ uvicorn backend.main:app --host 0.0.0.0 --port 8000
 
 Open: **http://localhost:8000**
 
-### Option C: Quick Start Script
+### Option C: Docker Compose (recommended for full stack)
+
+```bash
+# Build backend + frontend images from the project root context
+cd deploy
+docker compose -p pttechai build backend frontend
+
+# Start PostgreSQL, backend, and frontend as one pttechai stack
+docker compose -p pttechai up -d
+
+# Check status
+docker compose -p pttechai ps
+```
+
+Open:
+- Frontend: **http://localhost:3000**
+- Backend API: **http://localhost:8000**
+- API Docs: **http://localhost:8000/api/docs**
+
+Default local credentials:
+
+```text
+Email: admin@bctech.ai
+Password: admin123
+```
+
+> For production, set a secure `SECRET_KEY` in `.env` and set `DEBUG=false`.
+
+### Option D: Quick Start Script
 
 ```bash
 ./start.sh

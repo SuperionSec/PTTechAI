@@ -9,6 +9,7 @@ import sys
 import time
 
 BASE_URL = "http://localhost:8000"
+__test__ = False
 
 def test_endpoint(name, method, url, expected_status=None, data=None, headers=None, json_data=None):
     """Test a single endpoint and return result"""
