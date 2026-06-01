@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { PageContainer } from '@ant-design/pro-components'
 import {
-  App as AntApp,
   Button,
   Card,
   Empty,
@@ -17,7 +16,6 @@ import {
   Switch,
   Table,
   Tag,
-  Tree,
   Typography,
   message,
 } from 'antd'
@@ -60,23 +58,16 @@ const ICON_OPTIONS = [
 export default function MenuManagementPage() {
   const { t } = useTranslation()
   const [menus, setMenus] = useState<Menu[]>([])
-  const [flatMenus, setFlatMenus] = useState<Menu[]>([])
   const [loading, setLoading] = useState(false)
   const [modalVisible, setModalVisible] = useState(false)
   const [editingMenu, setEditingMenu] = useState<Menu | null>(null)
   const [form] = Form.useForm<MenuFormValues>()
-  const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([])
 
   const fetchMenus = useCallback(async () => {
     setLoading(true)
     try {
       const data = await menuApi.tree()
       setMenus(data.menus)
-      // Also fetch flat list for parent selection
-      const flatData = await menuApi.list()
-      setFlatMenus(flatData)
-      // Auto-expand all
-      setExpandedKeys(data.menus.map(m => m.id))
     } catch (err: any) {
       message.error(err?.response?.data?.detail || 'Failed to fetch menus')
     } finally {
@@ -139,10 +130,10 @@ export default function MenuManagementPage() {
       }
 
       if (editingMenu) {
-        await menuApi.update(editingMenu.id, data)
+        await menuApi.update(editingMenu.id, data as MenuUpdate)
         message.success('Menu updated')
       } else {
-        await menuApi.create(data)
+        await menuApi.create(data as MenuCreate)
         message.success('Menu created')
       }
       setModalVisible(false)
