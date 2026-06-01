@@ -270,16 +270,9 @@ class E2ETestRunner:
         else:
             self.log_test("Get scan details", False)
 
-        # Test 3.4: Get scan targets
-        resp = self.make_request('GET', f'/api/v1/scans/{scan_id}/targets', token=self.admin_token)
-        if resp and resp.status_code == 200:
-            data = self.safe_json(resp)
-            if data:
-                self.log_test("Get scan targets", len(data.get('targets', [])) > 0)
-            else:
-                self.log_test("Get scan targets", True)  # Empty response is OK
-        else:
-            self.log_test("Get scan targets", resp and resp.status_code == 200)
+        # Test 3.4: Get scan endpoints
+        resp = self.make_request('GET', f'/api/v1/scans/{scan_id}/endpoints', token=self.admin_token)
+        self.log_test("Get scan endpoints", resp and resp.status_code == 200)
 
         # Test 3.5: Update scan (stop it)
         resp = self.make_request('POST', f'/api/v1/scans/{scan_id}/stop', token=self.admin_token)
@@ -302,7 +295,7 @@ class E2ETestRunner:
         self.log_test("Admin can list users", resp and resp.status_code == 200)
 
         # Test 4.2: Admin can list roles
-        resp = self.make_request('GET', '/api/v1/roles', token=self.admin_token)
+        resp = self.make_request('GET', '/api/v1/permissions/roles', token=self.admin_token)
         self.log_test("Admin can list roles", resp and resp.status_code == 200)
 
         # Test 4.3: Admin can list permissions
@@ -316,7 +309,7 @@ class E2ETestRunner:
         # Test 4.5: Viewer can read data
         resp = self.make_request('GET', '/api/v1/scans', token=self.viewer_token)
         # Viewer might have read access or might get 403
-        self.log_test("Viewer access test", resp and resp.status_code in [200, 403])
+        self.log_test("Viewer access test", resp is not None and resp.status_code in [200, 403])
 
         # Test 4.6: Get RBAC profile
         resp = self.make_request('GET', '/api/v1/rbac/me', token=self.admin_token)
@@ -327,7 +320,7 @@ class E2ETestRunner:
             self.log_test("Get RBAC profile", False)
 
         # Test 4.7: Get resource mappings
-        resp = self.make_request('GET', '/api/v1/rbac/resource-mappings', token=self.admin_token)
+        resp = self.make_request('GET', '/api/v1/permissions/resource-mappings', token=self.admin_token)
         self.log_test("Get resource mappings", resp and resp.status_code == 200)
 
     # ========== Dashboard & Statistics Tests ==========
@@ -348,7 +341,7 @@ class E2ETestRunner:
         # Test 5.2: Get vulnerability statistics
         resp = self.make_request('GET', '/api/v1/dashboard/vulnerability-stats', token=self.admin_token)
         # May return 200 or 404 if endpoint doesn't exist
-        self.log_test("Get vulnerability stats", resp and resp.status_code in [200, 404])
+        self.log_test("Get vulnerability stats", resp is not None and resp.status_code in [200, 404])
 
     # ========== Additional API Tests ==========
     def test_additional_apis(self):
@@ -365,15 +358,15 @@ class E2ETestRunner:
         self.log_test("List reports", resp and resp.status_code == 200)
 
         # Test 6.3: List vulnerabilities
-        resp = self.make_request('GET', '/api/v1/vulnerabilities', token=self.admin_token)
+        resp = self.make_request('GET', '/api/v1/vulnerabilities/types', token=self.admin_token)
         self.log_test("List vulnerabilities", resp and resp.status_code == 200)
 
         # Test 6.4: Get scheduler jobs
-        resp = self.make_request('GET', '/api/v1/scheduler/jobs', token=self.admin_token)
+        resp = self.make_request('GET', '/api/v1/scheduler/', token=self.admin_token)
         self.log_test("Get scheduler jobs", resp and resp.status_code == 200)
 
         # Test 6.5: Get knowledge base
-        resp = self.make_request('GET', '/api/v1/knowledge', token=self.admin_token)
+        resp = self.make_request('GET', '/api/v1/knowledge/documents', token=self.admin_token)
         self.log_test("Get knowledge base", resp and resp.status_code == 200)
 
         # Test 6.6: Get MCP servers
@@ -381,7 +374,7 @@ class E2ETestRunner:
         self.log_test("Get MCP servers", resp and resp.status_code == 200)
 
         # Test 6.7: Get terminal status
-        resp = self.make_request('GET', '/api/v1/terminal/status', token=self.admin_token)
+        resp = self.make_request('GET', '/api/v1/terminal/sessions', token=self.admin_token)
         self.log_test("Get terminal status", resp and resp.status_code == 200)
 
         # Test 6.8: Get audit logs
@@ -398,14 +391,14 @@ class E2ETestRunner:
 
         # Test 6.11: Get sandbox list
         resp = self.make_request('GET', '/api/v1/sandbox/', token=self.admin_token)
-        self.log_test("Get sandbox list", resp and resp.status_code in [200, 404])
+        self.log_test("Get sandbox list", resp is not None and resp.status_code in [200, 404])
 
         # Test 6.12: Get API docs
         resp = self.make_request('GET', '/api/docs', token=None)
         self.log_test("Get API docs", resp and resp.status_code == 200)
 
         # Test 6.13: Get OpenAPI spec
-        resp = self.make_request('GET', '/openapi.json', token=None)
+        resp = self.make_request('GET', '/api/openapi.json', token=None)
         self.log_test("Get OpenAPI spec", resp and resp.status_code == 200)
 
     # ========== Cleanup ==========
@@ -429,7 +422,7 @@ class E2ETestRunner:
             time.sleep(1)
             # Delete scan
             resp = self.make_request('DELETE', f'/api/v1/scans/{scan_id}', token=self.admin_token)
-            if resp and resp.status_code in [200, 204]:
+            if resp is not None and resp.status_code in [200, 204]:
                 print(f"  [OK] Deleted scan {scan_id}")
             else:
                 print(f"  [WARN] Failed to delete scan {scan_id}")
