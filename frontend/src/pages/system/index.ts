@@ -1,4 +1,5 @@
 export { default as APIKeysPage } from './APIKeysPage'
+export { default as AuditLogPage } from './AuditLogPage'
 export { default as LanguagesPage } from './LanguagesPage'
 export { default as MenuManagementPage } from './MenuManagementPage'
 export { default as RoleManagementPage } from './RoleManagementPage'

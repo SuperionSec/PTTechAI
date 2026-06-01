@@ -2271,5 +2271,17 @@
     "pathPlaceholder": "/example/path",
     "componentPlaceholder": "pages/example/Page",
     "permissionPlaceholder": "e.g., scan:read"
+  },
+  "audit": {
+    "title": "Audit Logs",
+    "subtitle": "Track system management operations",
+    "time": "Time",
+    "user": "User",
+    "action": "Action",
+    "resource": "Resource",
+    "ip": "IP Address",
+    "details": "Details",
+    "filterAction": "Filter action",
+    "filterResource": "Filter resource"
   }
 }

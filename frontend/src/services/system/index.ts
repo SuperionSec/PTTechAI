@@ -174,3 +174,23 @@ export const menuApi = {
   },
 }
 
+export interface AuditLog {
+  id: string
+  user_id: string | null
+  username: string | null
+  action: string
+  resource_type: string | null
+  resource_id: string | null
+  details: Record<string, unknown> | null
+  ip_address: string | null
+  user_agent: string | null
+  created_at: string
+}
+
+export const auditApi = {
+  list: async (params?: { action?: string; resource_type?: string; page?: number; per_page?: number }) => {
+    const response = await api.get<{ logs: AuditLog[]; total: number }>('/audit', { params })
+    return response.data
+  },
+}
+

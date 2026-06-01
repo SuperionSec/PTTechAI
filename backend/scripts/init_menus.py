@@ -33,7 +33,7 @@ SIDEBAR_GROUPS = [
         "name": "sidebar.configuration",
         "icon": "SettingOutlined",
         "sort_order": 30,
-        "paths": ["/scheduler", "/reports", "/languages", "/users", "/roles", "/settings"],
+        "paths": ["/scheduler", "/reports", "/languages", "/users", "/roles", "/menus", "/audit", "/settings"],
     },
 ]
 

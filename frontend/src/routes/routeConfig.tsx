@@ -44,6 +44,7 @@ import ProvidersPage from '../pages/ProvidersPage'
 import FullIATestingPage from '../pages/FullIATestingPage'
 import {
   APIKeysPage,
+  AuditLogPage,
   LanguagesPage,
   MenuManagementPage,
   RoleManagementPage,
@@ -90,6 +91,7 @@ export const appRoutes: AppRoute[] = [
   { path: '/users', name: 'usersManagement.title', element: <UserManagementPage />, icon: <TeamOutlined />, access: 'canAccessPage', permission: 'user:manage', group: 'system' },
   { path: '/roles', name: 'roleManagement.title', element: <RoleManagementPage />, icon: <SafetyCertificateOutlined />, access: 'canAccessPage', permission: 'user:manage', group: 'system' },
   { path: '/menus', name: 'menuManagement.title', element: <MenuManagementPage />, icon: <MenuOutlined />, access: 'canAccessPage', permission: 'settings:manage', group: 'system' },
+  { path: '/audit', name: 'audit.title', element: <AuditLogPage />, icon: <FileTextOutlined />, access: 'canAccessPage', permission: 'settings:manage', group: 'system' },
   { path: '/unmapped-resources', name: 'accessCoverage.title', element: <UnmappedResourcesPage />, icon: <UserSwitchOutlined />, access: 'canAccessPage', permission: 'user:manage', group: 'system' },
   { path: '/languages', name: 'languageManagement.title', element: <LanguagesPage />, icon: <TranslationOutlined />, access: 'canAccessPage', permission: 'settings:read', group: 'system' },
   { path: '/settings', name: 'sidebar.settings', element: <SettingsPage />, icon: <SettingOutlined />, access: 'canAccessPage', permission: 'settings:read', group: 'pentest' },

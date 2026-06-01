@@ -2271,5 +2271,17 @@
     "pathPlaceholder": "/example/path",
     "componentPlaceholder": "pages/example/Page",
     "permissionPlaceholder": "例如：scan:read"
+  },
+  "audit": {
+    "title": "审计日志",
+    "subtitle": "查看系统管理操作记录",
+    "time": "时间",
+    "user": "用户",
+    "action": "操作",
+    "resource": "资源",
+    "ip": "IP 地址",
+    "details": "详情",
+    "filterAction": "筛选操作",
+    "filterResource": "筛选资源"
   }
 }

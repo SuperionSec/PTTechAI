@@ -5,7 +5,7 @@ PTTechAI v3 - Dynamic menu system with tree structure
 import uuid
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
@@ -14,6 +14,7 @@ from backend.common.db.database import get_db
 from backend.common.models.user import User, Role
 from backend.common.infra.auth import get_current_user, require_role
 from backend.common.infra.resource_guard import resource_guard
+from backend.system.audit.service import record_audit_log
 
 from .models import Menu
 from .schemas import (
@@ -146,6 +147,7 @@ async def get_user_menu_tree(
 @router.post("", response_model=MenuResponse, status_code=status.HTTP_201_CREATED)
 async def create_menu(
     data: MenuCreate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(Role.ADMIN)),
 ):
@@ -172,6 +174,15 @@ async def create_menu(
         is_active=data.is_active,
     )
     db.add(menu)
+    await record_audit_log(
+        db,
+        user=current_user,
+        action="menu.create",
+        resource_type="menu",
+        resource_id=menu.id,
+        details={"name": menu.name, "path": menu.path, "parent_id": menu.parent_id},
+        request=request,
+    )
     await db.commit()
     await db.refresh(menu)
     return _menu_to_response(menu)
@@ -197,6 +208,7 @@ async def get_menu(
 async def update_menu(
     menu_id: str,
     data: MenuUpdate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(Role.ADMIN)),
 ):
@@ -229,6 +241,15 @@ async def update_menu(
     for field, value in update_data.items():
         setattr(menu, field, value)
 
+    await record_audit_log(
+        db,
+        user=current_user,
+        action="menu.update",
+        resource_type="menu",
+        resource_id=menu.id,
+        details={"updated_fields": sorted(update_data.keys())},
+        request=request,
+    )
     await db.commit()
     await db.refresh(menu)
     return _menu_to_response(menu)
@@ -237,6 +258,7 @@ async def update_menu(
 @router.delete("/{menu_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_menu(
     menu_id: str,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(Role.ADMIN)),
 ):
@@ -248,7 +270,15 @@ async def delete_menu(
             detail=f"Menu with id '{menu_id}' not found",
         )
 
-    # Cascade delete will handle children
+    await record_audit_log(
+        db,
+        user=current_user,
+        action="menu.delete",
+        resource_type="menu",
+        resource_id=menu.id,
+        details={"name": menu.name, "path": menu.path},
+        request=request,
+    )
     await db.delete(menu)
     await db.commit()
     return None

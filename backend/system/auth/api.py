@@ -30,6 +30,7 @@ from backend.common.infra.auth import (
 )
 from backend.common.infra.token_manager import store_token, revoke_token, is_token_revoked
 from backend.system.rbac.service import resolve_active_role
+from backend.system.audit.service import record_audit_log
 from backend.common.config import settings
 
 
@@ -94,6 +95,15 @@ async def login(
     """Login with email and password to get access and refresh tokens"""
     user = await authenticate_user(db, credentials.email, credentials.password)
     if not user:
+        await record_audit_log(
+            db,
+            user=None,
+            action="auth.login_failed",
+            resource_type="auth",
+            details={"email": credentials.email},
+            request=request,
+        )
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -152,6 +162,16 @@ async def login(
         device_info=device_info,
         login_method=login_method,
     )
+
+    await record_audit_log(
+        db,
+        user=user,
+        action="auth.login_success",
+        resource_type="auth",
+        details={"login_method": login_method, "device_info": device_info},
+        request=request,
+    )
+    await db.commit()
 
     return {
         "access_token": access_token,
