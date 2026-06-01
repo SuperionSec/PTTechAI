@@ -194,3 +194,47 @@ export const auditApi = {
   },
 }
 
+export interface MonitorHealth {
+  status: string
+  app: string
+  version: string
+  debug: boolean
+  timestamp: string
+  python: string
+  platform: string
+}
+
+export interface MonitorDatabase {
+  status: string
+  database_url_configured: boolean
+  checked_at: string
+}
+
+export interface MonitorDockerContainer {
+  name: string
+  status: string
+  image: string
+}
+
+export interface MonitorDocker {
+  status: string
+  container_count?: number
+  containers?: MonitorDockerContainer[]
+  error?: string
+}
+
+export const monitorApi = {
+  health: async () => {
+    const response = await api.get<MonitorHealth>('/monitor/health')
+    return response.data
+  },
+  database: async () => {
+    const response = await api.get<MonitorDatabase>('/monitor/database')
+    return response.data
+  },
+  docker: async () => {
+    const response = await api.get<MonitorDocker>('/monitor/docker')
+    return response.data
+  },
+}
+

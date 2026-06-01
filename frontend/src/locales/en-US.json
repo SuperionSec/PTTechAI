@@ -2270,7 +2270,8 @@
     "namePlaceholder": "Menu display name or i18n key",
     "pathPlaceholder": "/example/path",
     "componentPlaceholder": "pages/example/Page",
-    "permissionPlaceholder": "e.g., scan:read"
+    "permissionPlaceholder": "e.g., scan:read",
+    "displayPreview": "Display preview"
   },
   "audit": {
     "title": "Audit Logs",
@@ -2283,5 +2284,23 @@
     "details": "Details",
     "filterAction": "Filter action",
     "filterResource": "Filter resource"
+  },
+  "monitor": {
+    "title": "System Monitor",
+    "subtitle": "Application, database, and Docker runtime status",
+    "appStatus": "Application Status",
+    "databaseStatus": "Database Status",
+    "dockerStatus": "Docker Status",
+    "appDetails": "Application Details",
+    "appName": "App",
+    "version": "Version",
+    "debug": "Debug",
+    "python": "Python",
+    "platform": "Platform",
+    "checkedAt": "Checked At",
+    "dockerContainers": "Docker Containers",
+    "containerName": "Name",
+    "containerImage": "Image",
+    "containerStatus": "Status"
   }
 }

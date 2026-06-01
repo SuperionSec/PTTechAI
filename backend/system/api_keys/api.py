@@ -3,7 +3,7 @@ PTTechAI v3 - API Key Management Routes
 """
 from datetime import datetime
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -17,6 +17,7 @@ from backend.common.infra.auth import (
 )
 from backend.common.models.user import Role
 from backend.common.infra.resource_guard import require_api_permission
+from backend.system.audit.service import record_audit_log
 
 router = APIRouter()
 
@@ -37,6 +38,7 @@ async def get_api_keys(
 @router.post("", response_model=APIKeyResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_api_permission)])
 async def create_api_key(
     api_key_data: APIKeyCreate,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -53,6 +55,16 @@ async def create_api_key(
         expires_at=api_key_data.expires_at
     )
     db.add(db_api_key)
+    await db.flush()
+    await record_audit_log(
+        db,
+        user=current_user,
+        action="api_key.create",
+        resource_type="api_key",
+        resource_id=db_api_key.id,
+        details={"name": db_api_key.name, "expires_at": str(db_api_key.expires_at) if db_api_key.expires_at else None},
+        request=request,
+    )
     await db.commit()
     await db.refresh(db_api_key)
     
@@ -70,6 +82,7 @@ async def create_api_key(
 @router.delete("/{key_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_api_permission)])
 async def delete_api_key(
     key_id: str,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -88,5 +101,14 @@ async def delete_api_key(
             detail="API key not found"
         )
     
+    await record_audit_log(
+        db,
+        user=current_user,
+        action="api_key.delete",
+        resource_type="api_key",
+        resource_id=db_api_key.id,
+        details={"name": db_api_key.name},
+        request=request,
+    )
     await db.delete(db_api_key)
     await db.commit()

@@ -18,6 +18,7 @@ from backend.common.schemas.rbac import (
     UnmappedResourceOut,
 )
 from backend.system.rbac import service as rbac_service
+from backend.system.audit.service import record_audit_log
 
 router = APIRouter()
 
@@ -69,10 +70,14 @@ async def list_roles(
 @router.post("/roles", response_model=RoleDetailOut, status_code=status.HTTP_201_CREATED)
 async def create_role(
     body: RoleCreate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(Role.ADMIN)),
 ):
-    return await rbac_service.create_role(db, body)
+    result = await rbac_service.create_role(db, body)
+    await record_audit_log(db, user=current_user, action="role.create", resource_type="role", resource_id=result.id or result.role, details={"role": result.role}, request=request)
+    await db.commit()
+    return result
 
 
 @router.get("/roles/{role}", response_model=RoleDetailOut)
@@ -88,19 +93,26 @@ async def get_role(
 async def update_role(
     role: str,
     body: RoleUpdate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(Role.ADMIN)),
 ):
-    return await rbac_service.update_role(db, role, body)
+    result = await rbac_service.update_role(db, role, body)
+    await record_audit_log(db, user=current_user, action="role.update", resource_type="role", resource_id=result.id or role, details={"role": role, "updated_fields": sorted(body.model_dump(exclude_unset=True).keys())}, request=request)
+    await db.commit()
+    return result
 
 
 @router.delete("/roles/{role}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_role(
     role: str,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(Role.ADMIN)),
 ):
     await rbac_service.delete_role(db, role)
+    await record_audit_log(db, user=current_user, action="role.delete", resource_type="role", resource_id=role, details={"role": role}, request=request)
+    await db.commit()
     return None
 
 
@@ -116,12 +128,16 @@ async def get_role_permissions(
 @router.put("/roles/{role}/permissions", response_model=RoleDetailOut)
 async def update_role_permissions(
     role: str,
+    request: Request,
     body: RolePermissionsUpdate | list[str] = Body(...),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(Role.ADMIN)),
 ):
     permission_ids = body.permission_ids if isinstance(body, RolePermissionsUpdate) else body
-    return await rbac_service.update_role_permissions(db, role, permission_ids)
+    result = await rbac_service.update_role_permissions(db, role, permission_ids)
+    await record_audit_log(db, user=current_user, action="role.update_permissions", resource_type="role", resource_id=role, details={"permission_count": len(permission_ids)}, request=request)
+    await db.commit()
+    return result
 
 
 @router.get("/resources", response_model=list[ResourceMappingOut])
@@ -137,19 +153,26 @@ async def list_resources(
 @router.post("/resources/mappings", response_model=ResourceMappingOut, status_code=status.HTTP_201_CREATED)
 async def create_resource_mapping(
     body: ResourceMappingCreate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(Role.ADMIN)),
 ):
-    return await rbac_service.create_resource_mapping(db, body.permission_id, body.resource_type, body.resource_path)
+    result = await rbac_service.create_resource_mapping(db, body.permission_id, body.resource_type, body.resource_path)
+    await record_audit_log(db, user=current_user, action="resource_mapping.create", resource_type="resource_mapping", resource_id=result.id, details={"resource_type": body.resource_type, "resource_path": body.resource_path}, request=request)
+    await db.commit()
+    return result
 
 
 @router.delete("/resources/mappings/{mapping_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_resource_mapping(
     mapping_id: str,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(Role.ADMIN)),
 ):
     await rbac_service.delete_resource_mapping(db, mapping_id)
+    await record_audit_log(db, user=current_user, action="resource_mapping.delete", resource_type="resource_mapping", resource_id=mapping_id, request=request)
+    await db.commit()
     return None
 
 

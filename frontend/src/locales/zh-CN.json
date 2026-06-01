@@ -2270,7 +2270,8 @@
     "namePlaceholder": "菜单显示名称或国际化键",
     "pathPlaceholder": "/example/path",
     "componentPlaceholder": "pages/example/Page",
-    "permissionPlaceholder": "例如：scan:read"
+    "permissionPlaceholder": "例如：scan:read",
+    "displayPreview": "显示预览"
   },
   "audit": {
     "title": "审计日志",
@@ -2283,5 +2284,23 @@
     "details": "详情",
     "filterAction": "筛选操作",
     "filterResource": "筛选资源"
+  },
+  "monitor": {
+    "title": "系统监控",
+    "subtitle": "查看应用、数据库和 Docker 运行状态",
+    "appStatus": "应用状态",
+    "databaseStatus": "数据库状态",
+    "dockerStatus": "Docker 状态",
+    "appDetails": "应用详情",
+    "appName": "应用",
+    "version": "版本",
+    "debug": "调试模式",
+    "python": "Python",
+    "platform": "平台",
+    "checkedAt": "检查时间",
+    "dockerContainers": "Docker 容器",
+    "containerName": "名称",
+    "containerImage": "镜像",
+    "containerStatus": "状态"
   }
 }

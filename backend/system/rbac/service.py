@@ -34,6 +34,7 @@ FRONTEND_ROUTES = [
     ("/roles", "roleManagement.title", "user:manage", "SafetyCertificateOutlined", "system"),
     ("/menus", "menuManagement.title", "settings:manage", "MenuOutlined", "system"),
     ("/audit", "audit.title", "settings:manage", "FileTextOutlined", "system"),
+    ("/monitor", "monitor.title", "settings:manage", "DashboardOutlined", "system"),
     ("/unmapped-resources", "accessCoverage.title", "user:manage", "UserSwitchOutlined", "system"),
     ("/languages", "languageManagement.title", "settings:read", "TranslationOutlined", "system"),
     ("/settings", "sidebar.settings", "settings:read", "SettingOutlined", "pentest"),

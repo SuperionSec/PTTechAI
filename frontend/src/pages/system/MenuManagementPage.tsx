@@ -26,8 +26,8 @@ import {
   PlusOutlined,
   ReloadOutlined,
 } from '@ant-design/icons'
-import { menuApi } from '../../services/system'
-import type { Menu, MenuCreate, MenuUpdate } from '../../services/system'
+import { menuApi, systemApi } from '../../services/system'
+import type { Menu, MenuCreate, MenuUpdate, Permission } from '../../services/system'
 
 const { Text } = Typography
 
@@ -58,6 +58,7 @@ const ICON_OPTIONS = [
 export default function MenuManagementPage() {
   const { t } = useTranslation()
   const [menus, setMenus] = useState<Menu[]>([])
+  const [permissions, setPermissions] = useState<Permission[]>([])
   const [loading, setLoading] = useState(false)
   const [modalVisible, setModalVisible] = useState(false)
   const [editingMenu, setEditingMenu] = useState<Menu | null>(null)
@@ -67,7 +68,9 @@ export default function MenuManagementPage() {
     setLoading(true)
     try {
       const data = await menuApi.tree()
+      const permissionData = await systemApi.permissions()
       setMenus(data.menus)
+      setPermissions(permissionData)
     } catch (err: any) {
       message.error(err?.response?.data?.detail || 'Failed to fetch menus')
     } finally {
@@ -189,7 +192,8 @@ export default function MenuManagementPage() {
       render: (name: string, record) => (
         <span style={{ paddingLeft: record.depth * 24 }}>
           {record.depth > 0 && <span style={{ color: '#999' }}>└ </span>}
-          {name}
+          <span>{t(name, name)}</span>
+          {t(name, name) !== name && <Text type="secondary" style={{ marginLeft: 8 }} code>{name}</Text>}
         </span>
       ),
     },
@@ -335,6 +339,17 @@ export default function MenuManagementPage() {
           >
             <Input placeholder={t('menu.namePlaceholder', 'Menu display name or i18n key')} />
           </Form.Item>
+          <Form.Item noStyle shouldUpdate={(prev, cur) => prev.name !== cur.name}>
+            {({ getFieldValue }) => {
+              const name = getFieldValue('name')
+              return name ? (
+                <div style={{ marginTop: -12, marginBottom: 12 }}>
+                  <Text type="secondary">{t('menu.displayPreview', 'Display preview')}: </Text>
+                  <Text>{String(t(name, name))}</Text>
+                </div>
+              ) : null
+            }}
+          </Form.Item>
 
           <Form.Item
             name="path"
@@ -366,7 +381,15 @@ export default function MenuManagementPage() {
             name="permission"
             label={t('menu.permission', 'Permission')}
           >
-            <Input placeholder={t('menu.permissionPlaceholder', 'e.g., scan:read')} />
+            <Select
+              options={permissions.map(permission => ({
+                label: permission.name,
+                value: permission.name,
+              }))}
+              placeholder={t('menu.permissionPlaceholder', 'e.g., scan:read')}
+              allowClear
+              showSearch
+            />
           </Form.Item>
 
           <Form.Item

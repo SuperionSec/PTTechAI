@@ -94,7 +94,7 @@ class TestFrontendPages:
             if "group: 'system'" in line and "hideInMenu: true" not in line:
                 path = line.split("path: '")[1].split("'")[0]
                 system_paths.append(path)
-        assert system_paths == ["/users", "/roles", "/menus", "/audit", "/unmapped-resources", "/languages"]
+        assert system_paths == ["/users", "/roles", "/menus", "/audit", "/monitor", "/unmapped-resources", "/languages"]
         profile_line = next(line for line in content.splitlines() if "path: '/profile'" in line)
         api_keys_line = next(line for line in content.splitlines() if "path: '/api-keys'" in line)
         assert "hideInMenu: true" in profile_line
