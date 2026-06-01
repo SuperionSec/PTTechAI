@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -9,23 +10,30 @@ import {
   CloudServerOutlined,
   CodeOutlined,
   DashboardOutlined,
+  DatabaseOutlined,
   ExperimentOutlined,
   FileTextOutlined,
   GlobalOutlined,
   HomeOutlined,
   LeftOutlined,
+  MenuOutlined,
   PlayCircleOutlined,
+  PlusCircleOutlined,
   RightOutlined,
   RobotOutlined,
   SafetyCertificateOutlined,
   SettingOutlined,
+  TeamOutlined,
   ThunderboltOutlined,
+  ToolOutlined,
   TranslationOutlined,
   UsergroupAddOutlined,
   UserSwitchOutlined,
 } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import { useUIStore } from '../../store'
+import { menuApi } from '../../services/system'
+import type { Menu } from '../../services/system'
 
 interface NavItem {
   path: string
@@ -36,12 +44,39 @@ interface NavItem {
 
 interface NavGroup {
   labelKey: string
+  icon?: React.ElementType
   items: NavItem[]
+}
+
+const iconMap: Record<string, React.ElementType> = {
+  AimOutlined,
+  ApiOutlined,
+  BookOutlined,
+  CloudServerOutlined,
+  CodeOutlined,
+  DashboardOutlined,
+  DatabaseOutlined,
+  ExperimentOutlined,
+  FileTextOutlined,
+  KeyOutlined: SettingOutlined,
+  MenuOutlined,
+  PlusCircleOutlined,
+  RobotOutlined,
+  SafetyCertificateOutlined,
+  ScheduleOutlined: ClockCircleOutlined,
+  SettingOutlined,
+  TeamOutlined,
+  ThunderboltOutlined,
+  ToolOutlined,
+  TranslationOutlined,
+  UserOutlined: UsergroupAddOutlined,
+  UserSwitchOutlined,
 }
 
 const allNavGroups: NavGroup[] = [
   {
     labelKey: 'sidebar.operations',
+    icon: PlayCircleOutlined,
     items: [
       { path: '/', icon: HomeOutlined, labelKey: 'sidebar.dashboard', requiredPermission: 'dashboard:read' },
       { path: '/auto', icon: PlayCircleOutlined, labelKey: 'sidebar.autoPentest', requiredPermission: 'agent:execute' },
@@ -52,6 +87,7 @@ const allNavGroups: NavGroup[] = [
   },
   {
     labelKey: 'sidebar.tools',
+    icon: ToolOutlined,
     items: [
       { path: '/vuln-lab', icon: ExperimentOutlined, labelKey: 'sidebar.vulnLab', requiredPermission: 'vulnerability:read' },
       { path: '/terminal', icon: CodeOutlined, labelKey: 'sidebar.terminalAgent', requiredPermission: 'terminal:execute' },
@@ -64,6 +100,7 @@ const allNavGroups: NavGroup[] = [
   },
   {
     labelKey: 'sidebar.configuration',
+    icon: SettingOutlined,
     items: [
       { path: '/scheduler', icon: ClockCircleOutlined, labelKey: 'sidebar.scheduler', requiredPermission: 'scheduler:read' },
       { path: '/reports', icon: FileTextOutlined, labelKey: 'sidebar.reports', requiredPermission: 'report:read' },
@@ -76,24 +113,83 @@ const allNavGroups: NavGroup[] = [
   },
 ]
 
+function iconFor(iconName?: string | null) {
+  if (!iconName) return MenuOutlined
+  return iconMap[iconName] || MenuOutlined
+}
+
+function menuTreeToNavGroups(menus: Menu[]): NavGroup[] {
+  const groups: NavGroup[] = []
+  for (const menu of menus) {
+    const children = menu.children?.filter(child => child.path) || []
+    if (children.length > 0) {
+      groups.push({
+        labelKey: menu.name,
+        icon: iconFor(menu.icon),
+        items: children.map(child => ({
+          path: child.path!,
+          icon: iconFor(child.icon),
+          labelKey: child.name,
+          requiredPermission: child.permission || undefined,
+        })),
+      })
+    } else if (menu.path) {
+      groups.push({
+        labelKey: menu.name,
+        icon: iconFor(menu.icon),
+        items: [{
+          path: menu.path,
+          icon: iconFor(menu.icon),
+          labelKey: menu.name,
+          requiredPermission: menu.permission || undefined,
+        }],
+      })
+    }
+  }
+  return groups
+}
+
 export default function Sidebar() {
   const location = useLocation()
-  const { user, canAccessPage } = useAuth()
+  const { user, token, canAccessPage } = useAuth()
   const { sidebarCollapsed, toggleSidebar } = useUIStore()
   const { t } = useTranslation()
+  const [dynamicGroups, setDynamicGroups] = useState<NavGroup[] | null>(null)
 
-  // Filter nav groups based on user permissions
-  const filteredNavGroups = allNavGroups.map(group => ({
-    ...group,
-    items: group.items.filter(item => {
-      // If no permission required, show it
-      if (!item.requiredPermission) return true
-      // Check if user can access the page
-      return canAccessPage(item.path)
-    })
-  })).filter(group => group.items.length > 0)
+  useEffect(() => {
+    let cancelled = false
+    if (!token) {
+      setDynamicGroups(null)
+      return
+    }
 
-  // Service accounts cannot access frontend pages
+    menuApi.userTree()
+      .then(data => {
+        if (!cancelled && data.menus.length > 0) {
+          setDynamicGroups(menuTreeToNavGroups(data.menus))
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setDynamicGroups(null)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [token])
+
+  const filteredNavGroups = useMemo(() => {
+    const sourceGroups = dynamicGroups || allNavGroups
+    return sourceGroups.map(group => ({
+      ...group,
+      items: group.items.filter(item => {
+        if (dynamicGroups) return true
+        if (!item.requiredPermission) return true
+        return canAccessPage(item.path)
+      })
+    })).filter(group => group.items.length > 0)
+  }, [canAccessPage, dynamicGroups])
+
   if (user?.role === 'service') {
     return null
   }
