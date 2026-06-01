@@ -19,7 +19,7 @@ from backend.common.infra.token_manager import is_token_revoked, update_token_la
 
 
 # Use bcrypt for password hashing (passlib auto-verifies old sha256_crypt hashes via deprecated="auto")
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["bcrypt", "sha256_crypt"], deprecated=["sha256_crypt"])
 security = HTTPBearer()
 
 
