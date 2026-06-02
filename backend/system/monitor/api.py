@@ -1,5 +1,4 @@
 """System monitor API."""
-import os
 import platform
 from datetime import datetime, timezone
 
@@ -40,26 +39,3 @@ async def database_status(
         "database_url_configured": bool(settings.DATABASE_URL),
         "checked_at": datetime.now(timezone.utc).isoformat(),
     }
-
-
-@router.get("/docker")
-async def docker_status(current_user: User = Depends(require_role(Role.ADMIN))):
-    try:
-        import docker
-        client = docker.from_env()
-        client.ping()
-        containers = client.containers.list(all=True)
-        return {
-            "status": "healthy",
-            "container_count": len(containers),
-            "containers": [
-                {"name": c.name, "status": c.status, "image": c.image.tags[0] if c.image.tags else c.image.short_id}
-                for c in containers
-                if c.name.startswith("pttechai")
-            ],
-        }
-    except Exception as exc:
-        return {
-            "status": "unavailable",
-            "error": str(exc),
-        }

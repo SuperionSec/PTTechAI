@@ -210,19 +210,6 @@ export interface MonitorDatabase {
   checked_at: string
 }
 
-export interface MonitorDockerContainer {
-  name: string
-  status: string
-  image: string
-}
-
-export interface MonitorDocker {
-  status: string
-  container_count?: number
-  containers?: MonitorDockerContainer[]
-  error?: string
-}
-
 export const monitorApi = {
   health: async () => {
     const response = await api.get<MonitorHealth>('/monitor/health')
@@ -230,10 +217,6 @@ export const monitorApi = {
   },
   database: async () => {
     const response = await api.get<MonitorDatabase>('/monitor/database')
-    return response.data
-  },
-  docker: async () => {
-    const response = await api.get<MonitorDocker>('/monitor/docker')
     return response.data
   },
 }
