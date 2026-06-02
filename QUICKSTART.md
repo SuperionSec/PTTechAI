@@ -65,7 +65,7 @@ The Kali sandbox enables isolated tool execution (Nuclei, Nmap, SQLMap, etc.) in
 
 ```bash
 # Requires Docker Desktop running
-./scripts/build-kali.sh --test
+(cd deploy && ./scripts/build-kali.sh --test)
 ```
 
 This builds a Kali Linux image with 28 pre-installed security tools. Takes ~5 min on first build.
@@ -243,13 +243,13 @@ echo "OLLAMA_BASE_URL=http://localhost:11434" >> .env
 
 ```bash
 # Build image
-./scripts/build-kali.sh
+(cd deploy && ./scripts/build-kali.sh)
 
 # Rebuild from scratch
-./scripts/build-kali.sh --fresh
+(cd deploy && ./scripts/build-kali.sh --fresh)
 
 # Build + verify tools work
-./scripts/build-kali.sh --test
+(cd deploy && ./scripts/build-kali.sh --test)
 
 # Check running containers (via API)
 curl http://localhost:8000/api/v1/sandbox/
@@ -283,7 +283,7 @@ curl http://localhost:8000/api/health | python3 -m json.tool
 
 Build the Docker image:
 ```bash
-./scripts/build-kali.sh
+(cd deploy && ./scripts/build-kali.sh)
 ```
 
 ### "Docker daemon not running"

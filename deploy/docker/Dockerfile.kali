@@ -1,13 +1,13 @@
 # PTTechAI v3 - Kali Linux Security Sandbox
 # Per-scan container with essential tools pre-installed + on-demand install support.
 #
-# Build:
+# Build (from deploy/):
 #   docker build -f docker/Dockerfile.kali -t pttechai-kali:latest docker/
 #
-# Rebuild (no cache):
+# Rebuild (no cache, from deploy/):
 #   docker build --no-cache -f docker/Dockerfile.kali -t pttechai-kali:latest docker/
 #
-# Or via compose:
+# Or via compose (from deploy/):
 #   docker compose -f docker/docker-compose.kali.yml build
 #
 # Design:

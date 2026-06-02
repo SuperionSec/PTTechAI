@@ -1,8 +1,8 @@
 # PTTechAI v3 - Docker Compose Configuration
 # Usage:
-#   docker compose up -d              # Start all services
-#   docker compose up -d postgres     # Start only PostgreSQL (for local dev)
-#   docker compose logs -f backend    # View backend logs
+#   docker compose -p pttechai up -d              # Start all services
+#   docker compose -p pttechai up -d postgres     # Start only PostgreSQL (for local dev)
+#   docker compose -p pttechai logs -f backend    # View backend logs
 #
 # Database auto-initialization:
 #   The backend container automatically runs init_db + init_admin + init_permissions

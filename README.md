@@ -1,7 +1,7 @@
-# PTTechAI渗透测试系统 v0.1.0
+# PTTechAI渗透测试系统 v3.0.0
 
 ![PTTechAI](https://img.shields.io/badge/PTTechAI-AI--Powered%20Pentesting-blueviolet)
-![Version](https://img.shields.io/badge/Version-0.1.0-blue)
+![Version](https://img.shields.io/badge/Version-3.0.0-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Python](https://img.shields.io/badge/Python-3.10+-yellow)
 ![React](https://img.shields.io/badge/React-18-61dafb)
@@ -62,8 +62,8 @@ PTTechAI渗透测试系统 is an advanced security assessment platform that comb
 
 ```bash
 # Clone repository
-git clone https://github.com/SuperionSec/NeruoSploit.git
-cd NeruoSploit
+git clone https://github.com/SuperionSec/PTTechAI.git
+cd PTTechAI
 
 # Copy environment file and configure
 cp .env.example .env
@@ -73,10 +73,10 @@ cp .env.example .env
 #   - DATABASE_URL is pre-configured for Docker PostgreSQL
 
 # Build the Kali sandbox image (first time only, ~5 min)
-./scripts/build-kali.sh
+(cd deploy && ./scripts/build-kali.sh)
 
 # Start all services (PostgreSQL + Backend + Frontend)
-docker compose up -d
+docker compose -p pttechai up -d
 
 # Database is auto-initialized on first backend startup
 # Access: http://localhost:3000
@@ -86,8 +86,8 @@ docker compose up -d
 
 ```bash
 # Clone repository
-git clone https://github.com/SuperionSec/NeruoSploit.git
-cd NeruoSploit
+git clone https://github.com/SuperionSec/PTTechAI.git
+cd PTTechAI
 
 # 1. Configure environment
 cp .env.example .env
@@ -97,18 +97,16 @@ cp .env.example .env
 #   - Set ADMIN_PASSWORD
 
 # 2. Start PostgreSQL (via Docker)
-docker compose up -d postgres
+(cd deploy && docker compose -p pttechai up -d postgres)
 
 # 3. Install backend dependencies
-cd backend
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 
 # 4. Initialize database (one-time)
 python -m backend.scripts.setup
 # This creates tables, admin user, and RBAC permissions
 
 # 5. Start backend
-cd ..
 python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
 
 # 6. Start frontend (new terminal)
@@ -146,124 +144,80 @@ python -m backend.scripts.setup --skip-permissions
 
 ```bash
 # Normal build (uses Docker cache)
-./scripts/build-kali.sh
+(cd deploy && ./scripts/build-kali.sh)
 
 # Full rebuild (no cache)
-./scripts/build-kali.sh --fresh
+(cd deploy && ./scripts/build-kali.sh --fresh)
 
 # Build + run health check
-./scripts/build-kali.sh --test
+(cd deploy && ./scripts/build-kali.sh --test)
 
 # Or via docker-compose
-docker compose -f docker/docker-compose.kali.yml build
+(cd deploy && docker compose -f docker/docker-compose.kali.yml build)
 ```
 
-Access the web interface at **http://localhost:8000** (production build) or **http://localhost:5173** (dev mode).
+Access the web interface at **http://localhost:3000** (Docker) or **http://localhost:5173** (dev mode).
 
 ---
 
 ## Architecture
 
+PTTechAI v3 uses a three-layer backend architecture and keeps the two penetration-testing code domains isolated to reduce migration risk.
+
 ```
 PTTechAI/
-├── backend/                         # FastAPI Backend
-│   ├── api/v1/                      # REST API (18 routers)
-│   │   ├── auth.py                  # User auth (register/login/refresh/me)
-│   │   ├── users.py                 # User management (admin CRUD)
-│   │   ├── api_keys.py              # API Key management
-│   │   ├── scans.py                 # Scan CRUD + pause/resume/stop + auth
-│   │   ├── agent.py                 # AI Agent control + auth
-│   │   ├── agent_tasks.py           # Scan task tracking
-│   │   ├── dashboard.py             # Stats + activity feed
-│   │   ├── reports.py               # Report generation (HTML/PDF/JSON)
-│   │   ├── scheduler.py             # Cron/interval scheduling
-│   │   ├── vuln_lab.py              # Per-type vulnerability lab
-│   │   ├── terminal.py              # Terminal agent (10 endpoints)
-│   │   ├── sandbox.py               # Sandbox container monitoring
-│   │   ├── targets.py               # Target validation
-│   │   ├── prompts.py               # Preset prompts
-│   │   ├── vulnerabilities.py       # Vulnerability management
-│   │   └── settings.py              # Runtime settings
-│   ├── core/
-│   │   ├── auth.py                  # JWT auth + bcrypt + API Keys
-│   │   ├── autonomous_agent.py      # Main AI agent (~7000 lines)
-│   │   ├── vuln_engine/             # 100-type vulnerability engine
-│   │   │   ├── registry.py          # 100 VULNERABILITY_INFO entries
-│   │   │   ├── payload_generator.py # 526 payloads across 95 libraries
-│   │   │   ├── ai_prompts.py        # Per-vuln AI decision prompts
-│   │   │   ├── system_prompts.py    # 12 anti-hallucination prompts
-│   │   │   └── testers/             # 10 category tester modules
-│   │   ├── validation/              # False-positive hardening
-│   │   │   ├── negative_control.py  # Benign request control engine
-│   │   │   ├── proof_of_execution.py # Per-type proof checks (25+ methods)
-│   │   │   ├── confidence_scorer.py # Numeric 0-100 scoring
-│   │   │   └── validation_judge.py  # Sole authority for finding approval
-│   │   ├── request_engine.py        # Retry, rate limit, circuit breaker
-│   │   ├── waf_detector.py          # 16 WAF signatures + bypass
-│   │   ├── strategy_adapter.py      # Mid-scan strategy adaptation
-│   │   ├── chain_engine.py          # 10 exploit chain rules
-│   │   ├── auth_manager.py          # Multi-user auth management
-│   │   ├── xss_context_analyzer.py  # 8-context XSS analysis
-│   │   ├── poc_generator.py         # 20+ per-type PoC generators
-│   │   ├── execution_history.py     # Cross-scan learning
-│   │   ├── access_control_learner.py # Adaptive BOLA/BFLA/IDOR learning
-│   │   ├── response_verifier.py     # 4-signal response verification
-│   │   ├── agent_memory.py          # Bounded dedup agent memory
-│   │   └── report_engine/           # OHVR report generator
-│   ├── models/                      # SQLAlchemy ORM models
-│   ├── db/                          # Database layer
-│   ├── config.py                    # Pydantic settings
-│   └── main.py                      # FastAPI app entry
-│
-├── core/                            # Shared core modules
-│   ├── llm_manager.py               # Multi-provider LLM routing
-│   ├── sandbox_manager.py           # BaseSandbox ABC + legacy shared sandbox
-│   ├── kali_sandbox.py              # Per-scan Kali container manager
-│   ├── container_pool.py            # Global container pool coordinator
-│   ├── tool_registry.py             # 56 tool install recipes for Kali
-│   ├── mcp_server.py                # MCP server (12 tools, stdio)
-│   ├── scheduler.py                 # APScheduler scan scheduling
-│   └── browser_validator.py         # Playwright browser validation
-│
-├── frontend/                        # React + TypeScript Frontend
-│   ├── src/
-│   │   ├── pages/
-│   │   │   ├── HomePage.tsx             # Dashboard with stats
-│   │   │   ├── AutoPentestPage.tsx      # 3-stream auto pentest
-│   │   │   ├── VulnLabPage.tsx          # Per-type vulnerability lab
-│   │   │   ├── TerminalAgentPage.tsx    # AI terminal chat
-│   │   │   ├── SandboxDashboardPage.tsx # Container monitoring
-│   │   │   ├── ScanDetailsPage.tsx      # Findings + validation
-│   │   │   ├── SchedulerPage.tsx        # Cron/interval scheduling
-│   │   │   ├── SettingsPage.tsx         # Configuration
-│   │   │   └── ReportsPage.tsx          # Report management
-│   │   ├── components/              # Reusable UI components
-│   │   ├── services/api.ts          # API client layer
-│   │   └── types/index.ts           # TypeScript interfaces
-│   └── package.json
-│
-├── docker/
-│   ├── Dockerfile.kali              # Multi-stage Kali sandbox (11 Go tools)
-│   ├── Dockerfile.sandbox           # Legacy Debian sandbox
-│   ├── Dockerfile.backend           # Backend container
-│   ├── Dockerfile.frontend          # Frontend container
-│   ├── docker-compose.kali.yml      # Kali sandbox build
-│   └── docker-compose.sandbox.yml   # Legacy sandbox
-│
-├── config/config.json               # Profiles, tools, sandbox, MCP
-├── data/
-│   ├── vuln_knowledge_base.json     # 100 vuln type definitions
-│   ├── execution_history.json       # Cross-scan learning data
-│   └── access_control_learning.json # BOLA/BFLA adaptive data
-│
-├── scripts/
-│   └── build-kali.sh               # Build/rebuild Kali image
-├── tools/
-│   └── benchmark_runner.py          # 104 CTF challenges
-├── agents/base_agent.py             # BaseAgent class
-├── PTTechAI.py                   # CLI entry point
-└── requirements.txt
+├── backend/
+│   ├── common/                 # Shared infrastructure
+│   │   ├── config.py           # Settings
+│   │   ├── db/                 # Database engine/session
+│   │   ├── models/             # Shared User/Permission models
+│   │   ├── schemas/            # Auth/RBAC schemas
+│   │   └── infra/              # Auth, token manager, resource guard, RBAC helpers
+│   ├── system/                 # System management
+│   │   ├── auth/               # Login, refresh, profile, logout
+│   │   ├── users/              # User CRUD
+│   │   ├── rbac/               # Permissions, roles, resource mappings
+│   │   ├── api_keys/           # API key management
+│   │   ├── menu/               # Dynamic menu tree and CRUD
+│   │   ├── audit/              # System audit logs
+│   │   ├── monitor/            # App/database health
+│   │   └── system/             # System route composition layer
+│   ├── pentest/                # Penetration testing
+│   │   ├── core/               # Domain A: original root-level core modules
+│   │   ├── tools/              # Domain A: tools
+│   │   ├── agents/             # Domain A: AI agents
+│   │   ├── prompts/            # Domain A: prompt libraries
+│   │   ├── data/               # Domain A: runtime/data files
+│   │   ├── config/             # Domain A: JSON config
+│   │   ├── reports/            # Domain A: benchmark reports
+│   │   ├── legacy CLI file   # Domain A CLI entry point (kept original filename)
+│   │   └── backend/            # Domain B: original backend pentest code
+│   │       ├── core/           # vuln_engine, rag, smart_router, etc.
+│   │       ├── api/v1/         # Pentest APIs
+│   │       ├── api/websocket.py
+│   │       ├── models/
+│   │       ├── schemas/
+│   │       └── services/
+│   ├── routes.py               # Top-level route registration
+│   ├── main.py                 # FastAPI entry point
+│   └── app_lifecycle.py        # Startup/shutdown hooks
+├── deploy/
+│   ├── docker/                 # Dockerfiles and nginx config
+│   ├── docker-compose.yml      # Full stack compose
+│   ├── docker-compose.lite.yml # Lite compose
+│   └── scripts/                # Deployment helper scripts
+├── frontend/                   # React + TypeScript frontend
+├── tests/                      # Project tests and E2E scripts
+└── .claude/plans/              # Refactor plans and checkpoints
 ```
+
+### Key Architecture Rules
+
+1. `backend/common/` is shared by `system/` and `pentest/`; common must not import either domain.
+2. `backend/system/` and `backend/pentest/` should not import each other directly.
+3. Pentest Domain A (`backend/pentest/core`) and Domain B (`backend/pentest/backend/core`) remain independent; no file merging or renaming.
+4. Routes are registered centrally in `backend/routes.py`; public API prefixes stay under `/api/v1/*`.
+5. Runtime data lives under `backend/pentest/data/` and is volume-mounted by Docker.
 
 ---
 
@@ -604,11 +558,11 @@ OPENROUTER_API_KEY=your-key
 # Database
 DATABASE_URL=postgresql+asyncpg://pttechai:pttechai@localhost:5432/pttechai
 
-# Admin User (v0.1.0)
+# Admin User
 ADMIN_EMAIL=admin@bctech.ai
 ADMIN_PASSWORD=admin123
 
-# JWT Auth (v0.1.0)
+# JWT Auth
 SECRET_KEY=change-this-to-a-random-secret-key
 
 # Server
@@ -617,7 +571,7 @@ PORT=8000
 DEBUG=false
 ```
 
-### config/config.json
+### backend/pentest/config/config.json
 
 ```json
 {
@@ -642,7 +596,7 @@ DEBUG=false
     "PTTechAI_tools": {
       "transport": "stdio",
       "command": "python3",
-      "args": ["-m", "core.mcp_server"]
+      "args": ["-m", "backend.pentest.core.mcp_server"]
     }
   }
 }
@@ -655,7 +609,7 @@ DEBUG=false
 ### Backend
 
 ```bash
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 
 # API docs: http://localhost:8000/api/docs
@@ -673,13 +627,13 @@ npm run build      # Production build
 ### Build Kali Sandbox
 
 ```bash
-./scripts/build-kali.sh --test    # Build + health check
+(cd deploy && ./scripts/build-kali.sh --test)    # Build + health check
 ```
 
 ### MCP Server
 
 ```bash
-python3 -m core.mcp_server        # Starts stdio MCP server (12 tools)
+python3 -m backend.pentest.core.mcp_server        # Starts stdio MCP server
 ```
 
 ---

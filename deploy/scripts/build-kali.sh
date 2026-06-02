@@ -1,7 +1,7 @@
 #!/bin/bash
 # PTTechAI v3 - Build Kali Linux Sandbox Image
 #
-# Usage:
+# Usage (from deploy/):
 #   ./scripts/build-kali.sh          # Normal build (uses cache)
 #   ./scripts/build-kali.sh --fresh  # Full rebuild (no cache)
 #   ./scripts/build-kali.sh --test   # Build + run health check

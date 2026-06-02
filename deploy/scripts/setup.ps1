@@ -3,6 +3,10 @@
 
 $ErrorActionPreference = "Stop"
 
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ProjectRoot = Resolve-Path (Join-Path $ScriptDir "..\..")
+Set-Location $ProjectRoot
+
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "PTTechAI v3 - Setup Script" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
@@ -65,18 +69,18 @@ if (-not (Test-Path ".env")) {
 if ($dockerAvailable) {
     Write-Host ""
     Write-Host "[1/4] Starting PostgreSQL..."
-    $postgresRunning = docker compose ps postgres 2>$null | Select-String "running"
+    $postgresRunning = docker compose -p pttechai -f deploy/docker-compose.yml ps postgres 2>$null | Select-String "running"
     if ($postgresRunning) {
         Write-Host "[OK] PostgreSQL already running" -ForegroundColor Green
     } else {
-        docker compose up -d postgres
+        docker compose -p pttechai -f deploy/docker-compose.yml up -d postgres
         Write-Host "[OK] PostgreSQL started" -ForegroundColor Green
     }
 
     # Wait for PostgreSQL
     Write-Host "Waiting for PostgreSQL to be ready..."
     for ($i = 1; $i -le 30; $i++) {
-        $ready = docker compose exec -T postgres pg_isready -U pttechai -d pttechai 2>$null
+        $ready = docker compose -p pttechai -f deploy/docker-compose.yml exec -T postgres pg_isready -U pttechai -d pttechai 2>$null
         if ($ready -match "accepting connections") {
             Write-Host "[OK] PostgreSQL is ready" -ForegroundColor Green
             break
@@ -91,17 +95,13 @@ if ($dockerAvailable) {
 # Install backend dependencies
 Write-Host ""
 Write-Host "[2/4] Installing backend dependencies..."
-Set-Location backend
-& $pythonCmd.Source -m pip install -r requirements.txt | Out-Null
+& $pythonCmd.Source -m pip install -r backend/requirements.txt | Out-Null
 Write-Host "[OK] Backend dependencies installed" -ForegroundColor Green
-Set-Location ..
 
 # Run database setup
 Write-Host ""
 Write-Host "[3/4] Initializing database..."
-Set-Location backend
 & $pythonCmd.Source -m backend.scripts.setup
-Set-Location ..
 
 # Install frontend dependencies
 Write-Host ""
@@ -122,7 +122,7 @@ Write-Host "Setup completed!" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "Start the application:"
-Write-Host "  Backend:  cd backend; python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000"
+Write-Host "  Backend:  python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000"
 Write-Host "  Frontend: cd frontend; npm run dev"
 Write-Host ""
 Write-Host "Default login:"

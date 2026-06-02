@@ -4,6 +4,10 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$PROJECT_ROOT"
+
 echo "========================================"
 echo "PTTechAI v3 - Setup Script"
 echo "========================================"
@@ -55,17 +59,17 @@ fi
 if [ "$DOCKER_AVAILABLE" = true ]; then
     echo ""
     echo "[1/4] Starting PostgreSQL..."
-    if docker compose ps postgres | grep -q "running"; then
+    if docker compose -p pttechai -f deploy/docker-compose.yml ps postgres | grep -q "running"; then
         echo -e "${GREEN}[OK] PostgreSQL already running${NC}"
     else
-        docker compose up -d postgres
+        docker compose -p pttechai -f deploy/docker-compose.yml up -d postgres
         echo -e "${GREEN}[OK] PostgreSQL started${NC}"
     fi
 
     # Wait for PostgreSQL to be ready
     echo "Waiting for PostgreSQL to be ready..."
     for i in {1..30}; do
-        if docker compose exec -T postgres pg_isready -U pttechai -d pttechai > /dev/null 2>&1; then
+        if docker compose -p pttechai -f deploy/docker-compose.yml exec -T postgres pg_isready -U pttechai -d pttechai > /dev/null 2>&1; then
             echo -e "${GREEN}[OK] PostgreSQL is ready${NC}"
             break
         fi
@@ -79,17 +83,13 @@ fi
 # Install backend dependencies
 echo ""
 echo "[2/4] Installing backend dependencies..."
-cd backend
-pip install -r requirements.txt > /dev/null 2>&1
+pip install -r backend/requirements.txt > /dev/null 2>&1
 echo -e "${GREEN}[OK] Backend dependencies installed${NC}"
-cd ..
 
 # Run database setup
 echo ""
 echo "[3/4] Initializing database..."
-cd backend
 python -m backend.scripts.setup
-cd ..
 
 # Install frontend dependencies
 echo ""
@@ -110,7 +110,7 @@ echo -e "${GREEN}Setup completed!${NC}"
 echo "========================================"
 echo ""
 echo "Start the application:"
-echo "  Backend:  cd backend && python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000"
+echo "  Backend:  python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000"
 echo "  Frontend: cd frontend && npm run dev"
 echo ""
 echo "Default login:"
