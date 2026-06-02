@@ -72,6 +72,14 @@ DEFAULT_PERMISSIONS = [
     # Knowledge permissions
     {"name": "knowledge:read", "description": "View knowledge base", "scope": PermissionScope.KNOWLEDGE, "action": PermissionAction.READ},
     {"name": "knowledge:update", "description": "Update knowledge base", "scope": PermissionScope.KNOWLEDGE, "action": PermissionAction.UPDATE},
+
+    # Vulnerability library permissions
+    {"name": "vuln_library:read", "description": "View vulnerability library", "scope": PermissionScope.VULN_LIBRARY, "action": PermissionAction.READ},
+    {"name": "vuln_library:create", "description": "Create vulnerability library entries", "scope": PermissionScope.VULN_LIBRARY, "action": PermissionAction.CREATE},
+    {"name": "vuln_library:update", "description": "Update vulnerability library entries", "scope": PermissionScope.VULN_LIBRARY, "action": PermissionAction.UPDATE},
+    {"name": "vuln_library:delete", "description": "Delete vulnerability library entries", "scope": PermissionScope.VULN_LIBRARY, "action": PermissionAction.DELETE},
+    {"name": "vuln_library:manage", "description": "Manage vulnerability library categories", "scope": PermissionScope.VULN_LIBRARY, "action": PermissionAction.MANAGE},
+    {"name": "vuln_library:read_exp", "description": "View EXP content", "scope": PermissionScope.VULN_LIBRARY, "action": PermissionAction.READ},
 ]
 
 # Role-Permission mappings
@@ -96,6 +104,7 @@ ROLE_PERMISSIONS = {
         "agent:read", "agent:execute",
         "scheduler:read", "scheduler:manage",
         "knowledge:read", "knowledge:update",
+        "vuln_library:read", "vuln_library:create", "vuln_library:update", "vuln_library:delete", "vuln_library:manage", "vuln_library:read_exp",
     ],
     "user": [
         "scan:create", "scan:read", "scan:update", "scan:delete", "scan:execute",
@@ -109,6 +118,7 @@ ROLE_PERMISSIONS = {
         "agent:read", "agent:execute",
         "scheduler:read",
         "knowledge:read",
+        "vuln_library:read",
     ],
     "viewer": [
         "scan:read",
@@ -120,6 +130,7 @@ ROLE_PERMISSIONS = {
         "provider:read",
         "agent:read",
         "knowledge:read",
+        "vuln_library:read",
     ],
     "service": [],
 }
@@ -158,6 +169,8 @@ PERMISSION_FRONTEND_PAGES = {
     "scheduler:manage": ["/scheduler"],
     "knowledge:read": ["/knowledge"],
     "knowledge:update": ["/knowledge"],
+    "vuln_library:read": ["/vulnerability-library/overview", "/vulnerability-library/entries", "/vulnerability-library/artifacts", "/vulnerability-library/identifiers", "/vulnerability-library/categories"],
+    "vuln_library:manage": ["/vulnerability-library/categories"],
 }
 
 # Permission -> Backend APIs mapping
@@ -247,6 +260,37 @@ PERMISSION_BACKEND_APIS = {
     "scheduler:manage": ["POST /api/v1/scheduler", "POST /api/v1/scheduler/*", "DELETE /api/v1/scheduler/*"],
     "knowledge:read": ["GET /api/v1/knowledge", "GET /api/v1/knowledge/*"],
     "knowledge:update": ["POST /api/v1/knowledge", "POST /api/v1/knowledge/*", "DELETE /api/v1/knowledge/*"],
+    "vuln_library:read": [
+        "GET /api/v1/vulnerability-library/stats",
+        "GET /api/v1/vulnerability-library/entries",
+        "GET /api/v1/vulnerability-library/entries/*",
+        "GET /api/v1/vulnerability-library/external/cve/*",
+        "GET /api/v1/vulnerability-library/identifiers",
+        "GET /api/v1/vulnerability-library/artifacts",
+        "GET /api/v1/vulnerability-library/artifacts/*",
+        "GET /api/v1/vulnerability-library/categories",
+    ],
+    "vuln_library:create": [
+        "POST /api/v1/vulnerability-library/entries",
+        "POST /api/v1/vulnerability-library/entries/import",
+        "POST /api/v1/vulnerability-library/entries/*/identifiers",
+        "POST /api/v1/vulnerability-library/entries/*/artifacts",
+    ],
+    "vuln_library:update": [
+        "PUT /api/v1/vulnerability-library/entries/*",
+        "PUT /api/v1/vulnerability-library/identifiers/*",
+        "DELETE /api/v1/vulnerability-library/identifiers/*",
+        "PUT /api/v1/vulnerability-library/artifacts/*",
+    ],
+    "vuln_library:delete": [
+        "DELETE /api/v1/vulnerability-library/entries/*",
+        "DELETE /api/v1/vulnerability-library/artifacts/*",
+    ],
+    "vuln_library:manage": [
+        "POST /api/v1/vulnerability-library/categories",
+        "PUT /api/v1/vulnerability-library/categories/*",
+        "DELETE /api/v1/vulnerability-library/categories/*",
+    ],
 }
 
 

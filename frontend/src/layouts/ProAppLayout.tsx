@@ -36,8 +36,16 @@ export default function ProAppLayout({ children }: ProAppLayoutProps) {
         icon: route.icon,
       }))
 
+    const vulnerabilityLibraryRoutes = accessibleRoutes
+      .filter(route => route.group === 'vulnerabilityLibrary')
+      .map(route => ({
+        path: route.path,
+        name: t(route.name),
+        icon: route.icon,
+      }))
+
     const pentestRoutes = accessibleRoutes
-      .filter(route => route.group !== 'system')
+      .filter(route => route.group === 'pentest')
       .map(route => ({
         path: route.path,
         name: t(route.name),
@@ -50,6 +58,12 @@ export default function ProAppLayout({ children }: ProAppLayoutProps) {
         name: t('sidebar.systemSettings'),
         icon: <SettingOutlined />,
         routes: systemRoutes,
+      },
+      {
+        path: '/vulnerability-library-group',
+        name: t('sidebar.vulnerabilityLibrary'),
+        icon: <SafetyCertificateOutlined />,
+        routes: vulnerabilityLibraryRoutes,
       },
       {
         path: '/penetration-testing-group',

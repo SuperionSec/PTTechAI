@@ -22,6 +22,12 @@ SIDEBAR_GROUPS = [
         "paths": ["/", "/auto", "/scan/new", "/realtime", "/full-ia"],
     },
     {
+        "name": "sidebar.vulnerabilityLibrary",
+        "icon": "SafetyCertificateOutlined",
+        "sort_order": 15,
+        "paths": ["/vulnerability-library/overview", "/vulnerability-library/entries", "/vulnerability-library/artifacts", "/vulnerability-library/identifiers", "/vulnerability-library/categories"],
+    },
+    {
         "name": "sidebar.tools",
         "icon": "ToolOutlined",
         "sort_order": 20,

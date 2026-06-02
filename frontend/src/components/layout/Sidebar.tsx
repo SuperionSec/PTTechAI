@@ -5,6 +5,7 @@ import {
   AimOutlined,
   ApiOutlined,
   BookOutlined,
+  BugOutlined,
   BulbOutlined,
   ClockCircleOutlined,
   CloudServerOutlined,
@@ -52,6 +53,7 @@ const iconMap: Record<string, React.ElementType> = {
   AimOutlined,
   ApiOutlined,
   BookOutlined,
+  BugOutlined,
   CloudServerOutlined,
   CodeOutlined,
   DashboardOutlined,
@@ -83,6 +85,17 @@ const allNavGroups: NavGroup[] = [
       { path: '/scan/new', icon: RobotOutlined, labelKey: 'sidebar.aiAgent', requiredPermission: 'scan:create' },
       { path: '/realtime', icon: ThunderboltOutlined, labelKey: 'sidebar.realtimeTask', requiredPermission: 'agent:execute' },
       { path: '/full-ia', icon: AimOutlined, labelKey: 'sidebar.fullIaTesting', requiredPermission: 'full_ia:read' },
+    ],
+  },
+  {
+    labelKey: 'sidebar.vulnerabilityLibrary',
+    icon: SafetyCertificateOutlined,
+    items: [
+      { path: '/vulnerability-library/overview', icon: DashboardOutlined, labelKey: 'vulnerabilityLibrary.overview.title', requiredPermission: 'vuln_library:read' },
+      { path: '/vulnerability-library/entries', icon: BugOutlined, labelKey: 'vulnerabilityLibrary.entries.title', requiredPermission: 'vuln_library:read' },
+      { path: '/vulnerability-library/artifacts', icon: CodeOutlined, labelKey: 'vulnerabilityLibrary.artifacts.title', requiredPermission: 'vuln_library:read' },
+      { path: '/vulnerability-library/identifiers', icon: DatabaseOutlined, labelKey: 'vulnerabilityLibrary.identifiers.title', requiredPermission: 'vuln_library:read' },
+      { path: '/vulnerability-library/categories', icon: MenuOutlined, labelKey: 'vulnerabilityLibrary.categories.title', requiredPermission: 'vuln_library:manage' },
     ],
   },
   {

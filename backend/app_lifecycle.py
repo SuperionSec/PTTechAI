@@ -8,6 +8,7 @@ from fastapi import FastAPI
 
 from backend.common.config import settings
 from backend.common.db.database import close_db, init_db
+import backend.models  # noqa: F401 - register models with Base metadata
 
 
 async def execute_scheduled_scan(target: str, scan_type: str, agent_role: str | None, llm_profile: str | None) -> dict:
@@ -67,6 +68,16 @@ async def startup_app(app: FastAPI) -> None:
         await init_permissions()
     except Exception as e:
         print(f"Permission init warning: {e}")
+
+    try:
+        from backend.scripts.init_vuln_library_categories import init_vuln_library_categories
+        from backend.common.db.database import async_session_factory
+        async with async_session_factory() as db:
+            count = await init_vuln_library_categories(db)
+            if count > 0:
+                print(f"Vulnerability library category initialization complete: {count} categories created")
+    except Exception as e:
+        print(f"Vulnerability library category init warning: {e}")
 
     try:
         from backend.scripts.init_menus import init_menus

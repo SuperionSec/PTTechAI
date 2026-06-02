@@ -30,6 +30,11 @@ FRONTEND_ROUTES = [
     ("/providers", "sidebar.providers", "provider:read", "ApiOutlined", "pentest"),
     ("/scheduler", "sidebar.scheduler", "scheduler:read", "ScheduleOutlined", "pentest"),
     ("/reports", "sidebar.reports", "report:read", "FileTextOutlined", "pentest"),
+    ("/vulnerability-library/overview", "vulnerabilityLibrary.overview.title", "vuln_library:read", "DashboardOutlined", "vulnerabilityLibrary"),
+    ("/vulnerability-library/entries", "vulnerabilityLibrary.entries.title", "vuln_library:read", "BugOutlined", "vulnerabilityLibrary"),
+    ("/vulnerability-library/artifacts", "vulnerabilityLibrary.artifacts.title", "vuln_library:read", "CodeOutlined", "vulnerabilityLibrary"),
+    ("/vulnerability-library/identifiers", "vulnerabilityLibrary.identifiers.title", "vuln_library:read", "DatabaseOutlined", "vulnerabilityLibrary"),
+    ("/vulnerability-library/categories", "vulnerabilityLibrary.categories.title", "vuln_library:manage", "MenuOutlined", "vulnerabilityLibrary"),
     ("/users", "usersManagement.title", "user:manage", "TeamOutlined", "system"),
     ("/roles", "roleManagement.title", "user:manage", "SafetyCertificateOutlined", "system"),
     ("/menus", "menuManagement.title", "settings:manage", "MenuOutlined", "system"),
@@ -369,6 +374,7 @@ def build_menu_items(permission_names: list[str], frontend_pages: list[str], rol
     page_set = set(frontend_pages)
     system_children = []
     pentest_children = []
+    vuln_library_children = []
     for path, name, permission, icon, group in FRONTEND_ROUTES:
         if role == "admin" or permission is None or permission in permission_set or path in page_set:
             item = MenuItemOut(path=path, name=name, permission=permission, icon=icon, locale=name, access="canAccessPage")
@@ -376,9 +382,13 @@ def build_menu_items(permission_names: list[str], frontend_pages: list[str], rol
                 system_children.append(item)
             elif group == "pentest":
                 pentest_children.append(item)
+            elif group == "vulnerabilityLibrary":
+                vuln_library_children.append(item)
     menus = []
     if system_children:
         menus.append(MenuItemOut(path="/system-setting-group", name="sidebar.systemSettings", icon="SettingOutlined", locale="sidebar.systemSettings", children=system_children))
+    if vuln_library_children:
+        menus.append(MenuItemOut(path="/vulnerability-library-group", name="sidebar.vulnerabilityLibrary", icon="SafetyCertificateOutlined", locale="sidebar.vulnerabilityLibrary", children=vuln_library_children))
     if pentest_children:
         menus.append(MenuItemOut(path="/penetration-testing-group", name="sidebar.penetrationTesting", icon="BugOutlined", locale="sidebar.penetrationTesting", children=pentest_children))
     return menus

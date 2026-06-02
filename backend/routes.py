@@ -30,6 +30,7 @@ from backend.system.system import api as system
 from backend.system.menu import api as menu
 from backend.system.audit import api as audit
 from backend.system.monitor import api as monitor
+from backend.vulnerability_library import api as vuln_library
 
 
 @dataclass(frozen=True)
@@ -48,6 +49,11 @@ SYSTEM_ROUTERS = [
     RouterSpec(menu.router, "/api/v1/menus", ["Menu Management"]),
     RouterSpec(audit.router, "/api/v1/audit", ["Audit Logs"]),
     RouterSpec(monitor.router, "/api/v1/monitor", ["System Monitor"]),
+]
+
+
+VULNERABILITY_LIBRARY_ROUTERS = [
+    RouterSpec(vuln_library.router, "/api/v1/vulnerability-library", ["Vulnerability Library"]),
 ]
 
 PENTEST_ROUTERS = [
@@ -73,7 +79,7 @@ PENTEST_ROUTERS = [
 
 
 def register_v1_routers(app: FastAPI) -> None:
-    for spec in [*PENTEST_ROUTERS, *SYSTEM_ROUTERS]:
+    for spec in [*PENTEST_ROUTERS, *VULNERABILITY_LIBRARY_ROUTERS, *SYSTEM_ROUTERS]:
         if spec.prefix:
             app.include_router(spec.router, prefix=spec.prefix, tags=spec.tags)
         else:

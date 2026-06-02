@@ -125,6 +125,7 @@
     "scheduler": "调度器",
     "reports": "报告",
     "settings": "设置",
+    "vulnerabilityLibrary": "漏洞库",
     "systemOnline": "系统在线"
   },
   "pages": {
@@ -2302,5 +2303,73 @@
     "containerName": "名称",
     "containerImage": "镜像",
     "containerStatus": "状态"
+  },
+  "vulnerabilityLibrary": {
+    "overview": {
+      "title": "漏洞总览",
+      "subtitle": "查看漏洞库覆盖情况、等级分布和最近更新"
+    },
+    "entries": {
+      "title": "漏洞管理",
+      "subtitle": "管理漏洞情报、编号映射和 POC/EXP 元数据"
+    },
+    "artifacts": {
+      "title": "POC/EXP 管理",
+      "subtitle": "浏览和审查漏洞 POC/EXP 资料"
+    },
+    "identifiers": {
+      "title": "编号映射",
+      "subtitle": "管理内部 PTVULN 与 CVE/CNVD/CNNVD/EDB 等编号的映射"
+    },
+    "categories": {
+      "title": "分类管理",
+      "subtitle": "维护漏洞库分类树"
+    },
+    "stats": {
+      "total": "漏洞总数",
+      "withPoc": "有 POC",
+      "withExp": "有 EXP",
+      "monthlyNew": "本月新增",
+      "severityDistribution": "等级分布",
+      "statusDistribution": "状态分布",
+      "recentEntries": "最近更新漏洞"
+    },
+    "fields": {
+      "vulnCode": "漏洞编号",
+      "artifactCode": "资料编号",
+      "externalIdentifier": "外部编号",
+      "platform": "平台",
+      "payloadType": "载荷类型",
+      "title": "漏洞名称",
+      "summary": "摘要",
+      "description": "漏洞内容",
+      "severity": "严重等级",
+      "category": "分类",
+      "code": "编码",
+      "source": "来源",
+      "vendor": "厂商",
+      "product": "产品",
+      "impact": "影响说明",
+      "technicalDetails": "技术细节",
+      "remediation": "修复建议",
+      "workaround": "缓解方案",
+      "parentCategory": "父级分类",
+      "sortOrder": "排序"
+    },
+    "actions": {
+      "createEntry": "新增漏洞",
+      "editEntry": "编辑漏洞",
+      "createCategory": "新增分类",
+      "editCategory": "编辑分类"
+    },
+    "messages": {
+      "fetchFailed": "获取漏洞库数据失败",
+      "saveFailed": "保存失败",
+      "saved": "已保存",
+      "deleted": "已删除",
+      "deleteFailed": "删除失败",
+      "deleteConfirm": "确定要删除吗？",
+      "noEntries": "暂无漏洞条目"
+    }
   }
 }

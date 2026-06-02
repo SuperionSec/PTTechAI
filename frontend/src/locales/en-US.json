@@ -125,6 +125,7 @@
     "scheduler": "Scheduler",
     "reports": "Reports",
     "settings": "Settings",
+    "vulnerabilityLibrary": "Vulnerability Library",
     "systemOnline": "System Online"
   },
   "pages": {
@@ -2302,5 +2303,73 @@
     "containerName": "Name",
     "containerImage": "Image",
     "containerStatus": "Status"
+  },
+  "vulnerabilityLibrary": {
+    "overview": {
+      "title": "Vulnerability Overview",
+      "subtitle": "Track library coverage, severity distribution, and recent updates"
+    },
+    "entries": {
+      "title": "Vulnerability Entries",
+      "subtitle": "Manage vulnerability intelligence, identifier mappings, and POC/EXP metadata"
+    },
+    "artifacts": {
+      "title": "POC/EXP Management",
+      "subtitle": "Browse and review vulnerability POC/EXP artifacts"
+    },
+    "identifiers": {
+      "title": "Identifier Mappings",
+      "subtitle": "Map internal PTVULN codes to CVE/CNVD/CNNVD/EDB identifiers"
+    },
+    "categories": {
+      "title": "Category Management",
+      "subtitle": "Manage the vulnerability category tree"
+    },
+    "stats": {
+      "total": "Total",
+      "withPoc": "With POC",
+      "withExp": "With EXP",
+      "monthlyNew": "This Month",
+      "severityDistribution": "Severity Distribution",
+      "statusDistribution": "Status Distribution",
+      "recentEntries": "Recent Entries"
+    },
+    "fields": {
+      "vulnCode": "Vulnerability Code",
+      "artifactCode": "Artifact Code",
+      "externalIdentifier": "External Identifier",
+      "platform": "Platform",
+      "payloadType": "Payload Type",
+      "title": "Title",
+      "summary": "Summary",
+      "description": "Description",
+      "severity": "Severity",
+      "category": "Category",
+      "code": "Code",
+      "source": "Source",
+      "vendor": "Vendor",
+      "product": "Product",
+      "impact": "Impact",
+      "technicalDetails": "Technical Details",
+      "remediation": "Remediation",
+      "workaround": "Workaround",
+      "parentCategory": "Parent Category",
+      "sortOrder": "Sort Order"
+    },
+    "actions": {
+      "createEntry": "Create Entry",
+      "editEntry": "Edit Entry",
+      "createCategory": "Create Category",
+      "editCategory": "Edit Category"
+    },
+    "messages": {
+      "fetchFailed": "Failed to fetch vulnerability library data",
+      "saveFailed": "Save failed",
+      "saved": "Saved",
+      "deleted": "Deleted",
+      "deleteFailed": "Delete failed",
+      "deleteConfirm": "Are you sure you want to delete?",
+      "noEntries": "No vulnerability entries"
+    }
   }
 }

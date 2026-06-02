@@ -21,6 +21,7 @@ import {
   KeyOutlined,
   SafetyCertificateOutlined,
   MenuOutlined,
+  BugOutlined,
 } from '@ant-design/icons'
 import LoginPage from '../pages/LoginPage'
 import RegisterPage from '../pages/RegisterPage'
@@ -43,6 +44,13 @@ import MCPManagementPage from '../pages/MCPManagementPage'
 import ProvidersPage from '../pages/ProvidersPage'
 import FullIATestingPage from '../pages/FullIATestingPage'
 import {
+  VulnerabilityArtifactsPage,
+  VulnerabilityCategoriesPage,
+  VulnerabilityEntriesPage,
+  VulnerabilityIdentifiersPage,
+  VulnerabilityLibraryOverviewPage,
+} from '../pages/vulnerability-library'
+import {
   APIKeysPage,
   AuditLogPage,
   LanguagesPage,
@@ -55,7 +63,7 @@ import {
 } from '../pages/system'
 import NotFound from '../pages/Exception/NotFound'
 
-export type RouteGroup = 'system' | 'pentest'
+export type RouteGroup = 'system' | 'pentest' | 'vulnerabilityLibrary'
 
 export interface AppRoute {
   path: string
@@ -86,6 +94,11 @@ export const appRoutes: AppRoute[] = [
   { path: '/providers', name: 'sidebar.providers', element: <ProvidersPage />, icon: <ApiOutlined />, access: 'canAccessPage', permission: 'provider:read', group: 'pentest' },
   { path: '/scheduler', name: 'sidebar.scheduler', element: <SchedulerPage />, icon: <ScheduleOutlined />, access: 'canAccessPage', permission: 'scheduler:read', group: 'pentest' },
   { path: '/reports', name: 'sidebar.reports', element: <ReportsPage />, icon: <FileTextOutlined />, access: 'canAccessPage', permission: 'report:read', group: 'pentest' },
+  { path: '/vulnerability-library/overview', name: 'vulnerabilityLibrary.overview.title', element: <VulnerabilityLibraryOverviewPage />, icon: <DashboardOutlined />, access: 'canAccessPage', permission: 'vuln_library:read', group: 'vulnerabilityLibrary' },
+  { path: '/vulnerability-library/entries', name: 'vulnerabilityLibrary.entries.title', element: <VulnerabilityEntriesPage />, icon: <BugOutlined />, access: 'canAccessPage', permission: 'vuln_library:read', group: 'vulnerabilityLibrary' },
+  { path: '/vulnerability-library/artifacts', name: 'vulnerabilityLibrary.artifacts.title', element: <VulnerabilityArtifactsPage />, icon: <CodeOutlined />, access: 'canAccessPage', permission: 'vuln_library:read', group: 'vulnerabilityLibrary' },
+  { path: '/vulnerability-library/identifiers', name: 'vulnerabilityLibrary.identifiers.title', element: <VulnerabilityIdentifiersPage />, icon: <DatabaseOutlined />, access: 'canAccessPage', permission: 'vuln_library:read', group: 'vulnerabilityLibrary' },
+  { path: '/vulnerability-library/categories', name: 'vulnerabilityLibrary.categories.title', element: <VulnerabilityCategoriesPage />, icon: <MenuOutlined />, access: 'canAccessPage', permission: 'vuln_library:manage', group: 'vulnerabilityLibrary' },
   { path: '/reports/:reportId', name: 'pages.reportView', element: <ReportViewPage />, access: 'canAccessPage', permission: 'report:read', hideInMenu: true },
   { path: '/scan/:scanId', name: 'pages.scanDetails', element: <ScanDetailsPage />, access: 'canAccessPage', permission: 'scan:read', hideInMenu: true },
   { path: '/agent/:agentId', name: 'pages.agentStatus', element: <AgentStatusPage />, access: 'canAccessPage', permission: 'agent:read', hideInMenu: true },

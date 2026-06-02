@@ -27,6 +27,7 @@ class PermissionScope(str, Enum):
     AGENT = "agent"              # AI agent management
     SCHEDULER = "scheduler"      # Scheduler management
     KNOWLEDGE = "knowledge"      # Knowledge base management
+    VULN_LIBRARY = "vuln_library"  # Vulnerability library management
 
 
 class PermissionAction(str, Enum):

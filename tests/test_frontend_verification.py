@@ -65,6 +65,14 @@ class TestFrontendPages:
         "APIKeysPage.tsx",
     ]
 
+    VULNERABILITY_LIBRARY_PAGES = [
+        "VulnerabilityLibraryOverviewPage.tsx",
+        "VulnerabilityEntriesPage.tsx",
+        "VulnerabilityArtifactsPage.tsx",
+        "VulnerabilityIdentifiersPage.tsx",
+        "VulnerabilityCategoriesPage.tsx",
+    ]
+
     @pytest.mark.parametrize("page_file", PENTEST_PAGES)
     def test_pentest_page_exists_in_pages_root(self, page_file):
         page_path = FRONTEND_SRC / "pages" / page_file
@@ -74,6 +82,21 @@ class TestFrontendPages:
     def test_system_page_exists_in_system_directory(self, page_file):
         page_path = FRONTEND_SRC / "pages" / "system" / page_file
         assert page_path.exists(), f"System page component {page_file} should exist in pages/system"
+
+    @pytest.mark.parametrize("page_file", VULNERABILITY_LIBRARY_PAGES)
+    def test_vulnerability_library_page_exists_in_directory(self, page_file):
+        page_path = FRONTEND_SRC / "pages" / "vulnerability-library" / page_file
+        assert page_path.exists(), f"Vulnerability library page component {page_file} should exist"
+
+    def test_vulnerability_library_pages_module_exports_all_pages(self):
+        index_content = (FRONTEND_SRC / "pages" / "vulnerability-library" / "index.ts").read_text(encoding="utf-8")
+        for page in ["VulnerabilityLibraryOverviewPage", "VulnerabilityEntriesPage", "VulnerabilityArtifactsPage", "VulnerabilityIdentifiersPage", "VulnerabilityCategoriesPage"]:
+            assert page in index_content
+
+    def test_route_config_imports_vulnerability_library_pages_from_module(self):
+        content = (FRONTEND_SRC / "routes" / "routeConfig.tsx").read_text(encoding="utf-8")
+        assert "from '../pages/vulnerability-library'" in content
+        assert "vulnerabilityLibrary'" in content
 
     def test_route_config_imports_system_pages_from_system_module(self):
         content = (FRONTEND_SRC / "routes" / "routeConfig.tsx").read_text(encoding="utf-8")
@@ -108,6 +131,13 @@ class TestFrontendPages:
             route_line = next(line for line in content.splitlines() if f"path: '{path}'" in line)
             assert "group: 'pentest'" in route_line
 
+    def test_key_vulnerability_library_routes_are_in_vulnerability_library_group(self):
+        content = (FRONTEND_SRC / "routes" / "routeConfig.tsx").read_text(encoding="utf-8")
+        for path in ["/vulnerability-library/overview", "/vulnerability-library/entries", "/vulnerability-library/artifacts", "/vulnerability-library/identifiers", "/vulnerability-library/categories"]:
+            route_line = next(line for line in content.splitlines() if f"path: '{path}'" in line)
+            assert "group: 'vulnerabilityLibrary'" in route_line
+            assert "vuln_library:" in route_line
+
     def test_protected_routes_declare_access_metadata(self):
         content = (FRONTEND_SRC / "routes" / "routeConfig.tsx").read_text(encoding="utf-8")
         assert "access?: 'canAccessPage'" in content
@@ -129,12 +159,16 @@ class TestFrontendPages:
         assert "canAccessPage({" in layout_content
         assert "role: userPermissions?.role || user?.role" in layout_content
 
-    def test_pro_layout_builds_two_grouped_menus(self):
+    def test_pro_layout_builds_grouped_menus(self):
         content = (FRONTEND_SRC / "layouts" / "ProAppLayout.tsx").read_text(encoding="utf-8")
         assert "path: '/system-setting-group'" in content
+        assert "path: '/vulnerability-library-group'" in content
         assert "path: '/penetration-testing-group'" in content
         assert "t('sidebar.systemSettings')" in content
+        assert "t('sidebar.vulnerabilityLibrary')" in content
         assert "t('sidebar.penetrationTesting')" in content
+        assert "route.group === 'pentest'" in content
+        assert "route.group !== 'system'" not in content
         assert "item.parentKeys?.length && item.icon" in content
         assert "item.children ? content" in content
 
@@ -285,6 +319,24 @@ class TestFrontendPages:
         content = (PROJECT_ROOT / "deploy" / "docker" / "nginx.conf").read_text(encoding="utf-8")
         assert "location /api/" in content
         assert "location /api {" not in content
+
+
+    def test_vulnerability_library_locale_keys_exist(self):
+        with open(FRONTEND_SRC / "locales" / "en-US.json", encoding="utf-8") as f:
+            en = json.load(f)
+        with open(FRONTEND_SRC / "locales" / "zh-CN.json", encoding="utf-8") as f:
+            zh = json.load(f)
+        for locale in [en, zh]:
+            vuln = locale["vulnerabilityLibrary"]
+            assert vuln["overview"]["title"]
+            assert vuln["entries"]["title"]
+            assert vuln["artifacts"]["title"]
+            assert vuln["identifiers"]["title"]
+            assert vuln["categories"]["title"]
+            assert vuln["fields"]["externalIdentifier"]
+            assert vuln["fields"]["payloadType"]
+        assert zh["sidebar"]["vulnerabilityLibrary"] == "漏洞库"
+        assert en["sidebar"]["vulnerabilityLibrary"] == "Vulnerability Library"
 
 
 class TestFrontendServices:
