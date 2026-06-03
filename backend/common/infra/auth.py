@@ -2,20 +2,24 @@
 PTTechAI v3 - Authentication and Security
 """
 from datetime import datetime, timedelta, timezone
+import hashlib
+import hmac
 from typing import Optional
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 import uuid
 import secrets
 
 from backend.common.config import settings
 from backend.common.db.database import get_db, engine, ensure_rbac_role_schema
-from backend.common.models.user import User, Role, APIKey
+from backend.common.models.user import User, APIKey
 from backend.common.infra.token_manager import is_token_revoked, update_token_last_used
+from backend.common.infra.rbac.access_helpers import is_admin_role, is_service_role
 
 
 # Use bcrypt for password hashing (passlib auto-verifies old sha256_crypt hashes via deprecated="auto")
@@ -85,13 +89,13 @@ async def ensure_auth_schema_ready() -> None:
 async def get_user(db: AsyncSession, email: str) -> Optional[User]:
     """Get a user by email"""
     await ensure_auth_schema_ready()
-    result = await db.execute(select(User).where(User.email == email))
+    result = await db.execute(select(User).options(selectinload(User.role_ref)).where(User.email == email))
     return result.scalar_one_or_none()
 
 
 async def get_user_by_id(db: AsyncSession, user_id: str) -> Optional[User]:
     """Get a user by ID"""
-    result = await db.execute(select(User).where(User.id == user_id))
+    result = await db.execute(select(User).options(selectinload(User.role_ref)).where(User.id == user_id))
     return result.scalar_one_or_none()
 
 
@@ -151,13 +155,11 @@ async def get_current_user(
     return user
 
 
-def require_role(*roles: Role):
-    """Dependency factory to require specific role(s)"""
+def require_role(*roles: str):
+    """Dependency factory to require specific role name(s)."""
+    allowed_roles = [role.value if hasattr(role, "value") else role for role in roles]
     async def role_checker(current_user: User = Depends(get_current_user)) -> User:
-        # Handle both string and enum role values
-        user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
-        allowed_roles = [r.value if hasattr(r, 'value') else r for r in roles]
-        if user_role not in allowed_roles:
+        if current_user.role_ref is None or current_user.role_ref.name not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not enough permissions"
@@ -166,15 +168,14 @@ def require_role(*roles: Role):
     return role_checker
 
 
-def require_role_with_service(*roles: Role):
-    """Dependency factory to require specific role(s), but also allow SERVICE role"""
+def require_role_with_service(*roles: str):
+    """Dependency factory to require specific role name(s), but also allow service role."""
+    allowed_roles = [role.value if hasattr(role, "value") else role for role in roles]
     async def role_checker(current_user: User = Depends(get_current_user)) -> User:
-        user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
-        allowed_roles = [r.value if hasattr(r, 'value') else r for r in roles]
-        # SERVICE role is always allowed (for API access)
-        if user_role == Role.SERVICE.value:
+        role_name = current_user.role_ref.name if current_user.role_ref else None
+        if role_name == "service":
             return current_user
-        if user_role not in allowed_roles:
+        if role_name not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not enough permissions"
@@ -184,10 +185,9 @@ def require_role_with_service(*roles: Role):
 
 
 def require_admin_or_service():
-    """Dependency factory to require ADMIN or SERVICE role"""
+    """Dependency factory to require admin or service role."""
     async def role_checker(current_user: User = Depends(get_current_user)) -> User:
-        user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
-        if user_role not in [Role.ADMIN.value, Role.SERVICE.value]:
+        if not (is_admin_role(current_user) or is_service_role(current_user)):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Admin or service role required"
@@ -201,20 +201,44 @@ def generate_api_key() -> str:
     return "nsk_" + secrets.token_urlsafe(32)
 
 
+def get_api_key_prefix(api_key: str) -> str:
+    """Return a non-secret lookup prefix for an API key."""
+    return api_key[:12]
+
+
+def get_api_key_digest(api_key: str) -> str:
+    """Return deterministic HMAC digest used for API key lookup."""
+    return hmac.new(settings.SECRET_KEY.encode(), api_key.encode(), hashlib.sha256).hexdigest()
+
+
 async def verify_api_key(db: AsyncSession, api_key: str) -> Optional[User]:
-    """Verify an API key and return the associated user"""
-    # Get all API keys and check against hash
-    result = await db.execute(select(APIKey))
-    api_keys = result.scalars().all()
-    
-    for key in api_keys:
-        if pwd_context.verify(api_key, key.key_hash):
-            # Update last_used timestamp
-            key.last_used = datetime.now(timezone.utc).replace(tzinfo=None)
-            await db.commit()
-            # Check expiration
-            if key.expires_at and datetime.now(timezone.utc).replace(tzinfo=None) > key.expires_at:
+    """Verify an API key and return the associated user."""
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    key_digest = get_api_key_digest(api_key)
+    result = await db.execute(
+        select(APIKey)
+        .options(selectinload(APIKey.user).selectinload(User.role_ref))
+        .where(APIKey.key_digest == key_digest)
+    )
+    candidates = list(result.scalars().all())
+
+    # Backward compatibility for legacy keys without deterministic lookup columns.
+    if not candidates:
+        legacy_result = await db.execute(
+            select(APIKey)
+            .options(selectinload(APIKey.user).selectinload(User.role_ref))
+            .where(APIKey.key_digest.is_(None))
+        )
+        candidates = list(legacy_result.scalars().all())
+
+    for key in candidates:
+        if hmac.compare_digest(key.key_digest or key_digest, key_digest) and pwd_context.verify(api_key, key.key_hash):
+            if key.expires_at and now > key.expires_at:
                 return None
+            key.key_prefix = key.key_prefix or get_api_key_prefix(api_key)
+            key.key_digest = key.key_digest or key_digest
+            key.last_used = now
+            await db.commit()
             return key.user
     return None
 

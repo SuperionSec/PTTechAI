@@ -73,8 +73,7 @@ class RolePermission(Base):
     __tablename__ = "role_permissions"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    role: Mapped[str] = mapped_column(String(50), nullable=False, index=True)  # legacy role name
-    role_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("roles.id"), nullable=True)
+    role_id: Mapped[str] = mapped_column(String(36), ForeignKey("roles.id"), nullable=False)
     permission_id: Mapped[str] = mapped_column(String(36), ForeignKey("permissions.id", ondelete="CASCADE"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
@@ -85,8 +84,8 @@ class RolePermission(Base):
     def to_dict(self):
         return {
             "id": self.id,
-            "role": self.role,
             "role_id": self.role_id,
+            "role": self.role_ref.name if self.role_ref else None,
             "permission_id": self.permission_id,
             "permission": self.permission.to_dict() if self.permission else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,

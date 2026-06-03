@@ -256,7 +256,6 @@ PERMISSION_BACKEND_APIS = {
         "GET /api/v1/vulnerability-library/stats",
         "GET /api/v1/vulnerability-library/entries",
         "GET /api/v1/vulnerability-library/entries/*",
-        "GET /api/v1/vulnerability-library/external/cve/*",
         "GET /api/v1/vulnerability-library/identifiers",
         "GET /api/v1/vulnerability-library/artifacts",
         "GET /api/v1/vulnerability-library/artifacts/*",
@@ -340,8 +339,8 @@ async def init_permissions():
 
         # Create role-permission mappings
         if should_reset_role_permissions_on_startup():
-            for role_name in ROLE_PERMISSIONS.keys():
-                await db.execute(delete(RolePermission).where(RolePermission.role == role_name))
+            for role_name, role_id in role_map.items():
+                await db.execute(delete(RolePermission).where(RolePermission.role_id == role_id))
             print("[ROLE_PERMISSION] Reset default role permissions because RBAC_RESET_ON_STARTUP=true")
 
         for role, perm_names in ROLE_PERMISSIONS.items():
@@ -352,7 +351,7 @@ async def init_permissions():
 
                 result = await db.execute(
                     select(RolePermission).where(
-                        RolePermission.role == role,
+                        RolePermission.role_id == role_map.get(role),
                         RolePermission.permission_id == perm_id
                     )
                 )
@@ -360,20 +359,11 @@ async def init_permissions():
                 if not existing:
                     rp = RolePermission(
                         id=str(uuid.uuid4()),
-                        role=role,
                         role_id=role_map.get(role),
                         permission_id=perm_id,
                     )
                     db.add(rp)
                     print(f"[ROLE_PERMISSION] Created: {role} -> {perm_name}")
-                elif existing.role_id is None:
-                    existing.role_id = role_map.get(role)
-
-        await db.commit()
-
-        for role_name, role_id in role_map.items():
-            await db.execute(update(User).where(User.role == role_name, User.role_id.is_(None)).values(role_id=role_id))
-            await db.execute(update(RolePermission).where(RolePermission.role == role_name, RolePermission.role_id.is_(None)).values(role_id=role_id))
 
         await db.commit()
 

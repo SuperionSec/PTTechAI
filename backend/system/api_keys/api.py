@@ -13,9 +13,10 @@ from backend.common.schemas.auth import APIKeyCreate, APIKeyResponse
 from backend.common.infra.auth import (
     get_current_user,
     generate_api_key,
+    get_api_key_digest,
+    get_api_key_prefix,
     get_password_hash
 )
-from backend.common.models.user import Role
 from backend.common.infra.resource_guard import require_api_permission
 from backend.system.audit.service import record_audit_log
 
@@ -43,15 +44,19 @@ async def create_api_key(
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new API key"""
-    # Generate API key and hash it
+    # Generate API key and lookup metadata
     api_key = generate_api_key()
     key_hash = get_password_hash(api_key)
+    key_prefix = get_api_key_prefix(api_key)
+    key_digest = get_api_key_digest(api_key)
     
     # Create database entry
     db_api_key = APIKey(
         user_id=current_user.id,
         name=api_key_data.name,
         key_hash=key_hash,
+        key_prefix=key_prefix,
+        key_digest=key_digest,
         expires_at=api_key_data.expires_at
     )
     db.add(db_api_key)

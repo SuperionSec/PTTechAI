@@ -77,10 +77,6 @@ export const systemApi = {
     const response = await api.put<RoleDetail>(`/system/roles/${role}`, data)
     return response.data
   },
-  updateRolePermissions: async (role: string, permissionIds: string[]) => {
-    const response = await api.put<RoleDetail>(`/system/roles/${role}/permissions`, { permission_ids: permissionIds })
-    return response.data
-  },
   deleteRole: async (role: string) => {
     const response = await api.delete<void>(`/system/roles/${role}`)
     return response.data

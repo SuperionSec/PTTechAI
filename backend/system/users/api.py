@@ -5,6 +5,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from sqlalchemy import select
 
 from backend.common.db.database import get_db
@@ -13,6 +14,7 @@ from backend.common.schemas.auth import UserResponse, UserUpdate, UserCreate
 from backend.common.infra.auth import get_current_user, get_password_hash, get_user_by_id, get_user
 from backend.common.infra.permissions import require_user_manage, require_user_read, require_user_create, require_user_update, require_user_delete
 from backend.system.rbac.service import resolve_active_role
+from backend.common.infra.rbac.access_helpers import role_name_for
 from backend.system.audit.service import record_audit_log
 
 router = APIRouter()
@@ -43,7 +45,6 @@ async def create_user(
         email=user_data.email,
         hashed_password=hashed_password,
         full_name=user_data.full_name,
-        role=role_model.name,
         role_id=role_model.id,
         is_active=True,
     )
@@ -55,7 +56,7 @@ async def create_user(
         action="user.create",
         resource_type="user",
         resource_id=db_user.id,
-        details={"email": db_user.email, "role": db_user.role},
+        details={"email": db_user.email, "role_id": db_user.role_id, "role": role_model.name},
         request=request,
     )
     await db.commit()
@@ -65,7 +66,7 @@ async def create_user(
         id=db_user.id,
         email=db_user.email,
         full_name=db_user.full_name,
-        role=db_user.role.value if hasattr(db_user.role, 'value') else db_user.role,
+        role=role_model.name,
         is_active=db_user.is_active,
         created_at=db_user.created_at.isoformat() if db_user.created_at else None,
         last_login=db_user.last_login.isoformat() if db_user.last_login else None,
@@ -82,7 +83,7 @@ async def get_current_user_me(
         id=current_user.id,
         email=current_user.email,
         full_name=current_user.full_name,
-        role=current_user.role.value if hasattr(current_user.role, 'value') else current_user.role,
+        role=role_name_for(current_user) or "",
         is_active=current_user.is_active,
         created_at=current_user.created_at.isoformat() if current_user.created_at else None,
         last_login=current_user.last_login.isoformat() if current_user.last_login else None,
@@ -99,13 +100,13 @@ async def get_users(
     db: AsyncSession = Depends(get_db)
 ):
     """Get list of users (Admin only)"""
-    query = select(User)
+    query = select(User).options(selectinload(User.role_ref))
     
     if is_active is not None:
         query = query.where(User.is_active == is_active)
     if role is not None:
         role_model = await resolve_active_role(db, role)
-        query = query.where((User.role_id == role_model.id) | (User.role == role_model.name))
+        query = query.where(User.role_id == role_model.id)
     
     query = query.offset(skip).limit(limit)
     result = await db.execute(query)
@@ -116,7 +117,7 @@ async def get_users(
             id=u.id,
             email=u.email,
             full_name=u.full_name,
-            role=u.role.value if hasattr(u.role, 'value') else u.role,
+            role=role_name_for(u) or "",
             is_active=u.is_active,
             created_at=u.created_at.isoformat() if u.created_at else None,
             last_login=u.last_login.isoformat() if u.last_login else None,
@@ -142,7 +143,7 @@ async def get_user_by_id_route(
         id=user.id,
         email=user.email,
         full_name=user.full_name,
-        role=user.role.value if hasattr(user.role, 'value') else user.role,
+        role=role_name_for(user) or "",
         is_active=user.is_active,
         created_at=user.created_at.isoformat() if user.created_at else None,
         last_login=user.last_login.isoformat() if user.last_login else None,
@@ -184,10 +185,11 @@ async def update_user(
     if user_data.is_active is not None:
         user.is_active = user_data.is_active
     
+    updated_role_name = None
     if user_data.role is not None:
         role_model = await resolve_active_role(db, user_data.role)
-        user.role = role_model.name
         user.role_id = role_model.id
+        updated_role_name = role_model.name
 
     updated_fields = sorted(user_data.model_dump(exclude_unset=True).keys())
     await record_audit_log(
@@ -206,7 +208,7 @@ async def update_user(
         id=user.id,
         email=user.email,
         full_name=user.full_name,
-        role=user.role.value if hasattr(user.role, 'value') else user.role,
+        role=updated_role_name or role_name_for(user) or "",
         is_active=user.is_active,
         created_at=user.created_at.isoformat() if user.created_at else None,
         last_login=user.last_login.isoformat() if user.last_login else None,
@@ -259,10 +261,10 @@ async def reset_user_password(
     db: AsyncSession = Depends(get_db)
 ):
     """Reset user password (Admin only)"""
-    if len(body.new_password) < 6:
+    if len(body.new_password) < 8:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password must be at least 6 characters"
+            detail="Password must be at least 8 characters"
         )
     
     user = await get_user_by_id(db, user_id=user_id)

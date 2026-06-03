@@ -4,7 +4,7 @@ PTTechAI v0.1.0 - RBAC with Resource Mapping
 """
 import time
 from typing import List
-from fastapi import HTTPException, Depends, Request
+from fastapi import Depends, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,13 +14,8 @@ from backend.common.infra.auth import get_current_user
 from backend.common.infra.rbac.access_helpers import is_admin_role, role_permission_filter
 from backend.common.infra.rbac.matcher import find_best_api_matches
 from backend.common.infra.rbac.policies import UnmappedApiPolicy, get_unmapped_api_policy
+from backend.common.infra.permissions import PermissionDenied, has_permission_name
 from backend.common.db.database import get_db
-
-
-class PermissionDenied(HTTPException):
-    """Custom permission denied exception"""
-    def __init__(self, detail: str = "Permission denied"):
-        super().__init__(status_code=403, detail=detail)
 
 
 _RESOURCE_MAPPING_CACHE_TTL_SECONDS = 300
@@ -58,18 +53,6 @@ async def require_api_permission(
     return await check_api_permission(request, current_user, db)
 
 
-async def user_has_permission_name(db: AsyncSession, user: User, permission_name: str) -> bool:
-    query = (
-        select(RolePermission)
-        .join(Permission, RolePermission.permission_id == Permission.id)
-        .where(Permission.name == permission_name)
-        .where(Permission.is_active == True)
-        .where(role_permission_filter(user))
-    )
-    result = await db.execute(query)
-    return result.scalar_one_or_none() is not None
-
-
 async def check_api_permission(
     request: Request,
     current_user: User = Depends(get_current_user),
@@ -89,12 +72,12 @@ async def check_api_permission(
     path = request.url.path
 
     if path.startswith(("/api/v1/full-ia", "/api/v1/terminal", "/api/v1/sandbox")):
-        if await user_has_permission_name(db, current_user, "agent:execute"):
+        if await has_permission_name(db, current_user, "agent:execute"):
             return current_user
         raise PermissionDenied(detail=f"Permission denied for {method} {path}")
 
     if path.startswith("/api/v1/mcp"):
-        if await user_has_permission_name(db, current_user, "settings:manage"):
+        if await has_permission_name(db, current_user, "settings:manage"):
             return current_user
         raise PermissionDenied(detail=f"Permission denied for {method} {path}")
 

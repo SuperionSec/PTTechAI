@@ -19,7 +19,8 @@ async def store_token(
     ip_address: Optional[str] = None,
     user_agent: Optional[str] = None,
     device_info: Optional[str] = None,
-    login_method: str = "password"
+    login_method: str = "password",
+    commit: bool = True,
 ) -> UserToken:
     """Store a new token in the database"""
     token_record = UserToken(
@@ -34,12 +35,14 @@ async def store_token(
         login_method=login_method,
     )
     db.add(token_record)
-    await db.commit()
-    await db.refresh(token_record)
+    await db.flush()
+    if commit:
+        await db.commit()
+        await db.refresh(token_record)
     return token_record
 
 
-async def update_token_last_used(db: AsyncSession, token_jti: str) -> bool:
+async def update_token_last_used(db: AsyncSession, token_jti: str, commit: bool = True) -> bool:
     """Update token last_used_at timestamp"""
     result = await db.execute(
         select(UserToken).where(
@@ -49,12 +52,13 @@ async def update_token_last_used(db: AsyncSession, token_jti: str) -> bool:
     token = result.scalar_one_or_none()
     if token:
         token.last_used_at = datetime.now(timezone.utc).replace(tzinfo=None)
-        await db.commit()
+        if commit:
+            await db.commit()
         return True
     return False
 
 
-async def revoke_token(db: AsyncSession, token_jti: str) -> bool:
+async def revoke_token(db: AsyncSession, token_jti: str, commit: bool = True) -> bool:
     """Revoke a token by its JTI"""
     result = await db.execute(
         select(UserToken).where(
@@ -65,12 +69,13 @@ async def revoke_token(db: AsyncSession, token_jti: str) -> bool:
     if token:
         token.is_revoked = True
         token.revoked_at = datetime.now(timezone.utc).replace(tzinfo=None)
-        await db.commit()
+        if commit:
+            await db.commit()
         return True
     return False
 
 
-async def revoke_all_user_tokens(db: AsyncSession, user_id: str, except_jti: Optional[str] = None) -> int:
+async def revoke_all_user_tokens(db: AsyncSession, user_id: str, except_jti: Optional[str] = None, commit: bool = True) -> int:
     """Revoke all tokens for a user, optionally except one"""
     result = await db.execute(
         select(UserToken).where(
@@ -89,7 +94,7 @@ async def revoke_all_user_tokens(db: AsyncSession, user_id: str, except_jti: Opt
         token.is_revoked = True
         token.revoked_at = datetime.now(timezone.utc).replace(tzinfo=None)
         revoked_count += 1
-    if revoked_count > 0:
+    if revoked_count > 0 and commit:
         await db.commit()
     return revoked_count
 

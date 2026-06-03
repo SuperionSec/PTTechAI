@@ -71,7 +71,9 @@ async def websocket_scan(websocket: WebSocket, scan_id: str):
 frontend_build = Path(__file__).parent.parent / "frontend" / "dist"
 if frontend_build.exists():
     frontend_root = frontend_build.resolve()
-    app.mount("/assets", StaticFiles(directory=frontend_build / "assets"), name="assets")
+    assets_dir = frontend_build / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):

@@ -172,24 +172,14 @@ def test_access_helper_role_name_and_admin_detection():
     assert not is_admin_role(custom)
 
 
-def test_access_helper_role_permission_filter_includes_role_id_fallback():
+def test_access_helper_role_permission_filter_requires_role_id():
     from backend.common.infra.rbac.access_helpers import role_permission_filter
 
     user = User(id="user-id", email="user@example.com", hashed_password="hashed", role="auditor", role_id="role-id", is_active=True)
     expression = str(role_permission_filter(user))
 
     assert "role_permissions.role_id" in expression
-    assert "role_permissions.role" in expression
-
-
-def test_access_helper_role_permission_filter_uses_role_without_role_id():
-    from backend.common.infra.rbac.access_helpers import role_permission_filter
-
-    user = User(id="user-id", email="user@example.com", hashed_password="hashed", role="auditor", is_active=True)
-    expression = str(role_permission_filter(user))
-
-    assert "role_permissions.role" in expression
-    assert "role_permissions.role_id" not in expression
+    assert "role_permissions.role =" not in expression
 
 
 def test_build_menu_items_returns_grouped_pro_layout_contract():
@@ -237,7 +227,7 @@ async def test_create_role_persists_custom_role_permissions(db_session):
 
     role_model = await resolve_active_role(db_session, "security_team")
     role_permission = await db_session.scalar(select(RolePermission).where(RolePermission.role_id == role_model.id))
-    assert role_permission.role == "security_team"
+    assert role_permission.role_id == role_model.id
     assert role_permission.permission_id == permission.id
 
 
@@ -250,7 +240,7 @@ async def test_create_role_accepts_max_length_custom_role_name(db_session):
 
     role_permission = await db_session.scalar(select(RolePermission).where(RolePermission.role_id == role_detail.id))
     assert role_detail.role == role_name
-    assert role_permission.role == role_name
+    assert role_permission.role_id == role_detail.id
 
 
 @pytest.mark.asyncio
@@ -390,7 +380,7 @@ async def test_legacy_get_role_permissions_reads_role_id_only_permissions(db_ses
     permission = await _seed_permission(db_session)
     role_detail = await create_role(db_session, RoleCreate(name="auditor", display_name="Auditor"))
     await db_session.execute(delete(RolePermission).where(RolePermission.role_id == role_detail.id))
-    db_session.add(RolePermission(id="role-permission-id", role="legacy_auditor", role_id=role_detail.id, permission_id=permission.id))
+    db_session.add(RolePermission(id="role-permission-id", role_id=role_detail.id, permission_id=permission.id))
     await db_session.commit()
 
     permissions = await get_legacy_role_permissions(db_session, "auditor")
@@ -401,6 +391,7 @@ async def test_legacy_get_role_permissions_reads_role_id_only_permissions(db_ses
 @pytest.mark.asyncio
 async def test_get_users_filters_custom_persistent_roles(db_session):
     role_detail = await create_role(db_session, RoleCreate(name="auditor", display_name="Auditor"))
+    viewer_role = await create_role(db_session, RoleCreate(name="viewer", display_name="Viewer"))
     auditor = User(
         id="auditor-user-id",
         email="auditor@example.com",
@@ -414,6 +405,7 @@ async def test_get_users_filters_custom_persistent_roles(db_session):
         email="other@example.com",
         hashed_password="hashed",
         role="viewer",
+        role_id=viewer_role.id,
         is_active=True,
     )
     db_session.add_all([auditor, other])

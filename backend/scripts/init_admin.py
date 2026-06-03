@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from sqlalchemy import select
 from backend.common.db.database import async_session_factory
-from backend.common.models.user import User, Role, RoleModel
+from backend.common.models.user import User, RoleModel
 from backend.common.infra.auth import get_password_hash, verify_password
 
 
@@ -52,7 +52,6 @@ async def init_admin():
             email=admin_email,
             hashed_password=get_password_hash(admin_password),
             full_name=admin_name,
-            role="admin",
             role_id=role_model.id,
             is_active=True,
         )

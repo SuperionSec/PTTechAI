@@ -28,7 +28,7 @@ async def get_my_rbac_profile(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    role = current_user.role.value if hasattr(current_user.role, "value") else current_user.role
+    role = current_user.role or ""
     permissions = await rbac_service.get_user_permission_names(db, current_user)
     frontend_pages = await resource_guard.get_accessible_pages(current_user, db)
     backend_apis = await resource_guard.get_accessible_apis(current_user, db)
@@ -40,14 +40,6 @@ async def get_my_rbac_profile(
         access=rbac_service.build_access_map(permissions, role),
         menus=rbac_service.build_menu_items(permissions, frontend_pages, role),
     )
-
-
-@router.get("/frontend-config", response_model=RbacMeOut)
-async def get_frontend_config(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    return await get_my_rbac_profile(db, current_user)
 
 
 @router.get("/permissions", response_model=list[PermissionOut])
@@ -116,15 +108,6 @@ async def delete_role(
     return None
 
 
-@router.get("/roles/{role}/permissions", response_model=RoleDetailOut)
-async def get_role_permissions(
-    role: str,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN)),
-):
-    return await rbac_service.get_role_detail(db, role)
-
-
 @router.put("/roles/{role}/permissions", response_model=RoleDetailOut)
 async def update_role_permissions(
     role: str,
@@ -184,11 +167,3 @@ async def list_unmapped_resources(
 ):
     return await rbac_service.list_unmapped_resources(db, request.app)
 
-
-@router.post("/resources/sync", response_model=list[UnmappedResourceOut])
-async def sync_resources(
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN)),
-):
-    return await rbac_service.list_unmapped_resources(db, request.app)

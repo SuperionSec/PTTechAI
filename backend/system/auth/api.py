@@ -7,7 +7,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.common.db.database import get_db
-from backend.common.models.user import User, Role
+from backend.common.models.user import User
 from backend.common.schemas.auth import (
     UserLogin,
     UserCreate,
@@ -29,6 +29,7 @@ from backend.common.infra.auth import (
     security,
 )
 from backend.common.infra.token_manager import store_token, revoke_token, is_token_revoked
+from backend.common.infra.rbac.access_helpers import is_admin_role, is_service_role, role_name_for
 from backend.system.rbac.service import resolve_active_role
 from backend.system.audit.service import record_audit_log
 from backend.common.config import settings
@@ -54,7 +55,7 @@ async def register(
 ):
     """Register a new user (Admin only - public registration disabled)"""
     # Only admin can create new users
-    if current_user.role != Role.ADMIN:
+    if not is_admin_role(current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Public registration is disabled. Please contact admin."
@@ -75,7 +76,6 @@ async def register(
         email=user_data.email,
         hashed_password=hashed_password,
         full_name=user_data.full_name,
-        role=role_model.name,
         role_id=role_model.id,
         is_active=True,
     )
@@ -117,16 +117,15 @@ async def login(
 
     # Update last login
     user.last_login = datetime.now(timezone.utc).replace(tzinfo=None)
-    await db.commit()
 
     # Revoke all existing tokens for this user (single sign-on: new login invalidates old tokens)
     from backend.common.infra.token_manager import revoke_all_user_tokens
-    revoked_count = await revoke_all_user_tokens(db, user.id)
+    revoked_count = await revoke_all_user_tokens(db, user.id, commit=False)
     if revoked_count > 0:
         print(f"[AUTH] Revoked {revoked_count} old tokens for user {user.email}")
 
     # Create tokens
-    role_value = user.role.value if hasattr(user.role, 'value') else user.role
+    role_value = role_name_for(user) or "user"
     access_token = create_access_token(data={"sub": user.id, "email": user.email, "role": role_value})
     refresh_token = create_refresh_token(data={"sub": user.id})
 
@@ -138,7 +137,7 @@ async def login(
     client_host = request.client.host if request.client else None
     user_agent = request.headers.get("user-agent")
     device_info = parse_device_info(user_agent)
-    login_method = "service" if user.role == Role.SERVICE else "password"
+    login_method = "service" if is_service_role(user) else "password"
 
     await store_token(
         db=db,
@@ -150,6 +149,7 @@ async def login(
         user_agent=user_agent,
         device_info=device_info,
         login_method=login_method,
+        commit=False,
     )
     await store_token(
         db=db,
@@ -161,6 +161,7 @@ async def login(
         user_agent=user_agent,
         device_info=device_info,
         login_method=login_method,
+        commit=False,
     )
 
     await record_audit_log(
@@ -228,10 +229,10 @@ async def refresh_token(
 
     # Revoke the old refresh token (one-time use)
     if jti:
-        await revoke_token(db, jti)
+        await revoke_token(db, jti, commit=False)
 
     # Create new tokens
-    role_value = user.role.value if hasattr(user.role, 'value') else user.role
+    role_value = role_name_for(user) or "user"
     access_token = create_access_token(data={"sub": user.id, "email": user.email, "role": role_value})
     refresh_token = create_refresh_token(data={"sub": user.id})
 
@@ -243,7 +244,7 @@ async def refresh_token(
     client_host = http_request.client.host if http_request.client else None
     user_agent = http_request.headers.get("user-agent")
     device_info = parse_device_info(user_agent)
-    login_method = "service" if user.role == Role.SERVICE else "password"
+    login_method = "service" if is_service_role(user) else "password"
 
     await store_token(
         db=db,
@@ -255,6 +256,7 @@ async def refresh_token(
         user_agent=user_agent,
         device_info=device_info,
         login_method=login_method,
+        commit=False,
     )
     await store_token(
         db=db,
@@ -266,7 +268,9 @@ async def refresh_token(
         user_agent=user_agent,
         device_info=device_info,
         login_method=login_method,
+        commit=False,
     )
+    await db.commit()
 
     return {
         "access_token": access_token,
@@ -282,7 +286,7 @@ async def get_me(current_user: User = Depends(get_current_user)):
         id=current_user.id,
         email=current_user.email,
         full_name=current_user.full_name,
-        role=current_user.role.value if hasattr(current_user.role, 'value') else current_user.role,
+        role=role_name_for(current_user) or "",
         is_active=current_user.is_active,
         created_at=current_user.created_at.isoformat() if current_user.created_at else None,
         last_login=current_user.last_login.isoformat() if current_user.last_login else None,
@@ -330,7 +334,7 @@ async def update_me(
         id=current_user.id,
         email=current_user.email,
         full_name=current_user.full_name,
-        role=current_user.role.value if hasattr(current_user.role, 'value') else current_user.role,
+        role=role_name_for(current_user) or "",
         is_active=current_user.is_active,
         created_at=current_user.created_at.isoformat() if current_user.created_at else None,
         last_login=current_user.last_login.isoformat() if current_user.last_login else None,
@@ -382,7 +386,7 @@ async def logout(
         payload = decode_token(credentials.credentials)
         jti = payload.get("jti")
         if jti:
-            await revoke_token(db, jti)
+            await revoke_token(db, jti, commit=False)
         await record_audit_log(
             db,
             user=current_user,
@@ -408,7 +412,8 @@ async def logout_all(
     try:
         payload = decode_token(credentials.credentials)
         jti = payload.get("jti")
-        revoked_count = await revoke_all_user_tokens(db, current_user.id, except_jti=jti)
+        revoked_count = await revoke_all_user_tokens(db, current_user.id, except_jti=jti, commit=False)
+        await db.commit()
         return {"message": f"Revoked {revoked_count} other sessions"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

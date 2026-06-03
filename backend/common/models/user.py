@@ -2,8 +2,8 @@
 PTTechAI v3 - User and API Key Models
 """
 from datetime import datetime, timezone
-from typing import Optional, List
 from enum import Enum
+from typing import Optional, List
 from sqlalchemy import String, DateTime, Text, ForeignKey, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.common.db.database import Base
@@ -11,11 +11,11 @@ import uuid
 
 
 class Role(str, Enum):
-    """User role enum — kept for backward compatibility with require_role() and auth checks"""
+    """Built-in role names used as constants; persisted roles live in RoleModel."""
     ADMIN = "admin"
     USER = "user"
     VIEWER = "viewer"
-    SERVICE = "service"  # Service account for API-only access
+    SERVICE = "service"
 
 
 class RoleModel(Base):
@@ -55,8 +55,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    role: Mapped[str] = mapped_column(String(50), default="user")  # legacy string field — preserved
-    role_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("roles.id"), nullable=True)  # new FK
+    role_id: Mapped[str] = mapped_column(String(36), ForeignKey("roles.id"), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     last_login: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
@@ -74,13 +73,24 @@ class User(Base):
     agent_tasks: Mapped[List["AgentTask"]] = relationship("AgentTask", back_populates="user", cascade="all, delete-orphan")
     vuln_lab_challenges: Mapped[List["VulnLabChallenge"]] = relationship("VulnLabChallenge", back_populates="user", cascade="all, delete-orphan")
 
+    @property
+    def role(self) -> str | None:
+        """Derived role name from persistent role_ref or a transient compatibility override."""
+        role_ref = self.__dict__.get("role_ref")
+        return role_ref.name if role_ref else getattr(self, "_role_name_override", None)
+
+    @role.setter
+    def role(self, value: str | Role | None) -> None:
+        """Compatibility-only setter; role is not persisted as a database column."""
+        self._role_name_override = value.value if hasattr(value, "value") else value
+
     def to_dict(self) -> dict:
         """Convert to dictionary (without sensitive data)"""
         return {
             "id": self.id,
             "email": self.email,
             "full_name": self.full_name,
-            "role": self.role.value if hasattr(self.role, 'value') else self.role,
+            "role": self.role_ref.name if self.role_ref else None,
             "role_id": self.role_id,
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,
@@ -96,6 +106,8 @@ class APIKey(Base):
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
     name: Mapped[str] = mapped_column(String(255))
     key_hash: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    key_prefix: Mapped[Optional[str]] = mapped_column(String(16), nullable=True, index=True)
+    key_digest: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     last_used: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)

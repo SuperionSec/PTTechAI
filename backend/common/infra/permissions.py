@@ -20,19 +20,42 @@ class PermissionDenied(HTTPException):
         super().__init__(status_code=403, detail=detail)
 
 
+async def has_permission_name(db: AsyncSession, user: User, permission_name: str) -> bool:
+    if is_admin_role(user):
+        return True
+    result = await db.execute(
+        select(Permission.id)
+        .join(RolePermission, Permission.id == RolePermission.permission_id)
+        .where(role_permission_filter(user))
+        .where(Permission.name == permission_name)
+        .where(Permission.is_active == True)
+    )
+    return result.scalar_one_or_none() is not None
+
+
+def require_permission_name(permission_name: str):
+    async def _check_permission(
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db),
+    ) -> User:
+        if not await has_permission_name(db, current_user, permission_name):
+            raise PermissionDenied(f"Permission required: {permission_name}")
+        return current_user
+    return _check_permission
+
+
 async def get_role_permissions(db: AsyncSession, role) -> List[Permission]:
     """Get all permissions for a role"""
-    role_value = role_name_for(role)
+    role_value = role_name_for(role) if isinstance(role, User) else (role.value if hasattr(role, "value") else role)
     role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role_value))
+    if not role_model:
+        return []
     query = (
         select(Permission)
         .join(RolePermission, Permission.id == RolePermission.permission_id)
+        .where(RolePermission.role_id == role_model.id)
         .where(Permission.is_active == True)
     )
-    if role_model:
-        query = query.where((RolePermission.role_id == role_model.id) | (RolePermission.role == role_value))
-    else:
-        query = query.where(RolePermission.role == role_value)
     result = await db.execute(query)
     return result.scalars().unique().all()
 
