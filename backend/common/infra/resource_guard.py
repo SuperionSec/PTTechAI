@@ -2,6 +2,7 @@
 Resource Guard - Unified permission-based access control
 PTTechAI v0.1.0 - RBAC with Resource Mapping
 """
+import time
 from typing import List
 from fastapi import HTTPException, Depends, Request
 from sqlalchemy import select
@@ -20,6 +21,32 @@ class PermissionDenied(HTTPException):
     """Custom permission denied exception"""
     def __init__(self, detail: str = "Permission denied"):
         super().__init__(status_code=403, detail=detail)
+
+
+_RESOURCE_MAPPING_CACHE_TTL_SECONDS = 300
+_resource_mapping_cache: tuple[float, list[tuple[str, str]]] | None = None
+
+
+def clear_resource_mapping_cache() -> None:
+    """Clear in-process backend API resource mapping cache."""
+    global _resource_mapping_cache
+    _resource_mapping_cache = None
+
+
+async def get_backend_api_mappings(db: AsyncSession) -> list[tuple[str, str]]:
+    """Return cached backend API resource mappings as (resource_path, permission_id)."""
+    global _resource_mapping_cache
+    now = time.monotonic()
+    if _resource_mapping_cache and now - _resource_mapping_cache[0] < _RESOURCE_MAPPING_CACHE_TTL_SECONDS:
+        return _resource_mapping_cache[1]
+
+    result = await db.execute(
+        select(ResourceMapping.resource_path, ResourceMapping.permission_id)
+        .where(ResourceMapping.resource_type == "backend_api")
+    )
+    mappings = [(row[0], row[1]) for row in result.all()]
+    _resource_mapping_cache = (now, mappings)
+    return mappings
 
 
 async def require_api_permission(
@@ -72,11 +99,7 @@ async def check_api_permission(
         raise PermissionDenied(detail=f"Permission denied for {method} {path}")
 
     # Check if there's a permission mapping for this API
-    result = await db.execute(
-        select(ResourceMapping.resource_path, ResourceMapping.permission_id)
-        .where(ResourceMapping.resource_type == "backend_api")
-    )
-    mapping_rows = result.all()
+    mapping_rows = await get_backend_api_mappings(db)
     matched_patterns = find_best_api_matches([row[0] for row in mapping_rows], method, path)
     matched_patterns = matched_patterns[:1]
     required_perm_ids = [row[1] for row in mapping_rows if row[0] in matched_patterns]
@@ -120,11 +143,7 @@ class ResourceGuard:
             return True
 
         # Find permissions required for this API
-        result = await db.execute(
-            select(ResourceMapping.resource_path, ResourceMapping.permission_id)
-            .where(ResourceMapping.resource_type == "backend_api")
-        )
-        mapping_rows = result.all()
+        mapping_rows = await get_backend_api_mappings(db)
         matched_patterns = find_best_api_matches([row[0] for row in mapping_rows], method, path)
         matched_patterns = matched_patterns[:1]
         required_perm_ids = [row[1] for row in mapping_rows if row[0] in matched_patterns]

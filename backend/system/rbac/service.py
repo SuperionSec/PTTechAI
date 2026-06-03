@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from backend.common.infra.rbac.access_helpers import is_admin_role, role_name_for, role_permission_filter
+from backend.common.infra.resource_guard import clear_resource_mapping_cache
 from backend.common.infra.rbac.matcher import match_api_resource
 from backend.common.models.permission import Permission, ResourceMapping, RolePermission
 from backend.common.models.user import RoleModel, User
@@ -296,6 +297,7 @@ async def create_resource_mapping(db: AsyncSession, permission_id: str, resource
     )
     db.add(mapping)
     await db.commit()
+    clear_resource_mapping_cache()
     await db.refresh(mapping)
     mapping.permission = permission
     return resource_mapping_out(mapping)
@@ -307,6 +309,7 @@ async def delete_resource_mapping(db: AsyncSession, mapping_id: str) -> None:
         raise HTTPException(status_code=404, detail="Resource mapping not found")
     await db.delete(mapping)
     await db.commit()
+    clear_resource_mapping_cache()
 
 
 def discover_api_routes(app) -> set[str]:

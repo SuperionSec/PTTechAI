@@ -231,7 +231,7 @@ Test-Step "11. Service Role - Denied APIs" {
 # Test 12: Role Management API
 Test-Step "12. Role Management API" {
     $headers = @{Authorization = "Bearer $script:adminToken"}
-    $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/permissions/roles/access" -Method GET -Headers $headers
+    $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/system/roles" -Method GET -Headers $headers
     if ($response.Count -eq 4) {
         $roles = $response | ForEach-Object { $_.role }
         @{success=$true; detail="Roles: $($roles -join ', ')"}

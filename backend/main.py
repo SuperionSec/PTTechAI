@@ -48,33 +48,8 @@ register_v1_routers(app)
 
 @app.get("/api/health")
 async def health_check():
-    """Health check endpoint with LLM status"""
-    import os
-
-    # Check LLM availability
-    anthropic_key = os.getenv("ANTHROPIC_API_KEY", "")
-    openai_key = os.getenv("OPENAI_API_KEY", "")
-
-    llm_status = "not_configured"
-    llm_provider = None
-
-    if anthropic_key and anthropic_key not in ["", "your-anthropic-api-key"]:
-        llm_status = "configured"
-        llm_provider = "claude"
-    elif openai_key and openai_key not in ["", "your-openai-api-key"]:
-        llm_status = "configured"
-        llm_provider = "openai"
-
-    return {
-        "status": "healthy",
-        "app": settings.APP_NAME,
-        "version": settings.APP_VERSION,
-        "llm": {
-            "status": llm_status,
-            "provider": llm_provider,
-            "message": "AI agent ready" if llm_status == "configured" else "Set ANTHROPIC_API_KEY or OPENAI_API_KEY to enable AI features"
-        }
-    }
+    """Minimal public health check endpoint."""
+    return {"status": "ok"}
 
 
 @app.websocket("/ws/scan/{scan_id}")
@@ -95,15 +70,16 @@ async def websocket_scan(websocket: WebSocket, scan_id: str):
 # Serve static files (frontend) in production
 frontend_build = Path(__file__).parent.parent / "frontend" / "dist"
 if frontend_build.exists():
+    frontend_root = frontend_build.resolve()
     app.mount("/assets", StaticFiles(directory=frontend_build / "assets"), name="assets")
 
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
-        """Serve frontend for all non-API routes"""
-        file_path = frontend_build / full_path
-        if file_path.exists() and file_path.is_file():
-            return FileResponse(file_path)
-        return FileResponse(frontend_build / "index.html")
+        """Serve frontend for all non-API routes."""
+        requested_path = (frontend_root / full_path).resolve()
+        if requested_path.is_file() and requested_path.is_relative_to(frontend_root):
+            return FileResponse(requested_path)
+        return FileResponse(frontend_root / "index.html")
 
 
 if __name__ == "__main__":

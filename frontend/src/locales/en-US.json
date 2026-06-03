@@ -164,7 +164,7 @@
     "fullNamePlaceholder": "Enter your name",
     "emailPlaceholder": "Enter your email",
     "passwordMismatch": "Passwords do not match",
-    "passwordTooShort": "Password must be at least 6 characters",
+    "passwordTooShort": "Password must be at least 8 characters",
     "registrationFailed": "Registration failed",
     "creatingAccount": "Creating account...",
     "createAccount": "Create Account",
@@ -2338,8 +2338,17 @@
       "vulnCode": "Vulnerability Code",
       "artifactCode": "Artifact Code",
       "externalIdentifier": "External Identifier",
+      "externalUrl": "External URL",
+      "primaryIdentifier": "Primary Identifier",
       "platform": "Platform",
       "payloadType": "Payload Type",
+      "type": "Type",
+      "verified": "Verified",
+      "author": "Author",
+      "url": "URL",
+      "note": "Note",
+      "riskWarning": "Risk Warning",
+      "content": "Content",
       "title": "Title",
       "summary": "Summary",
       "description": "Description",
@@ -2356,11 +2365,33 @@
       "parentCategory": "Parent Category",
       "sortOrder": "Sort Order"
     },
+    "tabs": {
+      "basic": "Basic Info",
+      "content": "Vulnerability Content",
+      "identifiers": "Identifier Mappings"
+    },
     "actions": {
       "createEntry": "Create Entry",
       "editEntry": "Edit Entry",
       "createCategory": "Create Category",
-      "editCategory": "Edit Category"
+      "editCategory": "Edit Category",
+      "exportJson": "Export JSON",
+      "exportCsv": "Export CSV",
+      "importJson": "Import JSON",
+      "createIdentifier": "Create Identifier",
+      "editIdentifier": "Edit Identifier Mapping",
+      "createArtifact": "Create POC/EXP",
+      "editArtifact": "Edit POC/EXP"
+    },
+    "placeholders": {
+      "autoGenerate": "Leave empty to auto-generate"
+    },
+    "artifactViewer": {
+      "expRiskTitle": "EXP Risk Warning",
+      "expRiskDescription": "EXP content is offensive and sensitive. Only view and use it in authorized environments.",
+      "noExpPermission": "No permission to view EXP content",
+      "noContent": "No content",
+      "noExpPermissionDescription": "The current account lacks vuln_library:read_exp permission. EXP content is hidden."
     },
     "messages": {
       "fetchFailed": "Failed to fetch vulnerability library data",
@@ -2369,7 +2400,14 @@
       "deleted": "Deleted",
       "deleteFailed": "Delete failed",
       "deleteConfirm": "Are you sure you want to delete?",
-      "noEntries": "No vulnerability entries"
+      "deleteIdentifierConfirm": "Delete this identifier mapping?",
+      "deleteArtifactConfirm": "Delete this POC/EXP?",
+      "noEntries": "No vulnerability entries",
+      "exportStarted": "Export started",
+      "exportFailed": "Export failed",
+      "importFailed": "Import failed",
+      "importHint": "Paste an array or JSON with an entries field, for example:",
+      "importSummary": "Import complete: created {{created}}, skipped {{skipped}}, errors {{errors}}"
     }
   }
 }

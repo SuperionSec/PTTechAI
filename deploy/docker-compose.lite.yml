@@ -7,16 +7,16 @@ services:
     image: postgres:16-alpine
     container_name: pttechai-postgres
     environment:
-      POSTGRES_USER: pttechai
-      POSTGRES_PASSWORD: pttechai
-      POSTGRES_DB: pttechai
+      POSTGRES_USER: ${POSTGRES_USER:-pttechai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pttechai}
+      POSTGRES_DB: ${POSTGRES_DB:-pttechai}
     volumes:
       - pttechai-postgres-data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U pttechai -d pttechai"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pttechai} -d ${POSTGRES_DB:-pttechai}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -30,10 +30,10 @@ services:
       - ../.env
     environment:
       - DEBUG=${DEBUG:-true}
-      - SECRET_KEY=${SECRET_KEY:-development-secret-key-change-in-production}
+      - SECRET_KEY=${SECRET_KEY:?Set SECRET_KEY in .env before starting PTTechAI}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - DATABASE_URL=postgresql+asyncpg://pttechai:pttechai@postgres:5432/pttechai
+      - DATABASE_URL=${DOCKER_DATABASE_URL:-postgresql+asyncpg://pttechai:pttechai@postgres:5432/pttechai}
     volumes:
       - pttechai-data:/app/backend/pentest/data
     ports:

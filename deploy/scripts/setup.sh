@@ -55,6 +55,10 @@ if [ ! -f ".env" ]; then
     echo -e "${YELLOW}[WARN] Please edit .env to set your API keys and admin password${NC}"
 fi
 
+if grep -Eq '^SECRET_KEY=(change-this-to-a-random-secret-key-in-production|development-secret-key-change-in-production|change-me-in-production)?$' .env; then
+    echo -e "${YELLOW}[WARN] SECRET_KEY is missing or still uses a default placeholder. Generate a strong secret before production deployment.${NC}"
+fi
+
 # Start PostgreSQL via Docker if available
 if [ "$DOCKER_AVAILABLE" = true ]; then
     echo ""

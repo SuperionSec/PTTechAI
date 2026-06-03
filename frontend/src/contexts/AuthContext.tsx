@@ -204,7 +204,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      await axios.post(`${AUTH_URL}/logout`)
+      const accessToken = getStoredToken()
+      await axios.post(`${AUTH_URL}/logout`, undefined, accessToken ? {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      } : undefined)
     } catch {
       // Ignore error, still clear local storage
     }

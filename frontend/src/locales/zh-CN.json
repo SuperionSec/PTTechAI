@@ -164,7 +164,7 @@
     "fullNamePlaceholder": "请输入姓名",
     "emailPlaceholder": "请输入邮箱",
     "passwordMismatch": "两次输入的密码不一致",
-    "passwordTooShort": "密码长度至少为 6 位",
+    "passwordTooShort": "密码长度至少为 8 位",
     "registrationFailed": "注册失败",
     "creatingAccount": "创建账户中...",
     "createAccount": "创建账户",
@@ -2338,8 +2338,17 @@
       "vulnCode": "漏洞编号",
       "artifactCode": "资料编号",
       "externalIdentifier": "外部编号",
+      "externalUrl": "外部链接",
+      "primaryIdentifier": "主编号",
       "platform": "平台",
       "payloadType": "载荷类型",
+      "type": "类型",
+      "verified": "已验证",
+      "author": "作者",
+      "url": "链接",
+      "note": "备注",
+      "riskWarning": "风险提示",
+      "content": "正文",
       "title": "漏洞名称",
       "summary": "摘要",
       "description": "漏洞内容",
@@ -2356,11 +2365,33 @@
       "parentCategory": "父级分类",
       "sortOrder": "排序"
     },
+    "tabs": {
+      "basic": "基础信息",
+      "content": "漏洞内容",
+      "identifiers": "编号映射"
+    },
     "actions": {
       "createEntry": "新增漏洞",
       "editEntry": "编辑漏洞",
       "createCategory": "新增分类",
-      "editCategory": "编辑分类"
+      "editCategory": "编辑分类",
+      "exportJson": "导出 JSON",
+      "exportCsv": "导出 CSV",
+      "importJson": "导入 JSON",
+      "createIdentifier": "新增编号",
+      "editIdentifier": "编辑编号映射",
+      "createArtifact": "新增 POC/EXP",
+      "editArtifact": "编辑 POC/EXP"
+    },
+    "placeholders": {
+      "autoGenerate": "留空自动生成"
+    },
+    "artifactViewer": {
+      "expRiskTitle": "EXP 风险提示",
+      "expRiskDescription": "EXP 内容具有攻击性和敏感性，请仅在授权环境中查看和使用。",
+      "noExpPermission": "无权限查看 EXP 正文",
+      "noContent": "暂无内容",
+      "noExpPermissionDescription": "当前账号缺少 vuln_library:read_exp 权限，EXP 正文已隐藏。"
     },
     "messages": {
       "fetchFailed": "获取漏洞库数据失败",
@@ -2369,7 +2400,14 @@
       "deleted": "已删除",
       "deleteFailed": "删除失败",
       "deleteConfirm": "确定要删除吗？",
-      "noEntries": "暂无漏洞条目"
+      "deleteIdentifierConfirm": "删除该编号映射？",
+      "deleteArtifactConfirm": "删除该 POC/EXP？",
+      "noEntries": "暂无漏洞条目",
+      "exportStarted": "导出已开始",
+      "exportFailed": "导出失败",
+      "importFailed": "导入失败",
+      "importHint": "支持粘贴数组或包含 entries 字段的 JSON，例如：",
+      "importSummary": "导入完成：创建 {{created}} 条，跳过 {{skipped}} 条，错误 {{errors}} 条"
     }
   }
 }

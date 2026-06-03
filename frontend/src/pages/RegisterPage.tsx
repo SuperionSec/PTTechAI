@@ -65,7 +65,7 @@ export default function RegisterPage() {
               <Input prefix={<MailOutlined />} placeholder={t('register.emailPlaceholder')} autoComplete="email" />
             </Form.Item>
 
-            <Form.Item name="password" label={t('login.password')} rules={[{ required: true, message: t('login.passwordPlaceholder') }, { min: 6, message: t('register.passwordTooShort') }]}>
+            <Form.Item name="password" label={t('login.password')} rules={[{ required: true, message: t('login.passwordPlaceholder') }, { min: 8, message: t('register.passwordTooShort') }]}>
               <Input.Password prefix={<LockOutlined />} placeholder={t('login.passwordPlaceholder')} autoComplete="new-password" />
             </Form.Item>
 

@@ -348,19 +348,9 @@ class TestFrontendServices:
     def test_websocket_service_exists(self):
         assert (FRONTEND_SRC / "services" / "websocket.ts").exists(), "websocket.ts should exist"
 
-    def test_rbac_service_exists(self):
-        assert (FRONTEND_SRC / "services" / "rbac.ts").exists(), "rbac.ts should exist"
-
-    def test_rbac_service_has_role_apis(self):
-        content = (FRONTEND_SRC / "services" / "rbac.ts").read_text(encoding="utf-8")
-        assert "me: () => get<RbacProfile>('/rbac/me')" in content
-        assert "menus?:" in content
-        for method in ["roles", "role", "createRole", "updateRolePermissions", "deleteRole", "unmappedResources", "createResourceMapping"]:
-            assert f"{method}:" in content, f"rbacApi should expose {method}"
-
     def test_system_service_entrypoint_exports_system_boundaries(self):
         content = (FRONTEND_SRC / "services" / "system" / "index.ts").read_text(encoding="utf-8")
-        assert "export { rbacApi } from '../rbac'" in content
+        assert "../rbac" not in content
         for api_name in ["systemApi", "usersApi", "profileApi", "apiKeysApi"]:
             assert f"export const {api_name}" in content
         for endpoint in ["/system/me", "/system/roles", "/system/permissions", "/system/resources", "/system/resources/unmapped", "/system/resources/mappings", "/system/users", "/system/profile/me", "/system/profile/change-password", "/system/api-keys"]:

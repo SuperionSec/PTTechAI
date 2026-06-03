@@ -6,19 +6,6 @@ from fastapi import HTTPException
 from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from backend.system.rbac.permissions_api import (
-    CreateResourceMappingRequest,
-    UpdateRoleRequest,
-    assign_permission_to_role as assign_legacy_permission_to_role,
-    create_resource_mapping as create_legacy_resource_mapping,
-    delete_resource_mapping as delete_legacy_resource_mapping,
-    get_my_permissions as get_legacy_my_permissions,
-    get_recommended_mappings,
-    list_system_apis,
-    list_unmapped_resources as list_legacy_unmapped_resources,
-    revoke_permission_from_role as revoke_legacy_permission_from_role,
-    update_role_permissions as update_legacy_role_permissions,
-)
 from backend.system.users.api import get_users
 from backend.common.config import settings
 from backend.common.infra.permissions import PermissionChecker, get_role_permissions as get_legacy_role_permissions, has_permission
@@ -371,8 +358,8 @@ async def test_resource_guard_reads_custom_role_id_permissions(db_session):
     ])
     await db_session.commit()
 
-    permissions = await get_legacy_my_permissions(db_session, user)
-    assert [permission.name for permission in permissions] == ["scan:read"]
+    permissions = await get_user_permission_names(db_session, user)
+    assert permissions == ["scan:read"]
     assert await resource_guard.get_accessible_pages(user, db_session) == ["/scan/new"]
     assert await resource_guard.get_accessible_apis(user, db_session) == ["GET /api/v1/scans"]
 
@@ -507,128 +494,3 @@ async def test_update_role_permissions_rejects_missing_role(db_session):
     assert exc_info.value.status_code == 404
     assert await db_session.scalar(select(RolePermission)) is None
 
-
-@pytest.mark.asyncio
-async def test_legacy_create_resource_mapping_reuses_rbac_validation(db_session):
-    permission = await _seed_permission(db_session)
-
-    with pytest.raises(HTTPException) as exc_info:
-        await create_legacy_resource_mapping(
-            CreateResourceMappingRequest(
-                permission_id=permission.id,
-                resource_type="backend_api",
-                resource_path="GET /api/v1/scans?limit=1",
-            ),
-            db_session,
-            current_user=None,
-        )
-
-    assert exc_info.value.status_code == 400
-
-
-@pytest.mark.asyncio
-async def test_legacy_create_resource_mapping_normalizes_backend_method(db_session):
-    permission = await _seed_permission(db_session)
-
-    mapping = await create_legacy_resource_mapping(
-        CreateResourceMappingRequest(
-            permission_id=permission.id,
-            resource_type="backend_api",
-            resource_path="get /api/v1/scans/*",
-        ),
-        db_session,
-        current_user=None,
-    )
-
-    assert mapping.resource_path == "GET /api/v1/scans/*"
-
-
-@pytest.mark.asyncio
-async def test_legacy_delete_resource_mapping_uses_shared_not_found_behavior(db_session):
-    with pytest.raises(HTTPException) as exc_info:
-        await delete_legacy_resource_mapping("missing-mapping-id", db_session, current_user=None)
-
-    assert exc_info.value.status_code == 404
-
-
-@pytest.mark.asyncio
-async def test_legacy_unmapped_resources_honors_wildcard_backend_mappings(db_session):
-    permission = await _seed_permission(db_session)
-    db_session.add(
-        ResourceMapping(
-            id="wildcard-api-mapping",
-            permission_id=permission.id,
-            resource_type="backend_api",
-            resource_path="GET /api/v1/permissions/*",
-        )
-    )
-    await db_session.commit()
-
-    unmapped = await list_legacy_unmapped_resources(db_session, current_user=None)
-
-    assert "GET /api/v1/permissions/roles/{role}" not in {resource.resource_path for resource in unmapped}
-
-
-@pytest.mark.asyncio
-async def test_legacy_update_role_permissions_rejects_missing_role_without_orphans(db_session):
-    permission = await _seed_permission(db_session)
-
-    with pytest.raises(HTTPException) as exc_info:
-        await update_legacy_role_permissions(
-            "missing_role",
-            UpdateRoleRequest(permission_ids=[permission.id]),
-            db_session,
-            current_user=None,
-        )
-
-    assert exc_info.value.status_code == 404
-    assert await db_session.scalar(select(RolePermission)) is None
-
-
-@pytest.mark.asyncio
-async def test_legacy_assign_permission_rejects_missing_role_without_orphans(db_session):
-    permission = await _seed_permission(db_session)
-
-    with pytest.raises(HTTPException) as exc_info:
-        await assign_legacy_permission_to_role("missing_role", permission.id, db_session, current_user=None)
-
-    assert exc_info.value.status_code == 404
-    assert await db_session.scalar(select(RolePermission)) is None
-
-
-@pytest.mark.asyncio
-async def test_legacy_revoke_permission_updates_persistent_role_permissions(db_session):
-    scan_read = await _seed_permission(db_session)
-    user_manage = Permission(
-        id="perm-user-manage",
-        name="user:manage",
-        description="Manage users",
-        scope=PermissionScope.USER,
-        action=PermissionAction.MANAGE,
-        is_active=True,
-    )
-    db_session.add(user_manage)
-    await db_session.commit()
-    role_detail = await create_role(db_session, RoleCreate(name="auditor", display_name="Auditor", permission_ids=[scan_read.id, user_manage.id]))
-
-    await revoke_legacy_permission_from_role("auditor", scan_read.id, db_session, current_user=None)
-
-    role_permissions = (await db_session.execute(select(RolePermission).where(RolePermission.role_id == role_detail.id))).scalars().all()
-    assert [role_permission.permission_id for role_permission in role_permissions] == [user_manage.id]
-
-
-@pytest.mark.asyncio
-async def test_legacy_recommended_mappings_use_shared_frontend_routes():
-    recommendations = await get_recommended_mappings("api_key:read", current_user=None)
-
-    assert recommendations["frontend_pages"] == ["/api-keys"]
-
-
-@pytest.mark.asyncio
-async def test_legacy_system_apis_reuses_shared_route_discovery():
-    apis = await list_system_apis(current_user=None)
-    api_by_path = {api.path: api for api in apis}
-
-    assert "/api/v1/permissions/system/apis" in api_by_path
-    assert "GET" in api_by_path["/api/v1/permissions/system/apis"].methods
-    assert all("OPTIONS" not in api.methods for api in apis)

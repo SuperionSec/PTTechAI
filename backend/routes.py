@@ -24,8 +24,6 @@ from backend.pentest.backend.api.v1 import (
 )
 from backend.system.auth import api as auth
 from backend.system.users import api as users
-from backend.system.rbac import permissions_api as permissions
-from backend.system.rbac import rbac_api as rbac
 from backend.system.system import api as system
 from backend.system.menu import api as menu
 from backend.system.audit import api as audit
@@ -43,9 +41,7 @@ class RouterSpec:
 SYSTEM_ROUTERS = [
     RouterSpec(auth.router, "/api/v1/auth", ["Authentication"]),
     RouterSpec(users.router, "/api/v1/users", ["User Management"]),
-    RouterSpec(permissions.router, "/api/v1/permissions", ["Permissions"]),
     RouterSpec(system.router, "/api/v1/system", ["System Management"]),
-    RouterSpec(rbac.router, "/api/v1/rbac", ["RBAC"]),
     RouterSpec(menu.router, "/api/v1/menus", ["Menu Management"]),
     RouterSpec(audit.router, "/api/v1/audit", ["Audit Logs"]),
     RouterSpec(monitor.router, "/api/v1/monitor", ["System Monitor"]),

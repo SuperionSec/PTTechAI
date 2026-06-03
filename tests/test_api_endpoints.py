@@ -55,9 +55,7 @@ class TestRouterRegistration:
         "/api/v1/mcp",
         "/api/v1/providers",
         "/api/v1/full-ia",
-        "/api/v1/permissions",
         "/api/v1/system",
-        "/api/v1/rbac",
     ]
 
     def test_all_routers_registered(self, app):
@@ -80,7 +78,7 @@ class TestRouterRegistration:
         system_prefixes = {spec.prefix for spec in SYSTEM_ROUTERS}
         pentest_prefixes = {spec.prefix for spec in PENTEST_ROUTERS}
 
-        assert system_prefixes == {"/api/v1/auth", "/api/v1/users", "/api/v1/permissions", "/api/v1/system", "/api/v1/rbac", "/api/v1/menus", "/api/v1/audit", "/api/v1/monitor"}
+        assert system_prefixes == {"/api/v1/auth", "/api/v1/users", "/api/v1/system", "/api/v1/menus", "/api/v1/audit", "/api/v1/monitor"}
         assert "/api/v1/settings" in pentest_prefixes
         assert "/api/v1/scheduler" in pentest_prefixes
         assert "/api/v1/knowledge" in pentest_prefixes
@@ -120,10 +118,7 @@ class TestHealthEndpoint:
             response = await client.get("/api/health")
             assert response.status_code == 200
             data = response.json()
-            assert data["status"] == "healthy"
-            assert "PTTechAI" in data["app"] or "pttechai" in data["app"].lower(), \
-                f"Health response app name should reference PTTechAI, got: {data['app']}"
-            assert data["version"] == "3.0.0"
+            assert data == {"status": "ok"}
 
 
 class TestAuthEndpoints:
@@ -235,30 +230,6 @@ class TestRbacEndpoints:
             response = await client.get("/api/v1/system/api-keys")
             assert response.status_code in (401, 403), \
                 f"System API keys should require auth, got {response.status_code}"
-
-    @pytest.mark.asyncio
-    async def test_rbac_me_requires_auth(self, app):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/api/v1/rbac/me")
-            assert response.status_code in (401, 403), \
-                f"RBAC profile should require auth, got {response.status_code}"
-
-    @pytest.mark.asyncio
-    async def test_rbac_roles_requires_auth(self, app):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/api/v1/rbac/roles")
-            assert response.status_code in (401, 403), \
-                f"RBAC roles should require auth, got {response.status_code}"
-
-    @pytest.mark.asyncio
-    async def test_rbac_permissions_requires_auth(self, app):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/api/v1/rbac/permissions")
-            assert response.status_code in (401, 403), \
-                f"RBAC permissions should require auth, got {response.status_code}"
 
     def test_rbac_me_response_model_has_frontend_contract_fields(self):
         from backend.common.schemas.rbac import MenuItemOut, RbacMeOut

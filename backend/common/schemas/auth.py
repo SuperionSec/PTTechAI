@@ -15,7 +15,7 @@ class UserLogin(BaseModel):
 class UserCreate(BaseModel):
     """Schema for user registration"""
     email: EmailStr = Field(..., description="User email")
-    password: str = Field(..., min_length=6, description="User password (min 6 chars)")
+    password: str = Field(..., min_length=8, description="User password (min 8 chars)")
     full_name: Optional[str] = Field(None, description="User full name")
     role: Optional[str] = Field(None, description="User role name")
 

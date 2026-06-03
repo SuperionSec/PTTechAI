@@ -65,6 +65,11 @@ if (-not (Test-Path ".env")) {
     Write-Host "[WARN] Please edit .env to set your API keys and admin password" -ForegroundColor Yellow
 }
 
+$envContent = Get-Content ".env" -ErrorAction SilentlyContinue
+if ($envContent -match "^SECRET_KEY=(change-this-to-a-random-secret-key-in-production|development-secret-key-change-in-production|change-me-in-production)?$") {
+    Write-Host "[WARN] SECRET_KEY is missing or still uses a default placeholder. Generate a strong secret before production deployment." -ForegroundColor Yellow
+}
+
 # Start PostgreSQL via Docker if available
 if ($dockerAvailable) {
     Write-Host ""

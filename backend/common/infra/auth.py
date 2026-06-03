@@ -151,28 +151,6 @@ async def get_current_user(
     return user
 
 
-async def get_current_user_optional(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_db)
-) -> Optional[User]:
-    """Dependency to get current user if authenticated, else None"""
-    try:
-        payload = decode_token(credentials.credentials)
-        token_type = payload.get("type")
-        if token_type != "access":
-            return None
-        user_id: str = payload.get("sub")
-        if user_id is None:
-            return None
-    except (JWTError, Exception):
-        return None
-    
-    user = await get_user_by_id(db, user_id=user_id)
-    if user is None or not user.is_active:
-        return None
-    return user
-
-
 def require_role(*roles: Role):
     """Dependency factory to require specific role(s)"""
     async def role_checker(current_user: User = Depends(get_current_user)) -> User:

@@ -4,7 +4,7 @@ Token management for session tracking and revocation
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import delete, select, and_
 import uuid
 
 from backend.common.models.user import UserToken
@@ -124,19 +124,16 @@ async def get_user_tokens(db: AsyncSession, user_id: str) -> list:
 
 
 async def cleanup_expired_tokens(db: AsyncSession) -> int:
-    """Remove expired tokens from database"""
+    """Remove expired revoked tokens from database."""
     result = await db.execute(
-        select(UserToken).where(
+        delete(UserToken).where(
             and_(
                 UserToken.expires_at < datetime.now(timezone.utc).replace(tzinfo=None),
-                UserToken.is_revoked == True
+                UserToken.is_revoked == True,
             )
         )
     )
-    tokens = result.scalars().all()
-    count = len(tokens)
-    for token in tokens:
-        await db.delete(token)
-    if count > 0:
+    deleted_count = result.rowcount or 0
+    if deleted_count > 0:
         await db.commit()
-    return count
+    return deleted_count

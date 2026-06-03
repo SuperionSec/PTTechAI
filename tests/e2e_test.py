@@ -118,7 +118,7 @@ def run_e2e_tests():
     results.append(r)
 
     # Permissions
-    r, _ = test_endpoint("List permissions", "GET", f"{BASE_URL}/api/v1/permissions", 200, headers=headers)
+    r, _ = test_endpoint("List permissions", "GET", f"{BASE_URL}/api/v1/system/permissions", 200, headers=headers)
     print_result(r)
     results.append(r)
 
@@ -148,11 +148,11 @@ def run_e2e_tests():
         results.append(r)
 
     # RBAC
-    r, _ = test_endpoint("Get RBAC profile", "GET", f"{BASE_URL}/api/v1/rbac/me", 200, headers=headers)
+    r, _ = test_endpoint("Get RBAC profile", "GET", f"{BASE_URL}/api/v1/system/me", 200, headers=headers)
     print_result(r)
     results.append(r)
 
-    r, _ = test_endpoint("List resource mappings", "GET", f"{BASE_URL}/api/v1/rbac/resource-mappings", 200, headers=headers)
+    r, _ = test_endpoint("List resource mappings", "GET", f"{BASE_URL}/api/v1/system/resources", 200, headers=headers)
     print_result(r)
     results.append(r)
 

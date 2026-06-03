@@ -177,7 +177,7 @@ export default function UserProfilePage() {
               <Form.Item name="current_password" label={t('profile.currentPassword')} rules={[{ required: true }]}>
                 <Input.Password />
               </Form.Item>
-              <Form.Item name="new_password" label={t('profile.newPassword')} rules={[{ required: true }, { min: 6, message: t('register.passwordTooShort') }]}>
+              <Form.Item name="new_password" label={t('profile.newPassword')} rules={[{ required: true }, { min: 8, message: t('register.passwordTooShort') }]}>
                 <Input.Password />
               </Form.Item>
               <Form.Item name="confirm_password" label={t('profile.confirmNewPassword')} rules={[{ required: true }]}>

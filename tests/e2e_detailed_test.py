@@ -295,11 +295,11 @@ class E2ETestRunner:
         self.log_test("Admin can list users", resp and resp.status_code == 200)
 
         # Test 4.2: Admin can list roles
-        resp = self.make_request('GET', '/api/v1/permissions/roles', token=self.admin_token)
+        resp = self.make_request('GET', '/api/v1/system/roles', token=self.admin_token)
         self.log_test("Admin can list roles", resp and resp.status_code == 200)
 
         # Test 4.3: Admin can list permissions
-        resp = self.make_request('GET', '/api/v1/permissions', token=self.admin_token)
+        resp = self.make_request('GET', '/api/v1/system/permissions', token=self.admin_token)
         self.log_test("Admin can list permissions", resp and resp.status_code == 200)
 
         # Test 4.4: User can access permitted resources
@@ -312,7 +312,7 @@ class E2ETestRunner:
         self.log_test("Viewer access test", resp is not None and resp.status_code in [200, 403])
 
         # Test 4.6: Get RBAC profile
-        resp = self.make_request('GET', '/api/v1/rbac/me', token=self.admin_token)
+        resp = self.make_request('GET', '/api/v1/system/me', token=self.admin_token)
         if resp and resp.status_code == 200:
             data = self.safe_json(resp)
             self.log_test("Get RBAC profile", 'role' in data and 'permissions' in data)
@@ -320,7 +320,7 @@ class E2ETestRunner:
             self.log_test("Get RBAC profile", False)
 
         # Test 4.7: Get resource mappings
-        resp = self.make_request('GET', '/api/v1/permissions/resource-mappings', token=self.admin_token)
+        resp = self.make_request('GET', '/api/v1/system/resources', token=self.admin_token)
         self.log_test("Get resource mappings", resp and resp.status_code == 200)
 
     # ========== Dashboard & Statistics Tests ==========

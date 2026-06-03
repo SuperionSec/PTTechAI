@@ -111,9 +111,33 @@ export default function AuditLogPage() {
             options={[
               'auth.login_success',
               'auth.login_failed',
+              'auth.logout',
               'menu.create',
               'menu.update',
               'menu.delete',
+              'role.create',
+              'role.update',
+              'role.update_permissions',
+              'role.delete',
+              'user.create',
+              'user.update',
+              'user.delete',
+              'api_key.create',
+              'api_key.delete',
+              'vuln_library.create_entry',
+              'vuln_library.update_entry',
+              'vuln_library.delete_entry',
+              'vuln_library.create_identifier',
+              'vuln_library.update_identifier',
+              'vuln_library.delete_identifier',
+              'vuln_library.create_artifact',
+              'vuln_library.update_artifact',
+              'vuln_library.delete_artifact',
+              'vuln_library.view_exp',
+              'vuln_library.create_category',
+              'vuln_library.update_category',
+              'vuln_library.delete_category',
+              'vuln_library.import_entry',
             ].map(value => ({ label: value, value }))}
           />
           <Select
@@ -122,7 +146,7 @@ export default function AuditLogPage() {
             style={{ width: 180 }}
             value={resourceType}
             onChange={(value) => { setResourceType(value); setPage(1) }}
-            options={['auth', 'menu', 'user', 'role', 'api_key', 'profile'].map(value => ({ label: value, value }))}
+            options={['auth', 'menu', 'user', 'role', 'api_key', 'profile', 'vuln_library_entry', 'vuln_library_identifier', 'vuln_library_artifact', 'vuln_library_category'].map(value => ({ label: value, value }))}
           />
           <Button icon={<SearchOutlined />} onClick={fetchLogs}>
             {t('common.search', 'Search')}

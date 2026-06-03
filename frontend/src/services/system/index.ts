@@ -1,8 +1,60 @@
 import api from '../api'
-import type { Permission, ResourceMapping, RbacProfile, RoleDetail, RoleSummary, UnmappedResource } from '../rbac'
 
-export { rbacApi } from '../rbac'
-export type { Permission, ResourceMapping, RbacProfile, RoleDetail, RoleSummary, UnmappedResource } from '../rbac'
+export interface RbacProfile {
+  role: string
+  permissions: string[]
+  frontend_pages: string[]
+  backend_apis: string[]
+  access?: Record<string, boolean>
+  menus?: Array<{ path: string; name: string; permission?: string | null }>
+}
+
+export interface Permission {
+  id: string
+  name: string
+  description?: string
+  scope?: string
+  action?: string
+  is_active?: boolean
+}
+
+export interface RoleSummary {
+  role: string
+  id?: string | null
+  display_name?: string | null
+  description?: string | null
+  is_system?: boolean
+  is_active?: boolean
+  user_count: number
+  permission_count: number
+}
+
+export interface RoleDetail {
+  role: string
+  id?: string | null
+  display_name?: string | null
+  description?: string | null
+  is_system?: boolean
+  is_active?: boolean
+  permissions: Permission[]
+  total: number
+}
+
+export interface ResourceMapping {
+  id: string
+  permission_id: string
+  permission_name?: string | null
+  resource_type: string
+  resource_path: string
+  version?: number
+  updated_at?: string | null
+}
+
+export interface UnmappedResource {
+  resource_type: string
+  resource_path: string
+  reason: string
+}
 
 export const systemApi = {
   me: async () => {

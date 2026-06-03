@@ -344,7 +344,7 @@ export default function UserManagementPage() {
           <Form.Item name="email" label={t('usersManagement.email')} rules={[{ required: true }, { type: 'email' }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="password" label={t('usersManagement.password')} rules={[{ required: true }, { min: 6 }]}>
+          <Form.Item name="password" label={t('usersManagement.password')} rules={[{ required: true }, { min: 8 }]}>
             <Input.Password />
           </Form.Item>
           <Form.Item name="role" label={t('usersManagement.role')} rules={[{ required: true }]}>
@@ -366,7 +366,7 @@ export default function UserManagementPage() {
         cancelText={t('common.cancel')}
       >
         <Form form={resetForm} layout="vertical">
-          <Form.Item name="new_password" label={t('usersManagement.enterNewPassword')} rules={[{ required: true }, { min: 6 }]}>
+          <Form.Item name="new_password" label={t('usersManagement.enterNewPassword')} rules={[{ required: true }, { min: 8 }]}>
             <Input.Password />
           </Form.Item>
         </Form>
