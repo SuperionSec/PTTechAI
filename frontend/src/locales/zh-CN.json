@@ -227,7 +227,10 @@
     "createSuccess": "用户已创建",
     "deleteSuccess": "用户已删除",
     "fetchFailed": "获取用户失败",
-    "operationSuccess": "操作成功"
+    "operationSuccess": "操作成功",
+    "service": "服务账号",
+    "serviceAccountCreated": "服务账号已创建",
+    "serviceAccountNotice": "该账号仅可用于 API 访问，不能登录 Web 界面。"
   },
   "apiKeys": {
     "title": "我的 API Token",
@@ -2272,7 +2275,12 @@
     "pathPlaceholder": "/example/path",
     "componentPlaceholder": "pages/example/Page",
     "permissionPlaceholder": "例如：scan:read",
-    "displayPreview": "显示预览"
+    "displayPreview": "显示预览",
+    "fetchFailed": "获取菜单失败",
+    "deleteSuccess": "菜单已删除",
+    "deleteFailed": "删除菜单失败",
+    "updateSuccess": "菜单已更新",
+    "createSuccess": "菜单已创建"
   },
   "audit": {
     "title": "审计日志",

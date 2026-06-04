@@ -227,7 +227,10 @@
     "createSuccess": "User created",
     "deleteSuccess": "User deleted",
     "fetchFailed": "Failed to fetch users",
-    "operationSuccess": "Operation succeeded"
+    "operationSuccess": "Operation succeeded",
+    "service": "Service",
+    "serviceAccountCreated": "Service Account Created",
+    "serviceAccountNotice": "This account can only be used for API access and cannot log in to the web interface."
   },
   "apiKeys": {
     "title": "My API Tokens",

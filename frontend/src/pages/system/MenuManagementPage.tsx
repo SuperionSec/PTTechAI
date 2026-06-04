@@ -72,11 +72,11 @@ export default function MenuManagementPage() {
       setMenus(data.menus)
       setPermissions(permissionData)
     } catch (err: any) {
-      message.error(err?.response?.data?.detail || 'Failed to fetch menus')
+      message.error(err?.response?.data?.detail || t('menu.fetchFailed', 'Failed to fetch menus'))
     } finally {
       setLoading(false)
     }
-  }, [message])
+  }, [t])
 
   useEffect(() => {
     fetchMenus()
@@ -113,10 +113,10 @@ export default function MenuManagementPage() {
   const handleDelete = async (id: string) => {
     try {
       await menuApi.delete(id)
-      message.success('Menu deleted')
+      message.success(t('menu.deleteSuccess', 'Menu deleted'))
       fetchMenus()
     } catch (err: any) {
-      message.error(err?.response?.data?.detail || 'Failed to delete menu')
+      message.error(err?.response?.data?.detail || t('menu.deleteFailed', 'Failed to delete menu'))
     }
   }
 
@@ -134,10 +134,10 @@ export default function MenuManagementPage() {
 
       if (editingMenu) {
         await menuApi.update(editingMenu.id, data as MenuUpdate)
-        message.success('Menu updated')
+        message.success(t('menu.updateSuccess', 'Menu updated'))
       } else {
         await menuApi.create(data as MenuCreate)
-        message.success('Menu created')
+        message.success(t('menu.createSuccess', 'Menu created'))
       }
       setModalVisible(false)
       fetchMenus()

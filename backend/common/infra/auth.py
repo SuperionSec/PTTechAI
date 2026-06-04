@@ -17,7 +17,7 @@ import uuid
 import secrets
 
 from backend.common.config import settings
-from backend.common.db.database import get_db, engine, ensure_rbac_role_schema
+from backend.common.db.database import get_db
 from backend.common.models.user import User, APIKey
 from backend.common.infra.token_manager import is_token_revoked, update_token_last_used
 from backend.common.infra.rbac.access_helpers import is_admin_role, is_service_role
@@ -92,19 +92,8 @@ def decode_token(token: str) -> dict:
         )
 
 
-async def ensure_auth_schema_ready() -> None:
-    from backend.common.db import database
-
-    if database._rbac_schema_checked:
-        return
-    async with engine.begin() as conn:
-        await ensure_rbac_role_schema(conn)
-    database._rbac_schema_checked = True
-
-
 async def get_user(db: AsyncSession, email: str) -> Optional[User]:
     """Get a user by email"""
-    await ensure_auth_schema_ready()
     result = await db.execute(select(User).options(selectinload(User.role_ref)).where(User.email == email))
     return result.scalar_one_or_none()
 

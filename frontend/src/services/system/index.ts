@@ -99,16 +99,31 @@ export const systemApi = {
   },
 }
 
+export interface UserCreateRequest {
+  email: string
+  password: string
+  full_name: string
+  role: string
+}
+
+export interface UserUpdateRequest {
+  email?: string
+  password?: string
+  full_name?: string
+  role?: string
+  is_active?: boolean
+}
+
 export const usersApi = {
   list: async () => {
     const response = await api.get('/system/users')
     return response.data
   },
-  create: async (data: unknown) => {
+  create: async (data: UserCreateRequest) => {
     const response = await api.post('/system/users', data)
     return response.data
   },
-  update: async (userId: string, data: unknown) => {
+  update: async (userId: string, data: UserUpdateRequest) => {
     const response = await api.put(`/system/users/${userId}`, data)
     return response.data
   },

@@ -90,7 +90,7 @@ export default function UserManagementPage() {
     admin: t('usersManagement.admin'),
     user: t('usersManagement.user'),
     viewer: t('usersManagement.viewer'),
-    service: 'Service',
+    service: t('usersManagement.service'),
   }), [t])
 
   const roleColors: Record<string, string> = {
@@ -373,7 +373,7 @@ export default function UserManagementPage() {
       </Modal>
 
       <Modal
-        title={<Space><KeyOutlined />Service Account Created</Space>}
+        title={<Space><KeyOutlined />{t('usersManagement.serviceAccountCreated')}</Space>}
         open={showServiceNotice}
         onOk={() => setShowServiceNotice(false)}
         onCancel={() => setShowServiceNotice(false)}
@@ -382,10 +382,10 @@ export default function UserManagementPage() {
         <Alert
           type="info"
           showIcon
-          message="The service account has been created successfully."
+          message={t('usersManagement.serviceAccountCreated')}
           description={(
             <Space direction="vertical">
-              <Text>This account can only be used for API access and cannot log in to the web interface.</Text>
+              <Text>{t('usersManagement.serviceAccountNotice')}</Text>
               <Text code>POST /api/v1/system/profile/login</Text>
             </Space>
           )}

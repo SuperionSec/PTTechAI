@@ -49,7 +49,7 @@ export default function UserProfilePage() {
     admin: t('usersManagement.admin'),
     user: t('usersManagement.user'),
     viewer: t('usersManagement.viewer'),
-    service: 'Service',
+    service: t('usersManagement.service'),
   }
 
   const roleColors: Record<string, string> = {
