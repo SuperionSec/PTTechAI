@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-export const AUTH_URL = '/api/v1/auth'
+export const AUTH_URL = '/api/v1/system/profile'
 
 let refreshPromise: Promise<string> | null = null
 
@@ -26,7 +26,7 @@ export function removeStoredToken() {
 }
 
 export function isAuthRefreshRequest(url?: string) {
-  return Boolean(url?.includes('/auth/refresh'))
+  return Boolean(url?.includes('/auth/refresh') || url?.includes('/system/profile/refresh'))
 }
 
 export async function refreshAccessToken() {

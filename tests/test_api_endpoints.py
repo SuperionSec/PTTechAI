@@ -36,8 +36,6 @@ class TestRouterRegistration:
     """Test that all API routers are registered."""
 
     EXPECTED_ROUTES = [
-        "/api/v1/auth",
-        "/api/v1/users",
         "/api/v1/scans",
         "/api/v1/targets",
         "/api/v1/prompts",
@@ -78,7 +76,7 @@ class TestRouterRegistration:
         system_prefixes = {spec.prefix for spec in SYSTEM_ROUTERS}
         pentest_prefixes = {spec.prefix for spec in PENTEST_ROUTERS}
 
-        assert system_prefixes == {"/api/v1/auth", "/api/v1/users", "/api/v1/system", "/api/v1/menus", "/api/v1/audit", "/api/v1/monitor"}
+        assert system_prefixes == {"/api/v1/system", "/api/v1/menus", "/api/v1/audit", "/api/v1/monitor"}
         assert "/api/v1/settings" in pentest_prefixes
         assert "/api/v1/scheduler" in pentest_prefixes
         assert "/api/v1/knowledge" in pentest_prefixes
@@ -128,7 +126,7 @@ class TestAuthEndpoints:
     async def test_login_endpoint_exists(self, app):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.post("/api/v1/auth/login", json={
+            response = await client.post("/api/v1/system/profile/login", json={
                 "email": "nonexistent@test.com",
                 "password": "wrong"
             })
@@ -139,7 +137,7 @@ class TestAuthEndpoints:
     async def test_register_endpoint_exists(self, app):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.post("/api/v1/auth/register", json={
+            response = await client.post("/api/v1/system/profile/register", json={
                 "email": "test@example.com",
                 "password": "TestPass123!",
                 "full_name": "Test User"
@@ -151,9 +149,9 @@ class TestAuthEndpoints:
     async def test_me_requires_auth(self, app):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/api/v1/auth/me")
+            response = await client.get("/api/v1/system/profile/me")
             assert response.status_code in (401, 403), \
-                f"/auth/me should require auth, got {response.status_code}"
+                f"/system/profile/me should require auth, got {response.status_code}"
 
 
 class TestScanEndpoints:

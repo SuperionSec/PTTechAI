@@ -12,10 +12,12 @@ from backend.common.schemas.auth import (
     UserLogin,
     UserCreate,
     UserUpdate,
+    UserProfileUpdate,
     UserResponse,
     Token,
     RefreshTokenRequest,
     ChangePassword,
+    user_to_response,
 )
 from backend.common.infra.auth import (
     authenticate_user,
@@ -83,7 +85,7 @@ async def register(
     await db.commit()
     await db.refresh(db_user)
 
-    return db_user
+    return user_to_response(db_user)
 
 
 @router.post("/login", response_model=Token)
@@ -282,20 +284,12 @@ async def refresh_token(
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
     """Get current authenticated user information"""
-    return UserResponse(
-        id=current_user.id,
-        email=current_user.email,
-        full_name=current_user.full_name,
-        role=role_name_for(current_user) or "",
-        is_active=current_user.is_active,
-        created_at=current_user.created_at.isoformat() if current_user.created_at else None,
-        last_login=current_user.last_login.isoformat() if current_user.last_login else None,
-    )
+    return user_to_response(current_user)
 
 
 @router.put("/me", response_model=UserResponse)
 async def update_me(
-    user_data: UserUpdate,
+    user_data: UserProfileUpdate,
     request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -315,9 +309,6 @@ async def update_me(
     if user_data.full_name is not None:
         current_user.full_name = user_data.full_name
     
-    if user_data.password is not None:
-        current_user.hashed_password = get_password_hash(user_data.password)
-    
     await record_audit_log(
         db,
         user=current_user,
@@ -330,15 +321,7 @@ async def update_me(
     await db.commit()
     await db.refresh(current_user)
 
-    return UserResponse(
-        id=current_user.id,
-        email=current_user.email,
-        full_name=current_user.full_name,
-        role=role_name_for(current_user) or "",
-        is_active=current_user.is_active,
-        created_at=current_user.created_at.isoformat() if current_user.created_at else None,
-        last_login=current_user.last_login.isoformat() if current_user.last_login else None,
-    )
+    return user_to_response(current_user)
 
 
 @router.put("/change-password")

@@ -83,7 +83,7 @@ def run_e2e_tests():
     print("\n[2/6] Authentication (System Module)")
 
     # Login
-    r, resp = test_endpoint("Admin login", "POST", f"{BASE_URL}/api/v1/auth/login", 200,
+    r, resp = test_endpoint("Admin login", "POST", f"{BASE_URL}/api/v1/system/profile/login", 200,
                            json_data={"email": "admin@bctech.ai", "password": "admin123"})
     print_result(r)
     results.append(r)
@@ -100,7 +100,7 @@ def run_e2e_tests():
     headers = {"Authorization": f"Bearer {access_token}"}
 
     # Get current user
-    r, _ = test_endpoint("Get current user", "GET", f"{BASE_URL}/api/v1/auth/me", 200, headers=headers)
+    r, _ = test_endpoint("Get current user", "GET", f"{BASE_URL}/api/v1/system/profile/me", 200, headers=headers)
     print_result(r)
     results.append(r)
 
@@ -108,7 +108,7 @@ def run_e2e_tests():
     print("\n[3/6] System Management APIs")
 
     # Users
-    r, _ = test_endpoint("List users", "GET", f"{BASE_URL}/api/v1/users", 200, headers=headers)
+    r, _ = test_endpoint("List users", "GET", f"{BASE_URL}/api/v1/system/users", 200, headers=headers)
     print_result(r)
     results.append(r)
 

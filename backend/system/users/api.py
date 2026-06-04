@@ -2,7 +2,6 @@
 PTTechAI v3 - User Management API Routes (Admin Only)
 """
 from typing import List, Optional
-from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -10,7 +9,7 @@ from sqlalchemy import select
 
 from backend.common.db.database import get_db
 from backend.common.models.user import User
-from backend.common.schemas.auth import UserResponse, UserUpdate, UserCreate
+from backend.common.schemas.auth import UserResponse, UserUpdate, UserCreate, ResetPasswordRequest, user_to_response
 from backend.common.infra.auth import get_current_user, get_password_hash, get_user_by_id, get_user
 from backend.common.infra.permissions import require_user_manage, require_user_read, require_user_create, require_user_update, require_user_delete
 from backend.system.rbac.service import resolve_active_role
@@ -18,10 +17,6 @@ from backend.common.infra.rbac.access_helpers import role_name_for
 from backend.system.audit.service import record_audit_log
 
 router = APIRouter()
-
-
-class ResetPasswordRequest(BaseModel):
-    new_password: str
 
 
 @router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)

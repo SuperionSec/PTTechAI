@@ -49,11 +49,11 @@ FRONTEND_ROUTES = [
 ]
 PUBLIC_API_RESOURCES = {
     "GET /api/health",
-    "POST /api/v1/auth/login",
-    "POST /api/v1/auth/logout",
-    "POST /api/v1/auth/logout-all",
-    "POST /api/v1/auth/refresh",
-    "POST /api/v1/auth/register",
+    "POST /api/v1/system/profile/login",
+    "POST /api/v1/system/profile/logout",
+    "POST /api/v1/system/profile/logout-all",
+    "POST /api/v1/system/profile/refresh",
+    "POST /api/v1/system/profile/register",
 }
 
 

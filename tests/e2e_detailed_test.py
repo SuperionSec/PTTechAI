@@ -73,7 +73,7 @@ class E2ETestRunner:
         print("="*60)
 
         # Test 1.1: Admin login
-        resp = self.make_request('POST', '/api/v1/auth/login', json_data={
+        resp = self.make_request('POST', '/api/v1/system/profile/login', json_data={
             'email': 'admin@bctech.ai',
             'password': 'admin123'
         })
@@ -86,7 +86,7 @@ class E2ETestRunner:
             return False
 
         # Test 1.2: User login
-        resp = self.make_request('POST', '/api/v1/auth/login', json_data={
+        resp = self.make_request('POST', '/api/v1/system/profile/login', json_data={
             'email': 'rbac-user@bctech.ai',
             'password': 'admin123'
         })
@@ -98,7 +98,7 @@ class E2ETestRunner:
             self.log_test("User login", False, f"Status: {resp.status_code if resp else 'No response'}")
 
         # Test 1.3: Viewer login
-        resp = self.make_request('POST', '/api/v1/auth/login', json_data={
+        resp = self.make_request('POST', '/api/v1/system/profile/login', json_data={
             'email': 'rbac-viewer@bctech.ai',
             'password': 'admin123'
         })
@@ -110,7 +110,7 @@ class E2ETestRunner:
             self.log_test("Viewer login", False, f"Status: {resp.status_code if resp else 'No response'}")
 
         # Test 1.4: Invalid credentials
-        resp = self.make_request('POST', '/api/v1/auth/login', json_data={
+        resp = self.make_request('POST', '/api/v1/system/profile/login', json_data={
             'email': 'admin@bctech.ai',
             'password': 'wrongpassword'
         })
@@ -122,7 +122,7 @@ class E2ETestRunner:
                          f"Expected 401, got {resp.status_code}")
 
         # Test 1.5: Get current user info
-        resp = self.make_request('GET', '/api/v1/auth/me', token=self.admin_token)
+        resp = self.make_request('GET', '/api/v1/system/profile/me', token=self.admin_token)
         if resp and resp.status_code == 200:
             data = self.safe_json(resp)
             self.log_test("Get current user info",
@@ -291,7 +291,7 @@ class E2ETestRunner:
         print("="*60)
 
         # Test 4.1: Admin can list users
-        resp = self.make_request('GET', '/api/v1/users', token=self.admin_token)
+        resp = self.make_request('GET', '/api/v1/system/users', token=self.admin_token)
         self.log_test("Admin can list users", resp and resp.status_code == 200)
 
         # Test 4.2: Admin can list roles

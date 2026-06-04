@@ -29,7 +29,7 @@ function Test-Step {
 # Test 1: Admin Login
 Test-Step "1. Admin Login" {
     $body = '{"email": "admin@bctech.ai", "password": "admin123"}'
-    $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/auth/login" -Method POST -ContentType "application/json" -Body $body
+    $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/system/profile/login" -Method POST -ContentType "application/json" -Body $body
     if ($response.access_token) {
         $script:adminToken = $response.access_token
         $script:adminRefresh = $response.refresh_token
@@ -42,7 +42,7 @@ Test-Step "1. Admin Login" {
 # Test 2: Token Validation
 Test-Step "2. Token Validation" {
     $headers = @{Authorization = "Bearer $script:adminToken"}
-    $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/auth/me" -Method GET -Headers $headers
+    $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/system/profile/me" -Method GET -Headers $headers
     if ($response.email -eq "admin@bctech.ai") {
         @{success=$true; detail="User: $($response.email), Role: $($response.role)"}
     } else {
@@ -53,7 +53,7 @@ Test-Step "2. Token Validation" {
 # Test 3: Token Refresh
 Test-Step "3. Token Refresh" {
     $body = '{"refresh_token": "' + $script:adminRefresh + '"}'
-    $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/auth/refresh" -Method POST -ContentType "application/json" -Body $body
+    $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/system/profile/refresh" -Method POST -ContentType "application/json" -Body $body
     if ($response.access_token) {
         $script:adminToken = $response.access_token
         @{success=$true; detail="New token received"}
@@ -66,18 +66,18 @@ Test-Step "3. Token Refresh" {
 Test-Step "4. Single Sign-On Test" {
     # First login
     $body = '{"email": "admin@bctech.ai", "password": "admin123"}'
-    $response1 = Invoke-RestMethod -Uri "$baseUrl/api/v1/auth/login" -Method POST -ContentType "application/json" -Body $body
+    $response1 = Invoke-RestMethod -Uri "$baseUrl/api/v1/system/profile/login" -Method POST -ContentType "application/json" -Body $body
     $oldToken = $response1.access_token
     
     # Second login (should invalidate first)
     Start-Sleep -Milliseconds 500
-    $response2 = Invoke-RestMethod -Uri "$baseUrl/api/v1/auth/login" -Method POST -ContentType "application/json" -Body $body
+    $response2 = Invoke-RestMethod -Uri "$baseUrl/api/v1/system/profile/login" -Method POST -ContentType "application/json" -Body $body
     $newToken = $response2.access_token
     
     # Try using old token
     $headers = @{Authorization = "Bearer $oldToken"}
     try {
-        $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/users/me" -Method GET -Headers $headers
+        $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/system/profile/me" -Method GET -Headers $headers
         @{success=$false; detail="Old token still valid - SSO not working"}
     } catch {
         if ($_.Exception.Response.StatusCode.Value__ -eq 401) {
@@ -96,7 +96,7 @@ Test-Step "5. Create Normal User" {
     $script:testUserEmail = "testuser_perm@example.com"
     $body = "{`"email`": `"$script:testUserEmail`", `"password`": `"user123456`", `"full_name`": `"Test User`", `"role`": `"user`"}"
     try {
-        $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/users" -Method POST -ContentType "application/json" -Headers $headers -Body $body
+        $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/system/users" -Method POST -ContentType "application/json" -Headers $headers -Body $body
     } catch {
         # User may already exist
     }
@@ -109,7 +109,7 @@ Test-Step "6. Create Viewer User" {
     $script:testViewerEmail = "testviewer_perm@example.com"
     $body = "{`"email`": `"$script:testViewerEmail`", `"password`": `"viewer123456`", `"full_name`": `"Test Viewer`", `"role`": `"viewer`"}"
     try {
-        $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/users" -Method POST -ContentType "application/json" -Headers $headers -Body $body
+        $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/system/users" -Method POST -ContentType "application/json" -Headers $headers -Body $body
     } catch {
         # User may already exist
     }
@@ -122,7 +122,7 @@ Test-Step "7. Create Service User" {
     $script:testServiceEmail = "testservice_perm@example.com"
     $body = "{`"email`": `"$script:testServiceEmail`", `"password`": `"service123456`", `"full_name`": `"Test Service`", `"role`": `"service`"}"
     try {
-        $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/users" -Method POST -ContentType "application/json" -Headers $headers -Body $body
+        $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/system/users" -Method POST -ContentType "application/json" -Headers $headers -Body $body
     } catch {
         # User may already exist
     }
@@ -132,7 +132,7 @@ Test-Step "7. Create Service User" {
 # Test 8: User Login
 Test-Step "8. Normal User Login" {
     $body = "{`"email`": `"$script:testUserEmail`", `"password`": `"user123456`"}"
-    $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/auth/login" -Method POST -ContentType "application/json" -Body $body
+    $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/system/profile/login" -Method POST -ContentType "application/json" -Body $body
     if ($response.access_token) {
         $script:userToken = $response.access_token
         @{success=$true; detail="User logged in"}
@@ -152,7 +152,7 @@ Test-Step "9. User Role Permissions" {
     
     # Should NOT be able to access user management
     try {
-        $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/users" -Method GET -Headers $headers
+        $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/system/users" -Method GET -Headers $headers
         $usersAccess = $true
     } catch { $usersAccess = $false }
     
@@ -167,7 +167,7 @@ Test-Step "9. User Role Permissions" {
 Test-Step "10. Service Role - Allowed APIs" {
     # Login as service
     $body = "{`"email`": `"$script:testServiceEmail`", `"password`": `"service123456`"}"
-    $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/auth/login" -Method POST -ContentType "application/json" -Body $body
+    $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/system/profile/login" -Method POST -ContentType "application/json" -Body $body
     $serviceToken = $response.access_token
     $headers = @{Authorization = "Bearer $serviceToken"}
     
@@ -201,7 +201,7 @@ Test-Step "10. Service Role - Allowed APIs" {
 # Test 11: Service Role - Denied APIs
 Test-Step "11. Service Role - Denied APIs" {
     $body = "{`"email`": `"$script:testServiceEmail`", `"password`": `"service123456`"}"
-    $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/auth/login" -Method POST -ContentType "application/json" -Body $body
+    $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/system/profile/login" -Method POST -ContentType "application/json" -Body $body
     $serviceToken = $response.access_token
     $headers = @{Authorization = "Bearer $serviceToken"}
     
@@ -246,13 +246,13 @@ Test-Step "13. Token Database Storage" {
     # This would require direct DB access, so we verify indirectly
     # by checking if token revocation works
     $body = '{"email": "admin@bctech.ai", "password": "admin123"}'
-    $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/auth/login" -Method POST -ContentType "application/json" -Body $body
+    $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/system/profile/login" -Method POST -ContentType "application/json" -Body $body
     $newToken = $response.access_token
     
     # Old token should be revoked
     $oldHeaders = @{Authorization = "Bearer $script:adminToken"}
     try {
-        $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/users/me" -Method GET -Headers $oldHeaders
+        $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/system/profile/me" -Method GET -Headers $oldHeaders
         @{success=$false; detail="Old token still valid"}
     } catch {
         $script:adminToken = $newToken
@@ -263,7 +263,7 @@ Test-Step "13. Token Database Storage" {
 # Test 14: Viewer Role Permissions
 Test-Step "14. Viewer Role Permissions" {
     $body = "{`"email`": `"$script:testViewerEmail`", `"password`": `"viewer123456`"}"
-    $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/auth/login" -Method POST -ContentType "application/json" -Body $body
+    $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/system/profile/login" -Method POST -ContentType "application/json" -Body $body
     $viewerToken = $response.access_token
     $headers = @{Authorization = "Bearer $viewerToken"}
     

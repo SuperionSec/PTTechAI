@@ -386,7 +386,7 @@ export default function UserManagementPage() {
           description={(
             <Space direction="vertical">
               <Text>This account can only be used for API access and cannot log in to the web interface.</Text>
-              <Text code>POST /api/v1/auth/login</Text>
+              <Text code>POST /api/v1/system/profile/login</Text>
             </Space>
           )}
         />

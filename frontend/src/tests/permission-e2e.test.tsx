@@ -175,7 +175,7 @@ describe('usePermission Hook', () => {
       adminPerms.role === 'admin' || adminPerms.backend_apis.includes(apiPath)
 
     expect(canAccessApi('POST /api/v1/scans')).toBe(true)
-    expect(canAccessApi('DELETE /api/v1/users/123')).toBe(true)
+    expect(canAccessApi('DELETE /api/v1/system/users/123')).toBe(true)
     expect(canAccessApi('POST /api/v1/settings/clear-database')).toBe(true)
   })
 })

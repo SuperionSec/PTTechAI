@@ -22,8 +22,6 @@ from backend.pentest.backend.api.v1 import (
     vuln_lab,
     vulnerabilities,
 )
-from backend.system.auth import api as auth
-from backend.system.users import api as users
 from backend.system.system import api as system
 from backend.system.menu import api as menu
 from backend.system.audit import api as audit
@@ -39,8 +37,6 @@ class RouterSpec:
 
 
 SYSTEM_ROUTERS = [
-    RouterSpec(auth.router, "/api/v1/auth", ["Authentication"]),
-    RouterSpec(users.router, "/api/v1/users", ["User Management"]),
     RouterSpec(system.router, "/api/v1/system", ["System Management"]),
     RouterSpec(menu.router, "/api/v1/menus", ["Menu Management"]),
     RouterSpec(audit.router, "/api/v1/audit", ["Audit Logs"]),

@@ -5,7 +5,8 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
 from typing import Optional
-from passlib.context import CryptContext
+import bcrypt
+from passlib.hash import sha256_crypt
 from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -22,19 +23,34 @@ from backend.common.infra.token_manager import is_token_revoked, update_token_la
 from backend.common.infra.rbac.access_helpers import is_admin_role, is_service_role
 
 
-# Use bcrypt for password hashing (passlib auto-verifies old sha256_crypt hashes via deprecated="auto")
-pwd_context = CryptContext(schemes=["bcrypt", "sha256_crypt"], deprecated=["sha256_crypt"])
 security = HTTPBearer()
 
 
+def identify_hash(hashed_password: str) -> str:
+    if hashed_password.startswith(("$2a$", "$2b$", "$2y$")):
+        return "bcrypt"
+    if hashed_password.startswith("$5$"):
+        return "sha256_crypt"
+    return "unknown"
+
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against its hash"""
-    return pwd_context.verify(plain_password, hashed_password)
+    """Verify a password or secret against supported hash formats."""
+    hash_type = identify_hash(hashed_password)
+    if hash_type == "bcrypt":
+        return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
+    if hash_type == "sha256_crypt":
+        return sha256_crypt.verify(plain_password, hashed_password)
+    return False
+
+
+def password_needs_rehash(hashed_password: str) -> bool:
+    return identify_hash(hashed_password) != "bcrypt"
 
 
 def get_password_hash(password: str) -> str:
-    """Hash a password"""
-    return pwd_context.hash(password)
+    """Hash a password or secret with native bcrypt."""
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
@@ -106,6 +122,9 @@ async def authenticate_user(db: AsyncSession, email: str, password: str) -> Opti
         return None
     if not verify_password(password, user.hashed_password):
         return None
+    if password_needs_rehash(user.hashed_password):
+        user.hashed_password = get_password_hash(password)
+        await db.flush()
     return user
 
 
@@ -232,7 +251,7 @@ async def verify_api_key(db: AsyncSession, api_key: str) -> Optional[User]:
         candidates = list(legacy_result.scalars().all())
 
     for key in candidates:
-        if hmac.compare_digest(key.key_digest or key_digest, key_digest) and pwd_context.verify(api_key, key.key_hash):
+        if hmac.compare_digest(key.key_digest or key_digest, key_digest) and verify_password(api_key, key.key_hash):
             if key.expires_at and now > key.expires_at:
                 return None
             key.key_prefix = key.key_prefix or get_api_key_prefix(api_key)
