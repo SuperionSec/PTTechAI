@@ -51,35 +51,33 @@ async def get_db() -> AsyncSession:
             await session.close()
 
 
-_rbac_schema_checked = False
-
-
-async def ensure_rbac_role_schema(conn) -> None:
-    await conn.execute(text("""
-        CREATE TABLE IF NOT EXISTS roles (
-            id VARCHAR(36) PRIMARY KEY,
-            name VARCHAR(50) UNIQUE NOT NULL,
-            display_name VARCHAR(100) NOT NULL,
-            description VARCHAR(255),
-            is_system BOOLEAN DEFAULT false NOT NULL,
-            is_active BOOLEAN DEFAULT true NOT NULL,
-            created_at TIMESTAMP DEFAULT now() NOT NULL,
-            updated_at TIMESTAMP DEFAULT now() NOT NULL
+async def verify_rbac_role_schema(conn) -> None:
+    """Verify RBAC role schema is present; schema changes are managed by Alembic."""
+    checks = {
+        "roles table": "SELECT to_regclass('public.roles') IS NOT NULL",
+        "users.role_id": "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='users' AND column_name='role_id')",
+        "role_permissions.role_id": "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='role_permissions' AND column_name='role_id')",
+    }
+    missing = []
+    for name, sql in checks.items():
+        if not await conn.scalar(text(sql)):
+            missing.append(name)
+    if missing:
+        raise RuntimeError(
+            "Database schema is missing RBAC role objects managed by Alembic: "
+            + ", ".join(missing)
+            + ". Run Alembic migrations before starting the application."
         )
-    """))
-    await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS role_id VARCHAR(36)"))
-    await conn.execute(text("ALTER TABLE role_permissions ADD COLUMN IF NOT EXISTS role_id VARCHAR(36)"))
 
 
 async def init_db():
     """Initialize database tables"""
     async with engine.begin() as conn:
         logger.info("Using PostgreSQL database")
-        # Create all tables from models
+        # Create all tables from models for fresh development databases.
+        # Existing schema migrations are managed by Alembic; no runtime DDL patching here.
         await conn.run_sync(Base.metadata.create_all)
-        await ensure_rbac_role_schema(conn)
-        global _rbac_schema_checked
-        _rbac_schema_checked = True
+        await verify_rbac_role_schema(conn)
 
 
 async def close_db():
