@@ -398,5 +398,5 @@ async def logout_all(
         revoked_count = await revoke_all_user_tokens(db, current_user.id, except_jti=jti, commit=False)
         await db.commit()
         return {"message": f"Revoked {revoked_count} other sessions"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to revoke sessions")

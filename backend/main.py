@@ -2,7 +2,7 @@
 PTTechAI v3 - FastAPI Main Application
 """
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -65,6 +65,12 @@ async def websocket_scan(websocket: WebSocket, scan_id: str):
                 await websocket.send_text("pong")
     except WebSocketDisconnect:
         ws_manager.disconnect(websocket, scan_id)
+
+
+@app.api_route("/api/{full_path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
+async def api_not_found(full_path: str):
+    """Return 404 for unknown API routes before frontend catch-all."""
+    raise HTTPException(status_code=404, detail="API route not found")
 
 
 # Serve static files (frontend) in production

@@ -229,6 +229,13 @@ class TestRbacEndpoints:
             assert response.status_code in (401, 403), \
                 f"System API keys should require auth, got {response.status_code}"
 
+    @pytest.mark.asyncio
+    async def test_legacy_auth_and_users_routes_are_removed(self, app):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            assert (await client.post("/api/v1/auth/login", json={"email": "x@example.com", "password": "wrong"})).status_code == 404
+            assert (await client.get("/api/v1/users")).status_code == 404
+
     def test_rbac_me_response_model_has_frontend_contract_fields(self):
         from backend.common.schemas.rbac import MenuItemOut, RbacMeOut
 

@@ -49,6 +49,12 @@ FRONTEND_ROUTES = [
 ]
 PUBLIC_API_RESOURCES = {
     "GET /api/health",
+    "GET /api/{full_path:path}",
+    "POST /api/{full_path:path}",
+    "PUT /api/{full_path:path}",
+    "PATCH /api/{full_path:path}",
+    "DELETE /api/{full_path:path}",
+    "OPTIONS /api/{full_path:path}",
     "POST /api/v1/system/profile/login",
     "POST /api/v1/system/profile/logout",
     "POST /api/v1/system/profile/logout-all",
