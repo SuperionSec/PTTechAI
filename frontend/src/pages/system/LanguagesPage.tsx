@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { PageContainer, ProCard, StatisticCard } from '@ant-design/pro-components'
 import { App as AntApp, Button, Descriptions, Radio, Space, Tag, Typography } from 'antd'
 import { CheckOutlined, GlobalOutlined, SaveOutlined, TranslationOutlined } from '@ant-design/icons'
-import { useUIStore } from '../../store'
 import i18n from '../../locales'
 
 const { Text } = Typography
@@ -29,10 +28,7 @@ function LanguageStatisticCards({ currentLanguageName, t }: {
 export default function LanguagesPage() {
   const { t } = useTranslation()
   const { notification } = AntApp.useApp()
-  const uiStore = useUIStore() as any
-  const language = uiStore.language
-  const setLanguage = uiStore.setLanguage
-  const [selectedLang, setSelectedLang] = useState(language || i18n.language)
+  const [selectedLang, setSelectedLang] = useState(i18n.language)
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
@@ -46,7 +42,6 @@ export default function LanguagesPage() {
     setIsSaving(true)
     try {
       await i18n.changeLanguage(selectedLang)
-      setLanguage(selectedLang)
       notification.success({ message: t('common.save', 'Saved') })
     } finally {
       setIsSaving(false)
