@@ -105,7 +105,7 @@ async def test_update_role_allows_deactivating_preseeded_admin_role_flagged_syst
     updated = await update_role(db_session, "ADMIN", RoleUpdate(is_active=False))
 
     assert not updated.is_active
-    assert not updated.is_system
+    assert updated.is_system
 
 
 @pytest.mark.asyncio
@@ -278,7 +278,7 @@ async def test_preseeded_admin_marked_system_can_update_permissions(db_session):
 
     updated = await update_role(db_session, "admin", RoleUpdate(permission_ids=[permission.id]))
 
-    assert not updated.is_system
+    assert updated.is_system
     assert [permission.name for permission in updated.permissions] == ["scan:read"]
 
 
@@ -290,10 +290,10 @@ async def test_legacy_example_role_marked_system_is_reported_editable(db_session
 
     roles = await list_roles(db_session)
     user_summary = next(role for role in roles if role.role == "user")
-    assert not user_summary.is_system
+    assert user_summary.is_system
 
     detail = await get_role_detail(db_session, "user")
-    assert not detail.is_system
+    assert detail.is_system
 
     updated = await update_role_permissions(db_session, "user", [permission.id])
     assert [permission.name for permission in updated.permissions] == ["scan:read"]
@@ -307,7 +307,7 @@ async def test_update_role_permissions_allows_preseeded_admin_marked_system(db_s
 
     updated = await update_role_permissions(db_session, "admin", [permission.id])
 
-    assert not updated.is_system
+    assert updated.is_system
     assert [permission.name for permission in updated.permissions] == ["scan:read"]
 
 

@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { PageContainer } from '@ant-design/pro-components'
-import { Button, Card, Col, Descriptions, Row, Statistic, message } from 'antd'
+import { App as AntApp, Button, Card, Col, Descriptions, Row, Statistic } from 'antd'
 import { DatabaseOutlined, HeartOutlined, ReloadOutlined } from '@ant-design/icons'
 import { monitorApi } from '../../services/system'
 import type { MonitorDatabase, MonitorHealth } from '../../services/system'
 
 export default function SystemMonitorPage() {
   const { t } = useTranslation()
+  const { notification } = AntApp.useApp()
   const [health, setHealth] = useState<MonitorHealth | null>(null)
   const [database, setDatabase] = useState<MonitorDatabase | null>(null)
   const [loading, setLoading] = useState(false)
@@ -22,7 +23,7 @@ export default function SystemMonitorPage() {
       setHealth(healthData)
       setDatabase(databaseData)
     } catch (err: any) {
-      message.error(err?.response?.data?.detail || 'Failed to fetch monitor status')
+      notification.error({ message: err?.response?.data?.detail || 'Failed to fetch monitor status' })
     } finally {
       setLoading(false)
     }

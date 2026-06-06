@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Request, status, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.common.infra.auth import get_current_user, require_role
-from backend.common.infra.resource_guard import resource_guard
+from backend.common.infra.resource_guard import resource_guard, clear_resource_mapping_cache
 from backend.common.db.database import get_db
 from backend.common.models.user import Role, User
 from backend.common.schemas.rbac import (
@@ -118,6 +118,7 @@ async def update_role_permissions(
 ):
     permission_ids = body.permission_ids if isinstance(body, RolePermissionsUpdate) else body
     result = await rbac_service.update_role_permissions(db, role, permission_ids)
+    clear_resource_mapping_cache()
     await record_audit_log(db, user=current_user, action="role.update_permissions", resource_type="role", resource_id=role, details={"permission_count": len(permission_ids)}, request=request)
     await db.commit()
     return result

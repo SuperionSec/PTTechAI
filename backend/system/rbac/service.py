@@ -97,7 +97,7 @@ async def list_roles(db: AsyncSession) -> list[RoleSummaryOut]:
                 id=role.id,
                 display_name=role.display_name,
                 description=role.description,
-                is_system=False,
+                is_system=role.is_system,
                 is_active=role.is_active,
                 user_count=user_count,
                 permission_count=permission_count,
@@ -125,7 +125,7 @@ async def get_role_detail(db: AsyncSession, role: str) -> RoleDetailOut:
         id=role_model.id,
         display_name=role_model.display_name,
         description=role_model.description,
-        is_system=False,
+        is_system=role_model.is_system,
         is_active=role_model.is_active,
         permissions=permissions,
         total=len(permissions),
@@ -199,7 +199,7 @@ async def create_role(db: AsyncSession, body: RoleCreate) -> RoleDetailOut:
     await db.flush()
     for permission_id in permission_ids:
         db.add(RolePermission(id=str(uuid.uuid4()), role_id=role_model.id, permission_id=permission_id))
-    await db.commit()
+    await db.flush()
     return await get_role_detail(db, role_name)
 
 
@@ -216,7 +216,7 @@ async def update_role(db: AsyncSession, role: str, body: RoleUpdate) -> RoleDeta
         role_model.is_active = body.is_active
     if body.permission_ids is not None:
         await _replace_role_permissions(db, role_model.id, body.permission_ids)
-    await db.commit()
+    await db.flush()
     return await get_role_detail(db, role_name)
 
 
@@ -225,12 +225,14 @@ async def delete_role(db: AsyncSession, role: str) -> None:
     role_model = await db.scalar(select(RoleModel).where(RoleModel.name == role_name))
     if not role_model:
         raise HTTPException(status_code=404, detail="Role not found")
+    if role_model.is_system:
+        raise HTTPException(status_code=400, detail="Cannot delete system role")
     user_count = await db.scalar(select(func.count(User.id)).where(User.role_id == role_model.id)) or 0
     if user_count > 0:
         raise HTTPException(status_code=400, detail="Role is assigned to users")
     await db.execute(delete(RolePermission).where(RolePermission.role_id == role_model.id))
     await db.delete(role_model)
-    await db.commit()
+    await db.flush()
 
 
 async def _replace_role_permissions(db: AsyncSession, role_id: str, permission_ids: list[str]) -> None:
@@ -246,7 +248,7 @@ async def update_role_permissions(db: AsyncSession, role: str, permission_ids: l
     if not role_model:
         raise HTTPException(status_code=404, detail="Role not found")
     await _replace_role_permissions(db, role_model.id, permission_ids)
-    await db.commit()
+    await db.flush()
     return await get_role_detail(db, role_name)
 
 
@@ -283,7 +285,7 @@ async def create_resource_mapping(db: AsyncSession, permission_id: str, resource
         resource_path=normalized_path,
     )
     db.add(mapping)
-    await db.commit()
+    await db.flush()
     clear_resource_mapping_cache()
     await db.refresh(mapping)
     mapping.permission = permission
@@ -295,7 +297,7 @@ async def delete_resource_mapping(db: AsyncSession, mapping_id: str) -> None:
     if not mapping:
         raise HTTPException(status_code=404, detail="Resource mapping not found")
     await db.delete(mapping)
-    await db.commit()
+    await db.flush()
     clear_resource_mapping_cache()
 
 

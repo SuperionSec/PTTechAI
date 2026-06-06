@@ -38,6 +38,7 @@ interface AuthContextType {
   logout: () => void
   hasPermission: (permission: string) => boolean
   canAccessPage: (path: string) => boolean
+  fetchUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -233,7 +234,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [userPermissions])
 
   return (
-    <AuthContext.Provider value={{ user, userPermissions, token, loading, login, register, logout, hasPermission, canAccessPage }}>
+    <AuthContext.Provider value={{ user, userPermissions, token, loading, login, register, logout, hasPermission, canAccessPage, fetchUser }}>
       {children}
     </AuthContext.Provider>
   )

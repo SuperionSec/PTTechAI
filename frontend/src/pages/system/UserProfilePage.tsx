@@ -36,7 +36,7 @@ function ProfileStatisticCards({ roleLabel, email, createdAt, t }: {
 
 export default function UserProfilePage() {
   const { t } = useTranslation()
-  const { user } = useAuth()
+  const { user, fetchUser } = useAuth()
   const { notification } = AntApp.useApp()
   const [editing, setEditing] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)
@@ -71,7 +71,7 @@ export default function UserProfilePage() {
       await profileApi.update(values.full_name)
       notification.success({ message: t('profile.updateSuccess') })
       setEditing(false)
-      window.location.reload()
+      fetchUser()
     } catch {
       notification.error({ message: t('profile.updateFailed') })
     } finally {

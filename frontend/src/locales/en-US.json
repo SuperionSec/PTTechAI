@@ -2203,7 +2203,9 @@
     "deleteFailed": "Failed to delete role",
     "noResourcesAssigned": "No resources assigned",
     "resources": "Resources",
-    "unmappedResources": "Access Coverage"
+    "unmappedResources": "Access Coverage",
+    "unmappedTab": "Access Coverage",
+    "unmappedDesc": "Frontend pages and backend APIs without explicit permission bindings"
   },
   "vulnAgent": {
     "notEnabled": "Per-vulnerability agent orchestration is not enabled for this scan.",
@@ -2335,7 +2337,14 @@
       "monthlyNew": "This Month",
       "severityDistribution": "Severity Distribution",
       "statusDistribution": "Status Distribution",
-      "recentEntries": "Recent Entries"
+      "sourceDistribution": "Source Distribution",
+      "recentEntries": "Recent Entries",
+      "recentCritical": "Recent Critical/High",
+      "vulnTypeDistribution": "Type Distribution",
+      "monthlyTrend": "Monthly Trend",
+      "topVendors": "Top Vendors",
+      "topProducts": "Top Products",
+      "cveLinked": "CVE Linked"
     },
     "fields": {
       "vulnCode": "Vulnerability Code",
@@ -2366,12 +2375,39 @@
       "remediation": "Remediation",
       "workaround": "Workaround",
       "parentCategory": "Parent Category",
-      "sortOrder": "Sort Order"
+      "sortOrder": "Sort Order",
+      "vulnType": "Vulnerability Type",
+      "epssScore": "EPSS Score",
+      "epssPercentile": "EPSS Percentile",
+      "attackComplexity": "Attack Complexity",
+      "privilegesRequired": "Privileges Required",
+      "userInteraction": "User Interaction",
+      "cvssScore": "CVSS Score",
+      "disclosureDate": "Disclosure Date",
+      "cvssVector": "CVSS Vector",
+      "attackVector": "Attack Vector",
+      "affectedVersions": "Affected Versions",
+      "affectedComponents": "Affected Components",
+      "references": "References",
+      "conditions": "Conditions"
     },
     "tabs": {
       "basic": "Basic Info",
-      "content": "Vulnerability Content",
-      "identifiers": "Identifier Mappings"
+      "content": "Description",
+      "identifiers": "Identifier Mappings",
+      "timeline": "Timeline",
+      "remediation": "Remediation",
+      "references": "References"
+    },
+    "timeline": {
+      "created": "Created",
+      "published": "Published",
+      "modified": "Modified",
+      "updated": "Updated"
+    },
+    "quickFilters": {
+      "all": "All",
+      "thisMonth": "This Month"
     },
     "actions": {
       "createEntry": "Create Entry",

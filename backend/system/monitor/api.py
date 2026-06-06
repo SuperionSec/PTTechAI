@@ -7,7 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.common.db.database import get_db
-from backend.common.infra.auth import require_role
+from backend.common.infra.auth import get_current_user, require_role
 from backend.common.models.user import Role, User
 from backend.common.config import settings
 
@@ -15,15 +15,15 @@ router = APIRouter()
 
 
 @router.get("/health")
-async def system_health(current_user: User = Depends(require_role(Role.ADMIN))):
+async def system_health(current_user: User = Depends(get_current_user)):
     return {
         "status": "healthy",
         "app": settings.APP_NAME,
         "version": settings.APP_VERSION,
         "debug": settings.DEBUG,
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "python": platform.python_version(),
-        "platform": platform.platform(),
+        "python": f"{platform.python_version_tuple()[0]}.{platform.python_version_tuple()[1]}",
+        "platform": platform.system(),
     }
 
 

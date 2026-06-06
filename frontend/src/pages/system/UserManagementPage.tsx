@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { PageContainer, ProCard, ProTable, StatisticCard } from '@ant-design/pro-components'
 import type { ActionType, ProColumns } from '@ant-design/pro-components'
@@ -73,7 +72,6 @@ function UserStatisticCards({ totalUsers, activeUsers, adminUsers, t }: {
 export default function UserManagementPage() {
   const { t } = useTranslation()
   const { user: currentUser } = useAuth()
-  const navigate = useNavigate()
   const { notification } = AntApp.useApp()
   const actionRef = useRef<ActionType>()
   const [users, setUsers] = useState<User[]>([])
@@ -128,13 +126,9 @@ export default function UserManagementPage() {
   }
 
   useEffect(() => {
-    if (currentUser?.role !== 'admin') {
-      navigate('/')
-      return
-    }
     fetchAvailableRoles()
     setLoading(false)
-  }, [currentUser, navigate])
+  }, [])
 
   const handleDeleteUser = async (userId: string) => {
     try {

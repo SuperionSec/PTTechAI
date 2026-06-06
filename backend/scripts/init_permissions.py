@@ -79,7 +79,7 @@ DEFAULT_PERMISSIONS = [
     {"name": "vuln_library:update", "description": "Update vulnerability library entries", "scope": PermissionScope.VULN_LIBRARY, "action": PermissionAction.UPDATE},
     {"name": "vuln_library:delete", "description": "Delete vulnerability library entries", "scope": PermissionScope.VULN_LIBRARY, "action": PermissionAction.DELETE},
     {"name": "vuln_library:manage", "description": "Manage vulnerability library categories", "scope": PermissionScope.VULN_LIBRARY, "action": PermissionAction.MANAGE},
-    {"name": "vuln_library:read_exp", "description": "View EXP content", "scope": PermissionScope.VULN_LIBRARY, "action": PermissionAction.READ},
+    {"name": "vuln_library:read_exp", "description": "View EXP content", "scope": PermissionScope.VULN_LIBRARY, "action": PermissionAction.EXECUTE},
 ]
 
 # Role-Permission mappings
@@ -298,7 +298,7 @@ async def init_permissions():
                     name=role_name,
                     display_name=role_data["display_name"],
                     description=role_data["description"],
-                    is_system=False,
+                    is_system=True,
                     is_active=True,
                 )
                 db.add(existing_role)
@@ -307,7 +307,7 @@ async def init_permissions():
             else:
                 existing_role.display_name = role_data["display_name"]
                 existing_role.description = role_data["description"]
-                existing_role.is_system = False
+                existing_role.is_system = True
                 existing_role.is_active = True
             role_map[role_name] = existing_role.id
 

@@ -133,8 +133,8 @@ async def get_user_menu_tree(
     # Get all active and visible menus
     result = await db.execute(
         select(Menu)
-        .where(Menu.is_active == True)
-        .where(Menu.is_visible == True)
+        .where(Menu.is_active.is_(True))
+        .where(Menu.is_visible.is_(True))
         .order_by(Menu.sort_order)
     )
     menus = result.scalars().all()

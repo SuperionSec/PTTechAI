@@ -2203,7 +2203,9 @@
     "deleteFailed": "删除角色失败",
     "noResourcesAssigned": "未分配资源",
     "resources": "资源",
-    "unmappedResources": "访问覆盖"
+    "unmappedResources": "访问覆盖",
+    "unmappedTab": "资源覆盖",
+    "unmappedDesc": "未绑定权限的前端页面和后端 API"
   },
   "vulnAgent": {
     "notEnabled": "此扫描未启用逐漏洞 Agent 编排。",
@@ -2340,7 +2342,14 @@
       "monthlyNew": "本月新增",
       "severityDistribution": "等级分布",
       "statusDistribution": "状态分布",
-      "recentEntries": "最近更新漏洞"
+      "sourceDistribution": "来源分布",
+      "recentEntries": "最近更新漏洞",
+      "recentCritical": "最近高危漏洞",
+      "vulnTypeDistribution": "漏洞类型分布",
+      "monthlyTrend": "月度趋势",
+      "topVendors": "Top 厂商",
+      "topProducts": "Top 产品",
+      "cveLinked": "CVE 关联"
     },
     "fields": {
       "vulnCode": "漏洞编号",
@@ -2371,12 +2380,39 @@
       "remediation": "修复建议",
       "workaround": "缓解方案",
       "parentCategory": "父级分类",
-      "sortOrder": "排序"
+      "sortOrder": "排序",
+      "vulnType": "漏洞类型",
+      "epssScore": "EPSS评分",
+      "epssPercentile": "EPSS百分位",
+      "attackComplexity": "攻击复杂度",
+      "privilegesRequired": "所需权限",
+      "userInteraction": "用户交互",
+      "cvssScore": "CVSS评分",
+      "disclosureDate": "披露时间",
+      "cvssVector": "CVSS向量",
+      "attackVector": "攻击向量",
+      "affectedVersions": "受影响版本",
+      "affectedComponents": "受影响组件",
+      "references": "参考资料",
+      "conditions": "利用条件"
     },
     "tabs": {
       "basic": "基础信息",
-      "content": "漏洞内容",
-      "identifiers": "编号映射"
+      "content": "漏洞描述",
+      "identifiers": "编号映射",
+      "timeline": "时间线",
+      "remediation": "修复建议",
+      "references": "参考资料"
+    },
+    "timeline": {
+      "created": "创建",
+      "published": "发布",
+      "modified": "修改",
+      "updated": "更新"
+    },
+    "quickFilters": {
+      "all": "全部",
+      "thisMonth": "本月新增"
     },
     "actions": {
       "createEntry": "新增漏洞",

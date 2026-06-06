@@ -61,7 +61,6 @@ class TestFrontendPages:
         "UserManagementPage.tsx",
         "UserProfilePage.tsx",
         "RoleManagementPage.tsx",
-        "UnmappedResourcesPage.tsx",
         "APIKeysPage.tsx",
     ]
 
@@ -101,13 +100,13 @@ class TestFrontendPages:
     def test_route_config_imports_system_pages_from_system_module(self):
         content = (FRONTEND_SRC / "routes" / "routeConfig.tsx").read_text(encoding="utf-8")
         assert "from '../pages/system'" in content
-        for page in ["LanguagesPage", "UserManagementPage", "APIKeysPage", "UserProfilePage", "UnmappedResourcesPage", "RoleManagementPage"]:
+        for page in ["LanguagesPage", "UserManagementPage", "APIKeysPage", "UserProfilePage", "RoleManagementPage"]:
             assert page in content
             assert f"../pages/system/{page}" not in content
 
     def test_system_pages_module_exports_all_system_pages(self):
         index_content = (FRONTEND_SRC / "pages" / "system" / "index.ts").read_text(encoding="utf-8")
-        for page in ["LanguagesPage", "UserManagementPage", "APIKeysPage", "UserProfilePage", "UnmappedResourcesPage", "RoleManagementPage"]:
+        for page in ["LanguagesPage", "UserManagementPage", "APIKeysPage", "UserProfilePage", "RoleManagementPage"]:
             assert f"as {page}" in index_content
 
     def test_visible_system_menu_matches_rbac_admin_information_architecture(self):
@@ -117,7 +116,7 @@ class TestFrontendPages:
             if "group: 'system'" in line and "hideInMenu: true" not in line:
                 path = line.split("path: '")[1].split("'")[0]
                 system_paths.append(path)
-        assert system_paths == ["/users", "/roles", "/menus", "/audit", "/monitor", "/unmapped-resources", "/languages"]
+        assert system_paths == ["/users", "/roles", "/menus", "/audit", "/monitor", "/languages", "/settings"]
         profile_line = next(line for line in content.splitlines() if "path: '/profile'" in line)
         api_keys_line = next(line for line in content.splitlines() if "path: '/api-keys'" in line)
         assert "hideInMenu: true" in profile_line
@@ -127,7 +126,7 @@ class TestFrontendPages:
 
     def test_key_pentest_routes_remain_in_pentest_group(self):
         content = (FRONTEND_SRC / "routes" / "routeConfig.tsx").read_text(encoding="utf-8")
-        for path in ["/", "/scheduler", "/knowledge", "/terminal", "/mcp", "/providers", "/settings"]:
+        for path in ["/", "/scheduler", "/knowledge", "/terminal", "/mcp", "/providers"]:
             route_line = next(line for line in content.splitlines() if f"path: '{path}'" in line)
             assert "group: 'pentest'" in route_line
 
@@ -272,13 +271,9 @@ class TestFrontendPages:
         assert "actionRef.current?.reload()" in content
         assert "dataSource={validUsers}" not in content
 
-    def test_unmapped_resources_uses_extracted_statistic_cards(self):
-        content = (FRONTEND_SRC / "pages" / "system" / "UnmappedResourcesPage.tsx").read_text(encoding="utf-8")
-        assert "function UnmappedResourceStatisticCards(" in content
-        assert "<UnmappedResourceStatisticCards" in content
+    def test_unmapped_resources_merged_into_role_management(self):
+        content = (FRONTEND_SRC / "pages" / "system" / "RoleManagementPage.tsx").read_text(encoding="utf-8")
         assert "accessCoverage.title" in content
-        assert "accessCoverage.subtitle" in content
-        assert "accessCoverage.mapPermission" in content
         assert "systemApi.unmappedResources()" in content
 
     def test_api_keys_uses_extracted_statistic_cards(self):
@@ -359,13 +354,13 @@ class TestFrontendServices:
             assert type_name in content
 
     def test_system_pages_do_not_import_api_or_rbac_services_directly(self):
-        for page_file in ["LanguagesPage.tsx", "UserManagementPage.tsx", "APIKeysPage.tsx", "UserProfilePage.tsx", "UnmappedResourcesPage.tsx", "RoleManagementPage.tsx"]:
+        for page_file in ["LanguagesPage.tsx", "UserManagementPage.tsx", "APIKeysPage.tsx", "UserProfilePage.tsx", "RoleManagementPage.tsx"]:
             content = (FRONTEND_SRC / "pages" / "system" / page_file).read_text(encoding="utf-8")
             assert "../../services/api" not in content
             assert "../../services/rbac" not in content
 
     def test_rbac_management_pages_use_system_service_entrypoint(self):
-        for page_file in ["UserManagementPage.tsx", "RoleManagementPage.tsx", "UnmappedResourcesPage.tsx"]:
+        for page_file in ["UserManagementPage.tsx", "RoleManagementPage.tsx"]:
             content = (FRONTEND_SRC / "pages" / "system" / page_file).read_text(encoding="utf-8")
             assert "../../services/system" in content
 
@@ -531,7 +526,6 @@ class TestAppRoutes:
         "/users",
         "/profile",
         "/roles",
-        "/unmapped-resources",
         "/api-keys",
         "/knowledge",
         "/mcp",

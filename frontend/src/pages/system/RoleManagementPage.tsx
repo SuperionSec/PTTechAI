@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { PageContainer, ProCard, ProTable, StatisticCard } from '@ant-design/pro-components'
@@ -13,6 +12,7 @@ import {
   Input,
   Modal,
   Popconfirm,
+  Select,
   Space,
   Switch,
   Spin,
@@ -24,18 +24,21 @@ import {
 } from 'antd'
 import {
   ApiOutlined,
+  CheckCircleOutlined,
   DeleteOutlined,
   EditOutlined,
   EyeOutlined,
   GlobalOutlined,
+  LinkOutlined,
   LockOutlined,
   PlusOutlined,
+  ReloadOutlined,
   SafetyCertificateOutlined,
   TeamOutlined,
+  WarningOutlined,
 } from '@ant-design/icons'
-import { useAuth } from '../../contexts/AuthContext'
 import { systemApi } from '../../services/system'
-import type { Permission, ResourceMapping, RoleSummary } from '../../services/system'
+import type { Permission, ResourceMapping, RoleSummary, UnmappedResource } from '../../services/system'
 
 const { Text } = Typography
 
@@ -107,8 +110,6 @@ function PermissionSelector({
 
 export default function RoleManagementPage() {
   const { t } = useTranslation()
-  const { user: currentUser } = useAuth()
-  const navigate = useNavigate()
   const { notification } = AntApp.useApp()
   const actionRef = useRef<ActionType>()
 
@@ -125,6 +126,14 @@ export default function RoleManagementPage() {
   const [viewLoading, setViewLoading] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [form] = Form.useForm<RoleFormValues>()
+
+  // Unmapped resources state
+  const [unmappedOpen, setUnmappedOpen] = useState(false)
+  const [unmappedResources, setUnmappedResources] = useState<UnmappedResource[]>([])
+  const [unmappedLoading, setUnmappedLoading] = useState(false)
+  const [mappingTarget, setMappingTarget] = useState<UnmappedResource | null>(null)
+  const [selectedPermission, setSelectedPermission] = useState<string>('')
+  const [mappingLoading, setMappingLoading] = useState(false)
 
   const roleLabels: Record<string, string> = useMemo(() => ({
     admin: t('roleManagement.admin'),
@@ -165,14 +174,77 @@ export default function RoleManagementPage() {
     }
   }, [])
 
-  useEffect(() => {
-    if (currentUser?.role !== 'admin') {
-      navigate('/')
-      return
+  // Unmapped resources functions
+  const fetchUnmappedResources = useCallback(async () => {
+    setUnmappedLoading(true)
+    try {
+      const data = await systemApi.unmappedResources()
+      setUnmappedResources(data)
+    } catch (error) {
+      console.error('Failed to fetch unmapped resources:', error)
+      notify(t('accessCoverage.fetchFailed', 'Failed to fetch access coverage resources'), 'error')
+    } finally {
+      setUnmappedLoading(false)
     }
+  }, [notify, t])
+
+  const openUnmappedModal = () => {
+    setUnmappedOpen(true)
+    fetchUnmappedResources()
+  }
+
+  const getRecommendedPermission = useCallback((resourcePath: string, resourceType: string): string => {
+    if (resourceType === 'frontend_page') {
+      if (resourcePath.includes('scan')) return permissions.find(p => p.name === 'scan:read')?.id || ''
+      if (resourcePath.includes('report')) return permissions.find(p => p.name === 'report:read')?.id || ''
+      if (resourcePath.includes('user') || resourcePath.includes('role')) return permissions.find(p => p.name === 'user:manage')?.id || ''
+      if (resourcePath.includes('settings')) return permissions.find(p => p.name === 'settings:read')?.id || ''
+      if (resourcePath.includes('agent')) return permissions.find(p => p.name === 'agent:read')?.id || ''
+      if (resourcePath.includes('scheduler')) return permissions.find(p => p.name === 'scheduler:read')?.id || ''
+      if (resourcePath.includes('knowledge')) return permissions.find(p => p.name === 'knowledge:read')?.id || ''
+      if (resourcePath === '/') return permissions.find(p => p.name === 'dashboard:read')?.id || ''
+    } else {
+      const parts = resourcePath.split(' ')
+      if (parts.length >= 2) {
+        const path = parts[1]
+        if (path.includes('scan')) return permissions.find(p => p.name === 'scan:read')?.id || ''
+        if (path.includes('report')) return permissions.find(p => p.name === 'report:read')?.id || ''
+        if (path.includes('user')) return permissions.find(p => p.name === 'user:read')?.id || ''
+        if (path.includes('settings')) return permissions.find(p => p.name === 'settings:read')?.id || ''
+      }
+    }
+    return ''
+  }, [permissions])
+
+  const openMappingModal = (resource: UnmappedResource) => {
+    setMappingTarget(resource)
+    setSelectedPermission(getRecommendedPermission(resource.resource_path, resource.resource_type))
+  }
+
+  const handleCreateMapping = async () => {
+    if (!mappingTarget || !selectedPermission) return
+    setMappingLoading(true)
+    try {
+      await systemApi.createResourceMapping({
+        permission_id: selectedPermission,
+        resource_type: mappingTarget.resource_type,
+        resource_path: mappingTarget.resource_path,
+      })
+      notify(t('accessCoverage.mappingCreated', 'Permission mapping created'), 'success')
+      setMappingTarget(null)
+      setSelectedPermission('')
+      await fetchUnmappedResources()
+    } catch (error: any) {
+      notify(error.response?.data?.detail || t('accessCoverage.mappingFailed', 'Failed to create permission mapping'), 'error')
+    } finally {
+      setMappingLoading(false)
+    }
+  }
+
+  useEffect(() => {
     fetchPermissions()
     setLoading(false)
-  }, [currentUser, navigate, fetchPermissions])
+  }, [fetchPermissions])
 
   const resetForm = () => {
     form.resetFields()
@@ -411,9 +483,14 @@ export default function RoleManagementPage() {
               <Text strong>{t('roleManagement.title')}</Text>
               <Text type="secondary">{t('roleManagement.subtitle')}</Text>
             </Space>
-            <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
-              {t('roleManagement.createRole')}
-            </Button>
+            <Space wrap>
+              <Button icon={<WarningOutlined />} onClick={openUnmappedModal}>
+                {t('roleManagement.unmappedTab', 'Access Coverage')}
+              </Button>
+              <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+                {t('roleManagement.createRole')}
+              </Button>
+            </Space>
           </Space>
         </ProCard>
 
@@ -526,6 +603,106 @@ export default function RoleManagementPage() {
             ]}
           />
         )}
+      </Modal>
+
+      {/* Unmapped Resources Modal */}
+      <Modal
+        title={t('accessCoverage.title', 'Access Coverage')}
+        open={unmappedOpen}
+        width={900}
+        footer={<Button onClick={() => setUnmappedOpen(false)}>{t('common.close')}</Button>}
+        onCancel={() => setUnmappedOpen(false)}
+      >
+        {unmappedLoading ? (
+          <Spin style={{ display: 'block', margin: '48px auto' }} />
+        ) : (
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <StatisticCard.Group direction="row">
+              <StatisticCard statistic={{ title: t('accessCoverage.frontendPages', 'Frontend Pages'), value: unmappedResources.filter(r => r.resource_type === 'frontend_page').length, icon: <GlobalOutlined /> }} />
+              <StatisticCard statistic={{ title: t('accessCoverage.backendApis', 'Backend APIs'), value: unmappedResources.filter(r => r.resource_type === 'backend_api').length, icon: <ApiOutlined /> }} />
+              <StatisticCard statistic={{ title: t('accessCoverage.uncoveredResources', 'Pending'), value: unmappedResources.length, icon: <WarningOutlined />, status: unmappedResources.length ? 'warning' : 'success' }} />
+            </StatisticCard.Group>
+
+            {unmappedResources.length === 0 ? (
+              <Empty
+                image={<CheckCircleOutlined style={{ fontSize: 48, color: '#52c41a' }} />}
+                description={<Text strong>{t('accessCoverage.allCovered', 'All Resources Covered')}</Text>}
+              />
+            ) : (
+              <>
+                <Alert type="warning" showIcon icon={<WarningOutlined />} message={t('accessCoverage.warning', 'Resources listed here are using the server-side fallback policy until you bind them to explicit permissions.')} />
+                <ProTable<UnmappedResource>
+                  rowKey={record => `${record.resource_type}:${record.resource_path}`}
+                  search={false}
+                  options={false}
+                  toolBarRender={() => [
+                    <Button key="refresh" icon={<ReloadOutlined />} onClick={fetchUnmappedResources}>{t('common.refresh')}</Button>,
+                  ]}
+                  columns={[
+                    {
+                      title: t('accessCoverage.resourceType', 'Type'),
+                      dataIndex: 'resource_type',
+                      width: 130,
+                      filters: [{ text: 'Frontend', value: 'frontend_page' }, { text: 'API', value: 'backend_api' }],
+                      onFilter: (value, record) => record.resource_type === value,
+                      render: (_, r) => r.resource_type === 'frontend_page'
+                        ? <Tag color="blue" icon={<GlobalOutlined />}>Frontend</Tag>
+                        : <Tag color="green" icon={<ApiOutlined />}>API</Tag>,
+                    },
+                    {
+                      title: t('accessCoverage.resourcePath', 'Resource'),
+                      dataIndex: 'resource_path',
+                      render: (_, r) => <Text code>{r.resource_path}</Text>,
+                    },
+                    {
+                      title: t('accessCoverage.reason', 'Gap'),
+                      dataIndex: 'reason',
+                      render: (_, r) => <Text type="secondary">{r.reason}</Text>,
+                    },
+                    {
+                      title: t('common.actions'),
+                      valueType: 'option',
+                      width: 140,
+                      render: (_, r) => [
+                        <Button key="map" size="small" type="primary" icon={<LinkOutlined />} onClick={() => openMappingModal(r)}>
+                          {t('accessCoverage.mapPermission', 'Bind')}
+                        </Button>,
+                      ],
+                    },
+                  ]}
+                  dataSource={unmappedResources}
+                  pagination={{ pageSize: 8, showSizeChanger: true }}
+                />
+              </>
+            )}
+          </Space>
+        )}
+      </Modal>
+
+      {/* Bind Permission Modal */}
+      <Modal
+        title={t('accessCoverage.mapPermission', 'Bind Permission')}
+        open={Boolean(mappingTarget)}
+        confirmLoading={mappingLoading}
+        onOk={handleCreateMapping}
+        onCancel={() => { setMappingTarget(null); setSelectedPermission('') }}
+        okText={t('accessCoverage.mapPermission', 'Bind Permission')}
+        okButtonProps={{ disabled: !selectedPermission }}
+      >
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          {mappingTarget && (
+            <Alert type="info" showIcon message={<Text code>{mappingTarget.resource_path}</Text>} description={mappingTarget.reason} />
+          )}
+          <Select
+            showSearch
+            value={selectedPermission || undefined}
+            placeholder={t('accessCoverage.selectPermission', 'Select permission...')}
+            onChange={setSelectedPermission}
+            style={{ width: '100%' }}
+            optionFilterProp="label"
+            options={permissions.map(p => ({ value: p.id, label: `${p.name} (${p.scope}:${p.action})` }))}
+          />
+        </Space>
       </Modal>
     </PageContainer>
   )

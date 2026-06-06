@@ -1,72 +1,74 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { PageContainer } from '@ant-design/pro-components'
-import { Button, Card, Select, Space, Table, Tag, Typography, message } from 'antd'
-import type { ColumnsType } from 'antd/es/table'
-import { ReloadOutlined, SearchOutlined } from '@ant-design/icons'
+import { PageContainer, ProTable, StatisticCard } from '@ant-design/pro-components'
+import type { ActionType, ProColumns } from '@ant-design/pro-components'
+import { App as AntApp, Space, Tag, Typography } from 'antd'
+import { FileTextOutlined } from '@ant-design/icons'
 import { auditApi } from '../../services/system'
 import type { AuditLog } from '../../services/system'
 
 const { Text } = Typography
 
+const ACTION_OPTIONS = [
+  'auth.login_success', 'auth.login_failed', 'auth.logout',
+  'menu.create', 'menu.update', 'menu.delete',
+  'role.create', 'role.update', 'role.update_permissions', 'role.delete',
+  'user.create', 'user.update', 'user.delete',
+  'api_key.create', 'api_key.delete',
+  'vuln_library.create_entry', 'vuln_library.update_entry', 'vuln_library.delete_entry',
+  'vuln_library.create_identifier', 'vuln_library.update_identifier', 'vuln_library.delete_identifier',
+  'vuln_library.create_artifact', 'vuln_library.update_artifact', 'vuln_library.delete_artifact',
+  'vuln_library.view_exp',
+  'vuln_library.create_category', 'vuln_library.update_category', 'vuln_library.delete_category',
+  'vuln_library.import_entry',
+]
+
+const RESOURCE_TYPE_OPTIONS = [
+  'auth', 'menu', 'user', 'role', 'api_key', 'profile',
+  'vuln_library_entry', 'vuln_library_identifier', 'vuln_library_artifact', 'vuln_library_category',
+]
+
 export default function AuditLogPage() {
   const { t } = useTranslation()
-  const [logs, setLogs] = useState<AuditLog[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
-  const [action, setAction] = useState<string | undefined>()
-  const [resourceType, setResourceType] = useState<string | undefined>()
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(50)
+  const { notification } = AntApp.useApp()
+  const actionRef = useRef<ActionType>()
+  const totalRef = useRef(0)
 
-  const fetchLogs = useCallback(async () => {
-    setLoading(true)
-    try {
-      const data = await auditApi.list({
-        action,
-        resource_type: resourceType,
-        page,
-        per_page: pageSize,
-      })
-      setLogs(data.logs)
-      setTotal(data.total)
-    } catch (err: any) {
-      message.error(err?.response?.data?.detail || 'Failed to fetch audit logs')
-    } finally {
-      setLoading(false)
-    }
-  }, [action, resourceType, page, pageSize])
-
-  useEffect(() => {
-    fetchLogs()
-  }, [fetchLogs])
-
-  const columns: ColumnsType<AuditLog> = [
+  const columns: ProColumns<AuditLog>[] = [
     {
       title: t('audit.time', 'Time'),
       dataIndex: 'created_at',
       key: 'created_at',
       width: 190,
-      render: (value: string) => new Date(value).toLocaleString(),
+      hideInSearch: true,
+      render: (_, record) => new Date(record.created_at).toLocaleString(),
     },
     {
       title: t('audit.user', 'User'),
       dataIndex: 'username',
       key: 'username',
       width: 180,
-      render: (value: string | null) => value || <Text type="secondary">-</Text>,
+      hideInSearch: true,
+      render: (_, record) => record.username || <Text type="secondary">-</Text>,
     },
     {
       title: t('audit.action', 'Action'),
       dataIndex: 'action',
       key: 'action',
-      width: 170,
-      render: (value: string) => <Tag color="blue">{value}</Tag>,
+      width: 200,
+      valueType: 'select',
+      fieldProps: {
+        showSearch: true,
+        allowClear: true,
+        options: ACTION_OPTIONS.map(v => ({ label: v, value: v })),
+      },
+      render: (_, record) => <Tag color="blue">{record.action}</Tag>,
     },
     {
       title: t('audit.resource', 'Resource'),
       key: 'resource',
       width: 220,
+      hideInSearch: true,
       render: (_, record) => (
         <Space direction="vertical" size={0}>
           <Text>{record.resource_type || '-'}</Text>
@@ -75,18 +77,32 @@ export default function AuditLogPage() {
       ),
     },
     {
+      title: t('audit.resourceType', 'Resource Type'),
+      dataIndex: 'resource_type',
+      key: 'resource_type',
+      hideInTable: true,
+      valueType: 'select',
+      fieldProps: {
+        allowClear: true,
+        options: RESOURCE_TYPE_OPTIONS.map(v => ({ label: v, value: v })),
+      },
+    },
+    {
       title: t('audit.ip', 'IP'),
       dataIndex: 'ip_address',
       key: 'ip_address',
       width: 140,
-      render: (value: string | null) => value || <Text type="secondary">-</Text>,
+      hideInSearch: true,
+      render: (_, record) => record.ip_address || <Text type="secondary">-</Text>,
     },
     {
       title: t('audit.details', 'Details'),
       dataIndex: 'details',
       key: 'details',
-      render: (value: Record<string, unknown> | null) =>
-        value ? <Text code>{JSON.stringify(value)}</Text> : <Text type="secondary">-</Text>,
+      hideInSearch: true,
+      ellipsis: true,
+      render: (_, record) =>
+        record.details ? <Text code>{JSON.stringify(record.details)}</Text> : <Text type="secondary">-</Text>,
     },
   ]
 
@@ -94,81 +110,49 @@ export default function AuditLogPage() {
     <PageContainer
       title={t('audit.title', 'Audit Logs')}
       subTitle={t('audit.subtitle', 'Track system management operations')}
-      extra={[
-        <Button key="refresh" icon={<ReloadOutlined />} onClick={fetchLogs}>
-          {t('common.refresh', 'Refresh')}
-        </Button>,
-      ]}
     >
-      <Card>
-        <Space style={{ marginBottom: 16 }} wrap>
-          <Select
-            allowClear
-            placeholder={t('audit.filterAction', 'Filter action')}
-            style={{ width: 220 }}
-            value={action}
-            onChange={(value) => { setAction(value); setPage(1) }}
-            options={[
-              'auth.login_success',
-              'auth.login_failed',
-              'auth.logout',
-              'menu.create',
-              'menu.update',
-              'menu.delete',
-              'role.create',
-              'role.update',
-              'role.update_permissions',
-              'role.delete',
-              'user.create',
-              'user.update',
-              'user.delete',
-              'api_key.create',
-              'api_key.delete',
-              'vuln_library.create_entry',
-              'vuln_library.update_entry',
-              'vuln_library.delete_entry',
-              'vuln_library.create_identifier',
-              'vuln_library.update_identifier',
-              'vuln_library.delete_identifier',
-              'vuln_library.create_artifact',
-              'vuln_library.update_artifact',
-              'vuln_library.delete_artifact',
-              'vuln_library.view_exp',
-              'vuln_library.create_category',
-              'vuln_library.update_category',
-              'vuln_library.delete_category',
-              'vuln_library.import_entry',
-            ].map(value => ({ label: value, value }))}
-          />
-          <Select
-            allowClear
-            placeholder={t('audit.filterResource', 'Filter resource')}
-            style={{ width: 180 }}
-            value={resourceType}
-            onChange={(value) => { setResourceType(value); setPage(1) }}
-            options={['auth', 'menu', 'user', 'role', 'api_key', 'profile', 'vuln_library_entry', 'vuln_library_identifier', 'vuln_library_artifact', 'vuln_library_category'].map(value => ({ label: value, value }))}
-          />
-          <Button icon={<SearchOutlined />} onClick={fetchLogs}>
-            {t('common.search', 'Search')}
-          </Button>
-        </Space>
-        <Table
-          rowKey="id"
-          columns={columns}
-          dataSource={logs}
-          loading={loading}
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            showSizeChanger: true,
-            onChange: (nextPage, nextPageSize) => {
-              setPage(nextPage)
-              setPageSize(nextPageSize)
-            },
-          }}
-        />
-      </Card>
+      <ProTable<AuditLog>
+        rowKey="id"
+        actionRef={actionRef}
+        columns={columns}
+        search={{
+          labelWidth: 'auto',
+          defaultCollapsed: false,
+        }}
+        options={{ density: true, reload: true }}
+        pagination={{
+          defaultPageSize: 50,
+          showSizeChanger: true,
+        }}
+        request={async (params) => {
+          try {
+            const data = await auditApi.list({
+              action: params.action || undefined,
+              resource_type: params.resource_type || undefined,
+              page: params.current,
+              per_page: params.pageSize,
+            })
+            totalRef.current = data.total
+            return { data: data.logs, success: true, total: data.total }
+          } catch (err: any) {
+            notification.error({
+              message: err?.response?.data?.detail || t('audit.fetchFailed', 'Failed to fetch audit logs'),
+            })
+            return { data: [], success: false, total: 0 }
+          }
+        }}
+        toolBarRender={() => [
+          <StatisticCard.Group key="stats" direction="row" size="small">
+            <StatisticCard
+              statistic={{
+                title: t('audit.totalLogs', 'Total Logs'),
+                value: totalRef.current,
+                icon: <FileTextOutlined />,
+              }}
+            />
+          </StatisticCard.Group>,
+        ]}
+      />
     </PageContainer>
   )
 }

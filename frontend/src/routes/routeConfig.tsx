@@ -15,7 +15,6 @@ import {
   FileTextOutlined,
   TranslationOutlined,
   TeamOutlined,
-  UserSwitchOutlined,
   SettingOutlined,
   UserOutlined,
   KeyOutlined,
@@ -57,7 +56,6 @@ import {
   MenuManagementPage,
   SystemMonitorPage,
   RoleManagementPage,
-  UnmappedResourcesPage,
   UserManagementPage,
   UserProfilePage,
 } from '../pages/system'
@@ -107,9 +105,9 @@ export const appRoutes: AppRoute[] = [
   { path: '/menus', name: 'menuManagement.title', element: <MenuManagementPage />, icon: <MenuOutlined />, access: 'canAccessPage', permission: 'settings:manage', group: 'system' },
   { path: '/audit', name: 'audit.title', element: <AuditLogPage />, icon: <FileTextOutlined />, access: 'canAccessPage', permission: 'settings:manage', group: 'system' },
   { path: '/monitor', name: 'monitor.title', element: <SystemMonitorPage />, icon: <DashboardOutlined />, access: 'canAccessPage', permission: 'settings:manage', group: 'system' },
-  { path: '/unmapped-resources', name: 'accessCoverage.title', element: <UnmappedResourcesPage />, icon: <UserSwitchOutlined />, access: 'canAccessPage', permission: 'user:manage', group: 'system' },
+
   { path: '/languages', name: 'languageManagement.title', element: <LanguagesPage />, icon: <TranslationOutlined />, access: 'canAccessPage', permission: 'settings:read', group: 'system' },
-  { path: '/settings', name: 'sidebar.settings', element: <SettingsPage />, icon: <SettingOutlined />, access: 'canAccessPage', permission: 'settings:read', group: 'pentest' },
+  { path: '/settings', name: 'sidebar.settings', element: <SettingsPage />, icon: <SettingOutlined />, access: 'canAccessPage', permission: 'settings:read', group: 'system' },
   { path: '/api-keys', name: 'apiKeys.title', element: <APIKeysPage />, icon: <KeyOutlined />, access: 'canAccessPage', permission: 'api_key:read', hideInMenu: true },
   { path: '/profile', name: 'profile.title', element: <UserProfilePage />, icon: <UserOutlined />, access: 'canAccessPage', hideInMenu: true },
   { path: '*', name: 'pages.notFound', element: <NotFound />, public: true, hideInMenu: true },
