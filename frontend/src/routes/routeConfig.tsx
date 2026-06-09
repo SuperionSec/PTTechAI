@@ -107,7 +107,7 @@ export const appRoutes: AppRoute[] = [
   { path: '/monitor', name: 'monitor.title', element: <SystemMonitorPage />, icon: <DashboardOutlined />, access: 'canAccessPage', permission: 'settings:manage', group: 'system' },
 
   { path: '/languages', name: 'languageManagement.title', element: <LanguagesPage />, icon: <TranslationOutlined />, access: 'canAccessPage', permission: 'settings:read', group: 'system' },
-  { path: '/settings', name: 'sidebar.settings', element: <SettingsPage />, icon: <SettingOutlined />, access: 'canAccessPage', permission: 'settings:read', group: 'system' },
+  { path: '/settings', name: 'sidebar.settings', element: <SettingsPage />, icon: <SettingOutlined />, access: 'canAccessPage', permission: 'settings:read', group: 'pentest' },
   { path: '/api-keys', name: 'apiKeys.title', element: <APIKeysPage />, icon: <KeyOutlined />, access: 'canAccessPage', permission: 'api_key:read', hideInMenu: true },
   { path: '/profile', name: 'profile.title', element: <UserProfilePage />, icon: <UserOutlined />, access: 'canAccessPage', hideInMenu: true },
   { path: '*', name: 'pages.notFound', element: <NotFound />, public: true, hideInMenu: true },

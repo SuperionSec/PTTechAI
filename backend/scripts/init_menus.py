@@ -8,18 +8,19 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from backend.system.menu.models import Menu
+from backend.system.menu.models import Menu, MenuType
 from backend.system.rbac.service import FRONTEND_ROUTES
 
 logger = logging.getLogger(__name__)
 
-# Map Sidebar nav groups to their items.
+# Sidebar groups aligned with frontend routeConfig.tsx groups:
+# pentest (penetrationTesting), vulnerabilityLibrary, system (systemSettings)
 SIDEBAR_GROUPS = [
     {
-        "name": "sidebar.operations",
-        "icon": "RocketOutlined",
+        "name": "sidebar.penetrationTesting",
+        "icon": "BugOutlined",
         "sort_order": 10,
-        "paths": ["/", "/auto", "/scan/new", "/realtime", "/full-ia"],
+        "paths": ["/", "/auto", "/scan/new", "/realtime", "/full-ia", "/vuln-lab", "/terminal", "/sandboxes", "/tasks", "/knowledge", "/mcp", "/providers", "/scheduler", "/reports", "/settings"],
     },
     {
         "name": "sidebar.vulnerabilityLibrary",
@@ -28,16 +29,10 @@ SIDEBAR_GROUPS = [
         "paths": ["/vulnerability-library/overview", "/vulnerability-library/entries", "/vulnerability-library/artifacts", "/vulnerability-library/identifiers", "/vulnerability-library/categories"],
     },
     {
-        "name": "sidebar.tools",
-        "icon": "ToolOutlined",
-        "sort_order": 20,
-        "paths": ["/vuln-lab", "/terminal", "/sandboxes", "/tasks", "/knowledge", "/mcp", "/providers"],
-    },
-    {
-        "name": "sidebar.configuration",
+        "name": "sidebar.systemSettings",
         "icon": "SettingOutlined",
-        "sort_order": 30,
-        "paths": ["/scheduler", "/reports", "/languages", "/users", "/roles", "/menus", "/audit", "/monitor", "/settings"],
+        "sort_order": 20,
+        "paths": ["/users", "/roles", "/menus", "/audit", "/monitor", "/languages"],
     },
 ]
 
@@ -61,6 +56,7 @@ async def _get_or_create_parent(db: AsyncSession, group: dict) -> tuple[Menu, bo
     if parent:
         parent.icon = group["icon"]
         parent.sort_order = group["sort_order"]
+        parent.menu_type = MenuType.DIRECTORY.value
         parent.is_visible = True
         parent.is_active = True
         return parent, False
@@ -73,6 +69,7 @@ async def _get_or_create_parent(db: AsyncSession, group: dict) -> tuple[Menu, bo
         component=None,
         icon=group["icon"],
         sort_order=group["sort_order"],
+        menu_type=MenuType.DIRECTORY.value,
         permission=None,
         is_visible=True,
         is_active=True,
@@ -89,6 +86,7 @@ async def _get_or_create_child(db: AsyncSession, parent: Menu, route: dict, sort
         child.parent_id = parent.id
         child.name = route["name"]
         child.icon = route["icon"]
+        child.menu_type = MenuType.MENU.value
         child.permission = route["permission"]
         child.sort_order = sort_order
         child.is_visible = True
@@ -103,6 +101,7 @@ async def _get_or_create_child(db: AsyncSession, parent: Menu, route: dict, sort
         component=None,
         icon=route["icon"],
         sort_order=sort_order,
+        menu_type=MenuType.MENU.value,
         permission=route["permission"],
         is_visible=True,
         is_active=True,

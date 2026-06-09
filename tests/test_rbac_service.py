@@ -182,8 +182,9 @@ def test_access_helper_role_permission_filter_requires_role_id():
     assert "role_permissions.role =" not in expression
 
 
-def test_build_menu_items_returns_grouped_pro_layout_contract():
-    menus = build_menu_items(["user:manage", "settings:read"], ["/profile"], "user")
+@pytest.mark.asyncio
+async def test_build_menu_items_returns_grouped_pro_layout_contract(db_session):
+    menus = await build_menu_items(db_session, ["user:manage", "settings:read"], ["/profile"], "user")
 
     assert [menu.path for menu in menus] == ["/system-setting-group", "/penetration-testing-group"]
     system_menu = menus[0]
@@ -196,8 +197,9 @@ def test_build_menu_items_returns_grouped_pro_layout_contract():
     assert pentest_menu.children[0].icon == "SettingOutlined"
 
 
-def test_build_menu_items_keeps_admin_access_to_all_groups():
-    menus = build_menu_items([], [], "admin")
+@pytest.mark.asyncio
+async def test_build_menu_items_keeps_admin_access_to_all_groups(db_session):
+    menus = await build_menu_items(db_session, [], [], "admin")
 
     paths = [item.path for menu in menus for item in menu.children]
     assert "/api-keys" not in paths

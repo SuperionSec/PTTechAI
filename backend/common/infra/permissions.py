@@ -173,6 +173,42 @@ def require_agent_read():
 def require_agent_execute():
     return require_permission(PermissionScope.AGENT, PermissionAction.EXECUTE)
 
+def require_target_read():
+    return require_permission(PermissionScope.TARGET, PermissionAction.READ)
+
+def require_target_create():
+    return require_permission(PermissionScope.TARGET, PermissionAction.CREATE)
+
+def require_target_delete():
+    return require_permission(PermissionScope.TARGET, PermissionAction.DELETE)
+
+def require_vulnerability_read():
+    return require_permission(PermissionScope.VULNERABILITY, PermissionAction.READ)
+
+def require_scheduler_read():
+    return require_permission(PermissionScope.SCHEDULER, PermissionAction.READ)
+
+def require_scheduler_manage():
+    return require_permission(PermissionScope.SCHEDULER, PermissionAction.MANAGE)
+
+def require_knowledge_read():
+    return require_permission(PermissionScope.KNOWLEDGE, PermissionAction.READ)
+
+def require_provider_read():
+    return require_permission(PermissionScope.PROVIDER, PermissionAction.READ)
+
+def require_provider_manage():
+    return require_permission(PermissionScope.PROVIDER, PermissionAction.MANAGE)
+
+def require_api_key_read():
+    return require_permission(PermissionScope.API_KEY, PermissionAction.READ)
+
+def require_api_key_create():
+    return require_permission(PermissionScope.API_KEY, PermissionAction.CREATE)
+
+def require_api_key_delete():
+    return require_permission(PermissionScope.API_KEY, PermissionAction.DELETE)
+
 
 class PermissionChecker:
     """Class-based permission checker for complex scenarios"""

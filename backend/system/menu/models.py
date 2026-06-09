@@ -3,6 +3,7 @@ Menu Management Model
 PTTechAI v3 - Dynamic menu system with tree structure
 """
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Optional, List
 import uuid
 
@@ -10,6 +11,13 @@ from sqlalchemy import Column, String, DateTime, ForeignKey, Boolean, Integer
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from backend.common.db.database import Base
+
+
+class MenuType(str, Enum):
+    """Menu type enum: directory (group), menu (page), button (action)"""
+    DIRECTORY = "directory"
+    MENU = "menu"
+    BUTTON = "button"
 
 
 class Menu(Base):
@@ -28,6 +36,9 @@ class Menu(Base):
     component: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, comment="Frontend component path")
     icon: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, comment="Icon name")
     sort_order: Mapped[int] = mapped_column(Integer, default=0, comment="Sort order (ascending)")
+    menu_type: Mapped[str] = mapped_column(
+        String(20), default=MenuType.MENU.value, comment="directory/menu/button"
+    )
     permission: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, comment="Required permission (e.g., scan:read)")
     is_visible: Mapped[bool] = mapped_column(Boolean, default=True, comment="Show in menu")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, comment="Menu is enabled")
@@ -67,6 +78,7 @@ class Menu(Base):
             "component": self.component,
             "icon": self.icon,
             "sort_order": self.sort_order,
+            "menu_type": self.menu_type or MenuType.MENU.value,
             "permission": self.permission,
             "is_visible": self.is_visible,
             "is_active": self.is_active,

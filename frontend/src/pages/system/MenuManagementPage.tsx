@@ -37,6 +37,7 @@ interface MenuFormValues {
   path: string | null
   component: string | null
   icon: string | null
+  menu_type: string
   sort_order: number
   permission: string | null
   is_visible: boolean
@@ -52,7 +53,7 @@ const ICON_OPTIONS = [
   'UserOutlined', 'KeyOutlined', 'ToolOutlined', 'HomeOutlined',
   'BulbOutlined', 'GlobalOutlined', 'PlayCircleOutlined', 'ClockCircleOutlined',
   'MenuOutlined', 'AppstoreOutlined', 'FolderOutlined', 'FileOutlined',
-  'BugOutlined', 'DashboardOutlined',
+  'BugOutlined',
 ]
 
 function countMenus(nodes: Menu[]): { total: number; visible: number; hidden: number } {
@@ -99,7 +100,7 @@ export default function MenuManagementPage() {
   const handleCreate = (parentId?: string | null) => {
     setEditingMenu(null)
     form.resetFields()
-    form.setFieldsValue({ parent_id: parentId ?? null, sort_order: 0, is_visible: true, is_active: true })
+    form.setFieldsValue({ parent_id: parentId ?? null, menu_type: 'menu', sort_order: 0, is_visible: true, is_active: true })
     setModalVisible(true)
   }
 
@@ -111,6 +112,7 @@ export default function MenuManagementPage() {
       path: menu.path,
       component: menu.component,
       icon: menu.icon,
+      menu_type: menu.menu_type || 'menu',
       sort_order: menu.sort_order,
       permission: menu.permission,
       is_visible: menu.is_visible,
@@ -177,15 +179,7 @@ export default function MenuManagementPage() {
       title: t('menu.name', 'Name'),
       dataIndex: 'name',
       key: 'name',
-      render: (_, record) => {
-        const translated = t(record.name, record.name)
-        return (
-          <Space>
-            <Text strong>{translated}</Text>
-            {translated !== record.name && <Text type="secondary" code>{record.name}</Text>}
-          </Space>
-        )
-      },
+      render: (_, record) => <Text strong>{t(record.name, record.name)}</Text>,
     },
     {
       title: t('menu.path', 'Path'),
@@ -200,6 +194,20 @@ export default function MenuManagementPage() {
       key: 'icon',
       width: 140,
       render: (_, record) => record.icon ? <Tag>{record.icon}</Tag> : <Text type="secondary">-</Text>,
+    },
+    {
+      title: t('menu.menuType', 'Type'),
+      dataIndex: 'menu_type',
+      key: 'menu_type',
+      width: 100,
+      render: (_, record) => {
+        const typeMap: Record<string, { color: string; label: string }> = {
+          directory: { color: 'blue', label: t('menu.typeDirectory', 'Directory') },
+          menu: { color: 'green', label: t('menu.typeMenu', 'Menu') },
+        }
+        const info = typeMap[record.menu_type || 'menu'] || typeMap.menu
+        return <Tag color={info.color}>{info.label}</Tag>
+      },
     },
     {
       title: t('menu.permission', 'Permission'),
@@ -307,7 +315,7 @@ export default function MenuManagementPage() {
         destroyOnClose
         width={600}
       >
-        <Form form={form} layout="vertical" initialValues={{ is_visible: true, is_active: true, sort_order: 0 }}>
+        <Form form={form} layout="vertical" initialValues={{ menu_type: 'menu', is_visible: true, is_active: true, sort_order: 0 }}>
           <Form.Item name="parent_id" label={t('menu.parent', 'Parent Menu')}>
             <Select options={getParentOptions()} placeholder={t('menu.selectParent', 'Select parent menu')} allowClear />
           </Form.Item>
@@ -337,6 +345,16 @@ export default function MenuManagementPage() {
 
           <Form.Item name="icon" label={t('menu.icon', 'Icon')}>
             <Select options={[...new Set(ICON_OPTIONS)].map(icon => ({ label: icon, value: icon }))} placeholder={t('menu.selectIcon', 'Select icon')} allowClear showSearch />
+          </Form.Item>
+
+          <Form.Item name="menu_type" label={t('menu.menuType', 'Type')} rules={[{ required: true, message: t('menu.menuTypeRequired', 'Menu type is required') }]}>
+            <Select
+              options={[
+                { label: t('menu.typeDirectory', 'Directory'), value: 'directory' },
+                { label: t('menu.typeMenu', 'Menu'), value: 'menu' },
+              ]}
+              placeholder={t('menu.selectMenuType', 'Select menu type')}
+            />
           </Form.Item>
 
           <Form.Item name="permission" label={t('menu.permission', 'Permission')}>

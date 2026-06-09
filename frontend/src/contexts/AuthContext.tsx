@@ -21,11 +21,24 @@ interface User {
   created_at: string
 }
 
+interface MenuNode {
+  path: string
+  name: string
+  menu_type?: string  // "directory" | "menu" | "button"
+  icon?: string | null
+  permission?: string | null
+  locale?: string | null
+  access?: string | null
+  children?: MenuNode[]
+}
+
 interface UserPermissions {
   role: string
   permissions: string[]
   frontend_pages: string[]
   backend_apis: string[]
+  access?: Record<string, boolean>
+  menus?: MenuNode[]
 }
 
 interface AuthContextType {
@@ -38,6 +51,7 @@ interface AuthContextType {
   logout: () => void
   hasPermission: (permission: string) => boolean
   canAccessPage: (path: string) => boolean
+  access: Record<string, boolean>
   fetchUser: () => Promise<void>
 }
 
@@ -233,8 +247,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return userPermissions.frontend_pages.includes(path)
   }, [userPermissions])
 
+  const access = userPermissions?.access ?? {}
+
   return (
-    <AuthContext.Provider value={{ user, userPermissions, token, loading, login, register, logout, hasPermission, canAccessPage, fetchUser }}>
+    <AuthContext.Provider value={{ user, userPermissions, token, loading, login, register, logout, hasPermission, canAccessPage, access, fetchUser }}>
       {children}
     </AuthContext.Provider>
   )

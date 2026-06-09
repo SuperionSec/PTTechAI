@@ -30,11 +30,15 @@ interface MockUserPermissions {
 const createMockAuthContext = (permissions: MockUserPermissions) => ({
   user: { id: 'test-id', email: 'test@test.com', role: permissions.role },
   userPermissions: permissions,
-  hasPermission: (perm: string) => permissions.permissions.includes(perm),
+  hasPermission: (perm: string) => {
+    if (permissions.role === 'admin') return true
+    return permissions.permissions.includes(perm)
+  },
   canAccessPage: (path: string) => {
     if (permissions.role === 'admin') return true
     return permissions.frontend_pages.includes(path)
   },
+  access: {},
   isAuthenticated: true,
   isLoading: false,
   login: vi.fn(),

@@ -1,7 +1,8 @@
 import { useAuth } from '../contexts/AuthContext'
+import type { AccessMap } from './useAccess'
 
 export function usePermission() {
-  const { hasPermission, canAccessPage, userPermissions } = useAuth()
+  const { hasPermission, canAccessPage, userPermissions, access } = useAuth()
 
   const canAccessApi = (apiPath: string) => {
     if (!userPermissions) return false
@@ -13,6 +14,7 @@ export function usePermission() {
     hasPermission,
     canAccessPage,
     canAccessApi,
+    access: access as unknown as AccessMap,
     permissions: userPermissions?.permissions || [],
     frontendPages: userPermissions?.frontend_pages || [],
     backendApis: userPermissions?.backend_apis || [],

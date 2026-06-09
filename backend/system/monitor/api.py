@@ -7,8 +7,9 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.common.db.database import get_db
-from backend.common.infra.auth import get_current_user, require_role
-from backend.common.models.user import Role, User
+from backend.common.infra.auth import get_current_user
+from backend.common.infra.permissions import require_permission_name
+from backend.common.models.user import User
 from backend.common.config import settings
 
 router = APIRouter()
@@ -30,7 +31,7 @@ async def system_health(current_user: User = Depends(get_current_user)):
 @router.get("/database")
 async def database_status(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_permission_name("settings:manage")),
 ):
     result = await db.execute(text("SELECT 1"))
     ok = result.scalar_one() == 1

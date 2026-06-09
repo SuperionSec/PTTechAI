@@ -22,6 +22,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from backend.common.db.database import init_db, close_db, engine
 from backend.scripts.init_admin import init_admin
 from backend.scripts.init_permissions import init_permissions
+from backend.scripts.init_menus import init_menus
 
 
 async def main():
@@ -31,20 +32,27 @@ async def main():
 
     try:
         # Step 1: Create tables
-        print("\n[1/3] Creating database tables...")
+        print("\n[1/4] Creating database tables...")
         await init_db()
         print("[OK] Tables created/verified")
 
         # Step 2: Initialize admin user
-        print("\n[2/3] Initializing admin user...")
+        print("\n[2/4] Initializing admin user...")
         admin = await init_admin()
         if admin:
             print(f"[OK] Admin user ready: {admin.email}")
 
         # Step 3: Initialize permissions
-        print("\n[3/3] Initializing permissions...")
+        print("\n[3/4] Initializing permissions...")
         await init_permissions()
         print("[OK] Permissions initialized")
+
+        # Step 4: Initialize menus
+        print("\n[4/4] Initializing menus...")
+        from backend.common.db.database import async_session_factory
+        async with async_session_factory() as session:
+            created = await init_menus(session)
+        print(f"[OK] Menus initialized ({created} new menus created)")
 
         print("\n" + "=" * 60)
         print("Database initialization completed successfully!")

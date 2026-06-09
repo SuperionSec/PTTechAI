@@ -81,22 +81,47 @@ export default function UserManagementPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showServiceNotice, setShowServiceNotice] = useState(false)
   const [availableRoles, setAvailableRoles] = useState<RoleSummary[]>([])
+  const [selectedRows, setSelectedRows] = useState<User[]>([])
+  const [batchRoleModalOpen, setBatchRoleModalOpen] = useState(false)
+  const [batchRole, setBatchRole] = useState<string>('')
   const [createForm] = Form.useForm<CreateUserForm>()
   const [resetForm] = Form.useForm<ResetPasswordForm>()
 
-  const roleLabels: Record<string, string> = useMemo(() => ({
+  const defaultRoleLabels: Record<string, string> = useMemo(() => ({
     admin: t('usersManagement.admin'),
     user: t('usersManagement.user'),
     viewer: t('usersManagement.viewer'),
     service: t('usersManagement.service'),
   }), [t])
 
-  const roleColors: Record<string, string> = {
+  const roleLabels: Record<string, string> = useMemo(() => {
+    const labels = { ...defaultRoleLabels }
+    for (const r of availableRoles) {
+      if (!labels[r.role] && r.display_name) {
+        labels[r.role] = r.display_name
+      }
+    }
+    return labels
+  }, [defaultRoleLabels, availableRoles])
+
+  const defaultRoleColors: Record<string, string> = {
     admin: 'red',
     user: 'blue',
     viewer: 'default',
     service: 'purple',
   }
+  const roleColors = useMemo(() => {
+    const palette = ['green', 'orange', 'cyan', 'magenta', 'gold', 'lime', 'geekblue', 'volcano']
+    const colors = { ...defaultRoleColors }
+    let idx = 0
+    for (const r of availableRoles) {
+      if (!colors[r.role]) {
+        colors[r.role] = palette[idx % palette.length]
+        idx++
+      }
+    }
+    return colors
+  }, [availableRoles])
 
   const notify = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
     notification[type]({ message })
@@ -149,6 +174,37 @@ export default function UserManagementPage() {
     } catch (error) {
       console.error('Failed to toggle user status:', error)
       notify(t('usersManagement.operationFailed'), 'error')
+    }
+  }
+
+  const handleBatchToggleActive = async (active: boolean) => {
+    setActionLoading(true)
+    try {
+      await Promise.all(selectedRows.map(user => usersApi.update(user.id, { is_active: active })))
+      setSelectedRows([])
+      actionRef.current?.reload()
+      notify(t('usersManagement.operationSuccess', 'Operation succeeded'), 'success')
+    } catch (error) {
+      notify(t('usersManagement.operationFailed'), 'error')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleBatchAssignRole = async () => {
+    if (!batchRole) return
+    setActionLoading(true)
+    try {
+      await Promise.all(selectedRows.map(user => usersApi.update(user.id, { role: batchRole })))
+      setSelectedRows([])
+      setBatchRoleModalOpen(false)
+      setBatchRole('')
+      actionRef.current?.reload()
+      notify(t('usersManagement.operationSuccess', 'Operation succeeded'), 'success')
+    } catch (error) {
+      notify(t('usersManagement.operationFailed'), 'error')
+    } finally {
+      setActionLoading(false)
     }
   }
 
@@ -308,6 +364,21 @@ export default function UserManagementPage() {
             search={false}
             options={false}
             columns={columns}
+            rowSelection={{
+              selectedRowKeys: selectedRows.map(r => r.id),
+              onChange: (_, rows) => setSelectedRows(rows),
+              getCheckboxProps: (record) => ({ disabled: record.id === currentUser?.id }),
+            }}
+            tableAlertRender={({ selectedRowKeys }) => (
+              <span>{t('usersManagement.selectedCount', { count: selectedRowKeys.length })}</span>
+            )}
+            tableAlertOptionRender={() => (
+              <Space>
+                <Button size="small" onClick={() => handleBatchToggleActive(true)}>{t('usersManagement.batchEnable', 'Enable')}</Button>
+                <Button size="small" danger onClick={() => handleBatchToggleActive(false)}>{t('usersManagement.batchDisable', 'Disable')}</Button>
+                <Button size="small" onClick={() => setBatchRoleModalOpen(true)}>{t('usersManagement.batchAssignRole', 'Assign Role')}</Button>
+              </Space>
+            )}
             request={async () => {
               const data: User[] = await fetchUsers()
               const validData = data.filter(user => user && user.id)
@@ -364,6 +435,27 @@ export default function UserManagementPage() {
             <Input.Password />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* Batch Assign Role Modal */}
+      <Modal
+        title={t('usersManagement.batchAssignRole', 'Batch Assign Role')}
+        open={batchRoleModalOpen}
+        confirmLoading={actionLoading}
+        onOk={handleBatchAssignRole}
+        onCancel={() => { setBatchRoleModalOpen(false); setBatchRole('') }}
+        okButtonProps={{ disabled: !batchRole }}
+      >
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <Alert type="info" showIcon message={t('usersManagement.batchAssignInfo', { count: selectedRows.length })} />
+          <Select
+            value={batchRole || undefined}
+            placeholder={t('usersManagement.selectRole', 'Select role...')}
+            onChange={setBatchRole}
+            style={{ width: '100%' }}
+            options={availableRoles.map(role => ({ label: roleLabels[role.role] || role.role, value: role.role }))}
+          />
+        </Space>
       </Modal>
 
       <Modal

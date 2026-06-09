@@ -174,6 +174,7 @@ export interface Menu {
   component: string | null
   icon: string | null
   sort_order: number
+  menu_type: string
   permission: string | null
   is_visible: boolean
   is_active: boolean
@@ -189,6 +190,7 @@ export interface MenuCreate {
   component?: string | null
   icon?: string | null
   sort_order?: number
+  menu_type?: string
   permission?: string | null
   is_visible?: boolean
   is_active?: boolean
@@ -201,6 +203,7 @@ export interface MenuUpdate {
   component?: string | null
   icon?: string | null
   sort_order?: number
+  menu_type?: string
   permission?: string | null
   is_visible?: boolean
   is_active?: boolean
@@ -251,7 +254,7 @@ export interface AuditLog {
 }
 
 export const auditApi = {
-  list: async (params?: { action?: string; resource_type?: string; page?: number; per_page?: number }) => {
+  list: async (params?: { action?: string; resource_type?: string; username?: string; start_date?: string; end_date?: string; page?: number; per_page?: number }) => {
     const response = await api.get<{ logs: AuditLog[]; total: number }>('/audit', { params })
     return response.data
   },

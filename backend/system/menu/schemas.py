@@ -15,6 +15,7 @@ class MenuCreate(BaseModel):
     component: Optional[str] = Field(None, max_length=255, description="Frontend component path")
     icon: Optional[str] = Field(None, max_length=50, description="Icon name")
     sort_order: int = Field(0, description="Sort order (ascending)")
+    menu_type: str = Field("menu", description="Menu type: directory/menu/button")
     permission: Optional[str] = Field(None, max_length=100, description="Required permission")
     is_visible: bool = Field(True, description="Show in menu")
     is_active: bool = Field(True, description="Menu is enabled")
@@ -28,6 +29,7 @@ class MenuUpdate(BaseModel):
     component: Optional[str] = Field(None, max_length=255, description="Frontend component path")
     icon: Optional[str] = Field(None, max_length=50, description="Icon name")
     sort_order: Optional[int] = Field(None, description="Sort order")
+    menu_type: Optional[str] = Field(None, description="Menu type: directory/menu/button")
     permission: Optional[str] = Field(None, max_length=100, description="Required permission")
     is_visible: Optional[bool] = Field(None, description="Show in menu")
     is_active: Optional[bool] = Field(None, description="Menu is enabled")
@@ -44,6 +46,7 @@ class MenuResponse(BaseModel):
     component: Optional[str]
     icon: Optional[str]
     sort_order: int
+    menu_type: str = "menu"
     permission: Optional[str]
     is_visible: bool
     is_active: bool
@@ -62,6 +65,7 @@ class MenuTreeNode(BaseModel):
     component: Optional[str]
     icon: Optional[str]
     sort_order: int
+    menu_type: str = "menu"
     permission: Optional[str]
     is_visible: bool
     is_active: bool

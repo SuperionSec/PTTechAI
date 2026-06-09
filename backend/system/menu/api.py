@@ -11,12 +11,14 @@ from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
 
 from backend.common.db.database import get_db
-from backend.common.models.user import User, Role
-from backend.common.infra.auth import get_current_user, require_role
+from backend.common.models.user import User
+from backend.common.infra.auth import get_current_user
+from backend.common.infra.permissions import require_permission_name
 from backend.common.infra.resource_guard import resource_guard
+from backend.common.infra.rbac.access_helpers import is_admin_role
 from backend.system.audit.service import record_audit_log
 
-from .models import Menu
+from .models import Menu, MenuType
 from .schemas import (
     MenuCreate,
     MenuUpdate,
@@ -39,6 +41,7 @@ def _menu_to_response(menu: Menu) -> MenuResponse:
         component=menu.component,
         icon=menu.icon,
         sort_order=menu.sort_order,
+        menu_type=menu.menu_type or MenuType.MENU.value,
         permission=menu.permission,
         is_visible=menu.is_visible,
         is_active=menu.is_active,
@@ -47,10 +50,17 @@ def _menu_to_response(menu: Menu) -> MenuResponse:
     )
 
 
-def _build_tree(menus: List[Menu], user_permissions: Optional[set] = None) -> List[MenuTreeNode]:
-    """Build menu tree from flat list"""
-    # Filter by permission if user_permissions provided
-    if user_permissions is not None:
+def _build_tree(menus: List[Menu], user_permissions: Optional[set] = None, is_admin: bool = False) -> List[MenuTreeNode]:
+    """Build menu tree from flat list.
+
+    - admin users: skip permission filtering
+    - button type menus: excluded from navigation tree
+    """
+    # Filter out button-type menus (only for permission checks, not navigation)
+    menus = [m for m in menus if (m.menu_type or MenuType.MENU.value) != MenuType.BUTTON.value]
+
+    # Filter by permission if user_permissions provided and not admin
+    if not is_admin and user_permissions is not None:
         menus = [
             m for m in menus
             if not m.permission or m.permission in user_permissions
@@ -67,6 +77,7 @@ def _build_tree(menus: List[Menu], user_permissions: Optional[set] = None) -> Li
             component=menu.component,
             icon=menu.icon,
             sort_order=menu.sort_order,
+            menu_type=menu.menu_type or MenuType.MENU.value,
             permission=menu.permission,
             is_visible=menu.is_visible,
             is_active=menu.is_active,
@@ -97,7 +108,7 @@ def _build_tree(menus: List[Menu], user_permissions: Optional[set] = None) -> Li
 @router.get("", response_model=MenuListResponse)
 async def list_menus(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_permission_name("settings:manage")),
 ):
     """List all menus (admin only)"""
     result = await db.execute(select(Menu).order_by(Menu.sort_order))
@@ -111,7 +122,7 @@ async def list_menus(
 @router.get("/tree", response_model=MenuTreeResponse)
 async def get_menu_tree(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_permission_name("settings:manage")),
 ):
     """Get menu tree structure (admin only)"""
     result = await db.execute(select(Menu).order_by(Menu.sort_order))
@@ -129,6 +140,7 @@ async def get_user_menu_tree(
     # Get user permissions
     permissions = await resource_guard.get_user_permissions(current_user, db)
     permission_names = {p.name for p in permissions}
+    is_admin = is_admin_role(current_user)
 
     # Get all active and visible menus
     result = await db.execute(
@@ -139,8 +151,8 @@ async def get_user_menu_tree(
     )
     menus = result.scalars().all()
 
-    # Build tree with permission filter
-    tree = _build_tree(list(menus), user_permissions=permission_names)
+    # Build tree with permission filter (admin skips filtering)
+    tree = _build_tree(list(menus), user_permissions=permission_names, is_admin=is_admin)
     return MenuTreeResponse(menus=tree, total=len(tree))
 
 
@@ -149,7 +161,7 @@ async def create_menu(
     data: MenuCreate,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_permission_name("settings:manage")),
 ):
     """Create a new menu (admin only)"""
     # Validate parent exists if provided
@@ -169,6 +181,7 @@ async def create_menu(
         component=data.component,
         icon=data.icon,
         sort_order=data.sort_order,
+        menu_type=data.menu_type,
         permission=data.permission,
         is_visible=data.is_visible,
         is_active=data.is_active,
@@ -192,7 +205,7 @@ async def create_menu(
 async def get_menu(
     menu_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_permission_name("settings:manage")),
 ):
     """Get a menu by ID (admin only)"""
     menu = await db.get(Menu, menu_id)
@@ -210,7 +223,7 @@ async def update_menu(
     data: MenuUpdate,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_permission_name("settings:manage")),
 ):
     """Update a menu (admin only)"""
     menu = await db.get(Menu, menu_id)
@@ -260,7 +273,7 @@ async def delete_menu(
     menu_id: str,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_permission_name("settings:manage")),
 ):
     """Delete a menu and its children (admin only)"""
     menu = await db.get(Menu, menu_id)

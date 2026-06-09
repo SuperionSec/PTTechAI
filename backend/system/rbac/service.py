@@ -11,6 +11,7 @@ from backend.common.infra.rbac.matcher import match_api_resource
 from backend.common.models.permission import Permission, ResourceMapping, RolePermission
 from backend.common.models.user import RoleModel, User
 from backend.common.schemas.rbac import MenuItemOut, PermissionOut, ResourceMappingOut, RoleCreate, RoleDetailOut, RoleSummaryOut, RoleUpdate, UnmappedResourceOut
+from backend.system.menu.models import Menu, MenuType
 
 DEFAULT_ROLE_NAMES = {"admin", "user", "viewer", "service"}
 ROLE_NAME_PATTERN = re.compile(r"^[a-z0-9_]{1,50}$")
@@ -41,7 +42,6 @@ FRONTEND_ROUTES = [
     ("/menus", "menuManagement.title", "settings:manage", "MenuOutlined", "system"),
     ("/audit", "audit.title", "settings:manage", "FileTextOutlined", "system"),
     ("/monitor", "monitor.title", "settings:manage", "DashboardOutlined", "system"),
-    ("/unmapped-resources", "accessCoverage.title", "user:manage", "UserSwitchOutlined", "system"),
     ("/languages", "languageManagement.title", "settings:read", "TranslationOutlined", "system"),
     ("/settings", "sidebar.settings", "settings:read", "SettingOutlined", "pentest"),
     ("/api-keys", "apiKeys.title", "api_key:read", "KeyOutlined", None),
@@ -350,20 +350,138 @@ async def get_user_permission_names(db: AsyncSession, user: User) -> list[str]:
 
 
 def build_access_map(permission_names: list[str], role: str) -> dict[str, bool]:
-    permission_set = set(permission_names)
+    ps = set(permission_names)
+    is_admin = role == "admin"
     return {
-        "canDashboardRead": role == "admin" or "dashboard:read" in permission_set,
-        "canScanCreate": role == "admin" or "scan:create" in permission_set,
-        "canScanExecute": role == "admin" or "scan:execute" in permission_set,
-        "canReportRead": role == "admin" or "report:read" in permission_set,
-        "canUserManage": role == "admin" or "user:manage" in permission_set,
-        "canSettingsManage": role == "admin" or "settings:manage" in permission_set,
+        # Dashboard
+        "canDashboardRead": is_admin or "dashboard:read" in ps,
+        # Scan
+        "canScanCreate": is_admin or "scan:create" in ps,
+        "canScanRead": is_admin or "scan:read" in ps,
+        "canScanUpdate": is_admin or "scan:update" in ps,
+        "canScanDelete": is_admin or "scan:delete" in ps,
+        "canScanExecute": is_admin or "scan:execute" in ps,
+        # Target
+        "canTargetRead": is_admin or "target:read" in ps,
+        "canTargetCreate": is_admin or "target:create" in ps,
+        "canTargetDelete": is_admin or "target:delete" in ps,
+        # Report
+        "canReportRead": is_admin or "report:read" in ps,
+        "canReportCreate": is_admin or "report:create" in ps,
+        # Agent
+        "canAgentRead": is_admin or "agent:read" in ps,
+        "canAgentExecute": is_admin or "agent:execute" in ps,
+        # Vulnerability
+        "canVulnerabilityRead": is_admin or "vulnerability:read" in ps,
+        # Vulnerability Library
+        "canVulnLibraryRead": is_admin or "vuln_library:read" in ps,
+        "canVulnLibraryCreate": is_admin or "vuln_library:create" in ps,
+        "canVulnLibraryUpdate": is_admin or "vuln_library:update" in ps,
+        "canVulnLibraryDelete": is_admin or "vuln_library:delete" in ps,
+        "canVulnLibraryManage": is_admin or "vuln_library:manage" in ps,
+        # Settings & User
+        "canUserManage": is_admin or "user:manage" in ps,
+        "canUserRead": is_admin or "user:read" in ps,
+        "canSettingsRead": is_admin or "settings:read" in ps,
+        "canSettingsManage": is_admin or "settings:manage" in ps,
+        # API Key
+        "canApiKeyRead": is_admin or "api_key:read" in ps,
+        "canApiKeyCreate": is_admin or "api_key:create" in ps,
+        "canApiKeyDelete": is_admin or "api_key:delete" in ps,
+        # Scheduler/Knowledge/Provider
+        "canSchedulerRead": is_admin or "scheduler:read" in ps,
+        "canSchedulerManage": is_admin or "scheduler:manage" in ps,
+        "canKnowledgeRead": is_admin or "knowledge:read" in ps,
+        "canProviderRead": is_admin or "provider:read" in ps,
+        "canProviderManage": is_admin or "provider:manage" in ps,
     }
 
 
-def build_menu_items(permission_names: list[str], frontend_pages: list[str], role: str) -> list[MenuItemOut]:
+async def build_menu_items(db: AsyncSession, permission_names: list[str], frontend_pages: list[str], role: str) -> list[MenuItemOut]:
+    """Build menu items from DB menu table, falling back to FRONTEND_ROUTES if DB is empty."""
     permission_set = set(permission_names)
     page_set = set(frontend_pages)
+
+    # Try loading menus from DB first
+    try:
+        db_menus = await _load_menus_from_db(db, permission_set, page_set, role)
+        if db_menus:
+            return db_menus
+    except Exception:
+        pass  # DB not ready or table missing — fall back
+
+    # Fallback: build from hardcoded FRONTEND_ROUTES
+    return _build_menu_items_from_routes(permission_set, page_set, role)
+
+
+async def _load_menus_from_db(
+    db: AsyncSession,
+    permission_set: set[str],
+    page_set: set[str],
+    role: str,
+) -> list[MenuItemOut]:
+    """Load menu tree from DB and filter by user permissions."""
+    result = await db.execute(
+        select(Menu).where(Menu.is_active == True).order_by(Menu.sort_order)
+    )
+    all_menus = list(result.scalars().all())
+    if not all_menus:
+        return []
+
+    is_admin = role == "admin"
+
+    def _menu_to_item(menu: Menu) -> MenuItemOut | None:
+        """Recursively build MenuItemOut from Menu tree."""
+        if not menu.is_visible:
+            return None
+        # button type menus are for permission checks only, not navigation
+        if (menu.menu_type or MenuType.MENU.value) == MenuType.BUTTON.value:
+            return None
+        # Permission check for leaf nodes
+        if menu.path and not is_admin and menu.permission and menu.permission not in permission_set and menu.path not in page_set:
+            return None
+        children_items = []
+        child_menus = sorted(
+            [m for m in all_menus if m.parent_id == menu.id],
+            key=lambda m: m.sort_order,
+        )
+        for child in child_menus:
+            item = _menu_to_item(child)
+            if item:
+                children_items.append(item)
+        # For parent nodes, skip if no visible children
+        if not menu.path and not children_items:
+            return None
+        return MenuItemOut(
+            path=menu.path or f"/{menu.name}-group",
+            name=menu.name,
+            menu_type=menu.menu_type or MenuType.MENU.value,
+            permission=menu.permission,
+            icon=menu.icon,
+            locale=menu.name,
+            access="canAccessPage" if menu.path else None,
+            children=children_items,
+        )
+
+    # Build from root menus (parent_id is None)
+    root_menus = sorted(
+        [m for m in all_menus if m.parent_id is None],
+        key=lambda m: m.sort_order,
+    )
+    menus = []
+    for root in root_menus:
+        item = _menu_to_item(root)
+        if item:
+            menus.append(item)
+    return menus
+
+
+def _build_menu_items_from_routes(
+    permission_set: set[str],
+    page_set: set[str],
+    role: str,
+) -> list[MenuItemOut]:
+    """Fallback: build menu items from hardcoded FRONTEND_ROUTES."""
     system_children = []
     pentest_children = []
     vuln_library_children = []

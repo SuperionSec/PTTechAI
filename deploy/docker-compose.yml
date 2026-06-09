@@ -32,7 +32,7 @@ services:
       context: ..
       # Use Dockerfile.backend.lite for faster builds (no security tools)
       # Use Dockerfile.backend for full version with all tools
-      dockerfile: deploy/docker/Dockerfile.backend
+      dockerfile: deploy/docker/Dockerfile.backend.lite
     container_name: pttechai-backend
     env_file:
       - ../.env

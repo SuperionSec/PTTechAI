@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, Request, status, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.common.infra.auth import get_current_user, require_role
+from backend.common.infra.auth import get_current_user
+from backend.common.infra.permissions import require_permission_name
 from backend.common.infra.resource_guard import resource_guard, clear_resource_mapping_cache
 from backend.common.db.database import get_db
 from backend.common.models.user import Role, User
@@ -38,7 +39,7 @@ async def get_my_rbac_profile(
         frontend_pages=frontend_pages,
         backend_apis=backend_apis,
         access=rbac_service.build_access_map(permissions, role),
-        menus=rbac_service.build_menu_items(permissions, frontend_pages, role),
+        menus=await rbac_service.build_menu_items(db, permissions, frontend_pages, role),
     )
 
 
@@ -46,7 +47,7 @@ async def get_my_rbac_profile(
 async def list_permissions(
     scope: str | None = None,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_permission_name("settings:manage")),
 ):
     return await rbac_service.list_permissions(db, scope)
 
@@ -54,7 +55,7 @@ async def list_permissions(
 @router.get("/roles", response_model=list[RoleSummaryOut])
 async def list_roles(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_permission_name("user:manage")),
 ):
     return await rbac_service.list_roles(db)
 
@@ -64,7 +65,7 @@ async def create_role(
     body: RoleCreate,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_permission_name("user:manage")),
 ):
     result = await rbac_service.create_role(db, body)
     await record_audit_log(db, user=current_user, action="role.create", resource_type="role", resource_id=result.id or result.role, details={"role": result.role}, request=request)
@@ -76,7 +77,7 @@ async def create_role(
 async def get_role(
     role: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_permission_name("user:manage")),
 ):
     return await rbac_service.get_role_detail(db, role)
 
@@ -87,7 +88,7 @@ async def update_role(
     body: RoleUpdate,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_permission_name("user:manage")),
 ):
     result = await rbac_service.update_role(db, role, body)
     await record_audit_log(db, user=current_user, action="role.update", resource_type="role", resource_id=result.id or role, details={"role": role, "updated_fields": sorted(body.model_dump(exclude_unset=True).keys())}, request=request)
@@ -100,7 +101,7 @@ async def delete_role(
     role: str,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_permission_name("user:manage")),
 ):
     await rbac_service.delete_role(db, role)
     await record_audit_log(db, user=current_user, action="role.delete", resource_type="role", resource_id=role, details={"role": role}, request=request)
@@ -114,7 +115,7 @@ async def update_role_permissions(
     request: Request,
     body: RolePermissionsUpdate | list[str] = Body(...),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_permission_name("user:manage")),
 ):
     permission_ids = body.permission_ids if isinstance(body, RolePermissionsUpdate) else body
     result = await rbac_service.update_role_permissions(db, role, permission_ids)
@@ -129,7 +130,7 @@ async def list_resources(
     resource_type: str | None = None,
     permission_id: str | None = None,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_permission_name("settings:manage")),
 ):
     return await rbac_service.list_resource_mappings(db, resource_type, permission_id)
 
@@ -139,7 +140,7 @@ async def create_resource_mapping(
     body: ResourceMappingCreate,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_permission_name("settings:manage")),
 ):
     result = await rbac_service.create_resource_mapping(db, body.permission_id, body.resource_type, body.resource_path)
     await record_audit_log(db, user=current_user, action="resource_mapping.create", resource_type="resource_mapping", resource_id=result.id, details={"resource_type": body.resource_type, "resource_path": body.resource_path}, request=request)
@@ -152,7 +153,7 @@ async def delete_resource_mapping(
     mapping_id: str,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_permission_name("settings:manage")),
 ):
     await rbac_service.delete_resource_mapping(db, mapping_id)
     await record_audit_log(db, user=current_user, action="resource_mapping.delete", resource_type="resource_mapping", resource_id=mapping_id, request=request)
@@ -164,7 +165,7 @@ async def delete_resource_mapping(
 async def list_unmapped_resources(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(Role.ADMIN)),
+    current_user: User = Depends(require_permission_name("settings:manage")),
 ):
     return await rbac_service.list_unmapped_resources(db, request.app)
 

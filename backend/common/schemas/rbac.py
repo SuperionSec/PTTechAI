@@ -77,6 +77,7 @@ class UnmappedResourceOut(BaseModel):
 class MenuItemOut(BaseModel):
     path: str
     name: str
+    menu_type: str = "menu"
     permission: Optional[str] = None
     icon: Optional[str] = None
     locale: Optional[str] = None

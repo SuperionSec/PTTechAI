@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
-import { PageContainer, ProCard, ProTable, StatisticCard } from '@ant-design/pro-components'
+import { PageContainer, ProCard, ProDescriptions, ProTable, StatisticCard } from '@ant-design/pro-components'
 import type { ActionType, ProColumns } from '@ant-design/pro-components'
 import {
   Alert,
@@ -25,6 +25,7 @@ import {
 import {
   ApiOutlined,
   CheckCircleOutlined,
+  CopyOutlined,
   DeleteOutlined,
   EditOutlined,
   EyeOutlined,
@@ -124,6 +125,7 @@ export default function RoleManagementPage() {
   const [viewRolePermissions, setViewRolePermissions] = useState<Permission[]>([])
   const [viewResourceMappings, setViewResourceMappings] = useState<ResourceMapping[]>([])
   const [viewLoading, setViewLoading] = useState(false)
+  const [viewRoleActive, setViewRoleActive] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [form] = Form.useForm<RoleFormValues>()
 
@@ -135,19 +137,41 @@ export default function RoleManagementPage() {
   const [selectedPermission, setSelectedPermission] = useState<string>('')
   const [mappingLoading, setMappingLoading] = useState(false)
 
-  const roleLabels: Record<string, string> = useMemo(() => ({
+  const defaultRoleLabels: Record<string, string> = useMemo(() => ({
     admin: t('roleManagement.admin'),
     user: t('roleManagement.user'),
     viewer: t('roleManagement.viewer'),
     service: t('roleManagement.service'),
   }), [t])
 
-  const roleColors: Record<string, string> = {
+  const roleLabels: Record<string, string> = useMemo(() => {
+    const labels = { ...defaultRoleLabels }
+    for (const r of roles) {
+      if (!labels[r.role] && r.display_name) {
+        labels[r.role] = r.display_name
+      }
+    }
+    return labels
+  }, [defaultRoleLabels, roles])
+
+  const defaultRoleColors: Record<string, string> = {
     admin: 'red',
     user: 'blue',
     viewer: 'default',
     service: 'purple',
   }
+  const roleColors = useMemo(() => {
+    const palette = ['green', 'orange', 'cyan', 'magenta', 'gold', 'lime', 'geekblue', 'volcano']
+    const colors = { ...defaultRoleColors }
+    let idx = 0
+    for (const r of roles) {
+      if (!colors[r.role]) {
+        colors[r.role] = palette[idx % palette.length]
+        idx++
+      }
+    }
+    return colors
+  }, [roles])
 
   const notify = useCallback((message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
     notification[type]({ message })
@@ -303,6 +327,7 @@ export default function RoleManagementPage() {
         systemApi.resourceMappings(),
       ])
       setViewRolePermissions(data.permissions || [])
+      setViewRoleActive(data.is_active ?? false)
       const rolePermissionIds = new Set(data.permissions.map(permission => permission.id))
       setViewResourceMappings(allMappings.filter(mapping => rolePermissionIds.has(mapping.permission_id)))
     } catch (error) {
@@ -314,10 +339,31 @@ export default function RoleManagementPage() {
     }
   }
 
+  const openCloneModal = async (role: string) => {
+    setActionLoading(true)
+    try {
+      const data = await systemApi.role(role)
+      resetForm()
+      form.setFieldsValue({
+        role: `${role}_copy`,
+        display_name: `${data.display_name || role} (Copy)`,
+        description: data.description || '',
+        is_active: true,
+      })
+      setSelectedPermissions(new Set(data.permissions.map(p => p.id)))
+      setCreateOpen(true)
+    } catch (error) {
+      console.error('Failed to clone role:', error)
+      notify(t('roleManagement.fetchRoleFailed') || 'Failed to fetch role for cloning', 'error')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   const handleCreateRole = async () => {
     const values = await form.validateFields()
-    if (!/^[a-zA-Z0-9_]+$/.test(values.role)) {
-      setFormError(t('roleManagement.roleNameInvalid') || 'Only alphanumeric and underscore allowed')
+    if (!/^[a-z0-9_]{1,50}$/.test(values.role)) {
+      setFormError(t('roleManagement.roleNameInvalid') || 'Only lowercase letters, numbers and underscore allowed (max 50 chars)')
       return
     }
 
@@ -450,6 +496,9 @@ export default function RoleManagementPage() {
         <Tooltip key="edit" title={t('roleManagement.edit')}>
           <Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(role.role)} />
         </Tooltip>,
+        <Tooltip key="clone" title={t('roleManagement.clone', 'Clone')}>
+          <Button size="small" icon={<CopyOutlined />} onClick={() => openCloneModal(role.role)} />
+        </Tooltip>,
         <Popconfirm
           key="delete"
           title={t('roleManagement.deleteRole')}
@@ -562,6 +611,28 @@ export default function RoleManagementPage() {
         ) : (
           <Tabs
             items={[
+              {
+                key: 'details',
+                label: t('roleManagement.details', 'Details'),
+                children: (
+                  <ProDescriptions column={2}>
+                    <ProDescriptions.Item label={t('roleManagement.roleName')}>
+                      <Tag color={roleColors[viewRole || '']}>{roleLabels[viewRole || ''] || viewRole}</Tag>
+                    </ProDescriptions.Item>
+                    <ProDescriptions.Item label={t('common.status')}>
+                      <Tag color={viewRoleActive ? 'green' : 'default'}>
+                        {viewRoleActive ? t('common.enabled') : t('common.disabled')}
+                      </Tag>
+                    </ProDescriptions.Item>
+                    <ProDescriptions.Item label={t('roleManagement.permissions')} span={2}>
+                      <StatisticCard.Group direction="row" size="small">
+                        <StatisticCard statistic={{ title: t('roleManagement.permissions'), value: viewRolePermissions.length, icon: <LockOutlined /> }} />
+                        <StatisticCard statistic={{ title: t('roleManagement.resources'), value: viewResourceMappings.length, icon: <LinkOutlined /> }} />
+                      </StatisticCard.Group>
+                    </ProDescriptions.Item>
+                  </ProDescriptions>
+                ),
+              },
               {
                 key: 'permissions',
                 label: `${t('roleManagement.permissions')} (${viewRolePermissions.length})`,

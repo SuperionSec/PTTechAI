@@ -1,11 +1,16 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { PageContainer, ProCard, StatisticCard } from '@ant-design/pro-components'
 import { Alert, App as AntApp, Avatar, Button, Descriptions, Form, Input, Space, Spin, Tag, Typography } from 'antd'
 import { EditOutlined, LockOutlined, SaveOutlined, UserOutlined } from '@ant-design/icons'
 import i18n from '../../locales'
 import { useAuth } from '../../contexts/AuthContext'
-import { profileApi } from '../../services/system'
+import { profileApi, systemApi } from '../../services/system'
+
+interface RoleSummary {
+  role: string
+  display_name?: string | null
+}
 
 const { Text } = Typography
 
@@ -44,20 +49,47 @@ export default function UserProfilePage() {
   const [passwordLoading, setPasswordLoading] = useState(false)
   const [profileForm] = Form.useForm<ProfileFormValues>()
   const [passwordForm] = Form.useForm<PasswordFormValues>()
+  const [roles, setRoles] = useState<RoleSummary[]>([])
 
-  const roleLabels: Record<string, string> = {
+  useEffect(() => {
+    systemApi.roles().then(setRoles).catch(() => {})
+  }, [])
+
+  const defaultRoleLabels: Record<string, string> = useMemo(() => ({
     admin: t('usersManagement.admin'),
     user: t('usersManagement.user'),
     viewer: t('usersManagement.viewer'),
     service: t('usersManagement.service'),
-  }
+  }), [t])
 
-  const roleColors: Record<string, string> = {
+  const roleLabels: Record<string, string> = useMemo(() => {
+    const labels = { ...defaultRoleLabels }
+    for (const r of roles) {
+      if (!labels[r.role] && r.display_name) {
+        labels[r.role] = r.display_name
+      }
+    }
+    return labels
+  }, [defaultRoleLabels, roles])
+
+  const defaultRoleColors: Record<string, string> = {
     admin: 'red',
     user: 'blue',
     viewer: 'default',
     service: 'purple',
   }
+  const roleColors = useMemo(() => {
+    const palette = ['green', 'orange', 'cyan', 'magenta', 'gold', 'lime', 'geekblue', 'volcano']
+    const colors = { ...defaultRoleColors }
+    let idx = 0
+    for (const r of roles) {
+      if (!colors[r.role]) {
+        colors[r.role] = palette[idx % palette.length]
+        idx++
+      }
+    }
+    return colors
+  }, [roles])
 
   const handleEditProfile = () => {
     profileForm.setFieldsValue({ full_name: user?.full_name || '' })

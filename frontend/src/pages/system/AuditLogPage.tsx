@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { PageContainer, ProTable, StatisticCard } from '@ant-design/pro-components'
 import type { ActionType, ProColumns } from '@ant-design/pro-components'
@@ -32,7 +32,7 @@ export default function AuditLogPage() {
   const { t } = useTranslation()
   const { notification } = AntApp.useApp()
   const actionRef = useRef<ActionType>()
-  const totalRef = useRef(0)
+  const [total, setTotal] = useState(0)
 
   const columns: ProColumns<AuditLog>[] = [
     {
@@ -44,12 +44,27 @@ export default function AuditLogPage() {
       render: (_, record) => new Date(record.created_at).toLocaleString(),
     },
     {
+      title: t('audit.timeRange', 'Time Range'),
+      dataIndex: 'time_range',
+      key: 'time_range',
+      valueType: 'dateTimeRange',
+      hideInTable: true,
+      search: { transform: (value: [string, string]) => ({ start_date: value[0], end_date: value[1] }) },
+    },
+    {
       title: t('audit.user', 'User'),
       dataIndex: 'username',
       key: 'username',
       width: 180,
       hideInSearch: true,
       render: (_, record) => record.username || <Text type="secondary">-</Text>,
+    },
+    {
+      title: t('audit.user', 'User'),
+      dataIndex: 'username',
+      key: 'username_search',
+      hideInTable: true,
+      fieldProps: { placeholder: t('audit.userPlaceholder', 'Search by username...') },
     },
     {
       title: t('audit.action', 'Action'),
@@ -129,10 +144,13 @@ export default function AuditLogPage() {
             const data = await auditApi.list({
               action: params.action || undefined,
               resource_type: params.resource_type || undefined,
+              username: params.username || undefined,
+              start_date: params.start_date || undefined,
+              end_date: params.end_date || undefined,
               page: params.current,
               per_page: params.pageSize,
             })
-            totalRef.current = data.total
+            setTotal(data.total)
             return { data: data.logs, success: true, total: data.total }
           } catch (err: any) {
             notification.error({
@@ -146,7 +164,7 @@ export default function AuditLogPage() {
             <StatisticCard
               statistic={{
                 title: t('audit.totalLogs', 'Total Logs'),
-                value: totalRef.current,
+                value: total,
                 icon: <FileTextOutlined />,
               }}
             />

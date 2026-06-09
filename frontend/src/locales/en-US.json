@@ -230,7 +230,13 @@
     "operationSuccess": "Operation succeeded",
     "service": "Service",
     "serviceAccountCreated": "Service Account Created",
-    "serviceAccountNotice": "This account can only be used for API access and cannot log in to the web interface."
+    "serviceAccountNotice": "This account can only be used for API access and cannot log in to the web interface.",
+    "selectedCount": "Selected {{count}} users",
+    "batchEnable": "Enable",
+    "batchDisable": "Disable",
+    "batchAssignRole": "Assign Role",
+    "batchAssignInfo": "Assign role to {{count}} selected user(s)",
+    "selectRole": "Select role..."
   },
   "apiKeys": {
     "title": "My API Tokens",
@@ -2161,7 +2167,7 @@
     "roleName": "Role Name",
     "roleNamePlaceholder": "e.g. auditor",
     "roleNameRequired": "Role name is required",
-    "roleNameInvalid": "Role name must be alphanumeric or underscore",
+    "roleNameInvalid": "Only lowercase letters, numbers and underscores (max 50 characters)",
     "displayName": "Display Name",
     "displayNameRequired": "Display name is required",
     "permissions": "Permissions",
@@ -2205,7 +2211,9 @@
     "resources": "Resources",
     "unmappedResources": "Access Coverage",
     "unmappedTab": "Access Coverage",
-    "unmappedDesc": "Frontend pages and backend APIs without explicit permission bindings"
+    "unmappedDesc": "Frontend pages and backend APIs without explicit permission bindings",
+    "clone": "Clone",
+    "details": "Details"
   },
   "vulnAgent": {
     "notEnabled": "Per-vulnerability agent orchestration is not enabled for this scan.",

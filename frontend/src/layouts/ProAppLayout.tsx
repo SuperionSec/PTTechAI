@@ -8,10 +8,20 @@ import { useTranslation } from 'react-i18next'
 import i18n from '../locales'
 import { useAuth } from '../contexts/AuthContext'
 import { canAccessPage, hasPermission } from '../routes/access'
-import { menuRoutes } from '../routes/routeConfig'
+import { appRoutes, menuRoutes } from '../routes/routeConfig'
+import { buildMenuRoutes, type ProLayoutRoute } from '../utils/menuHelper'
 
 interface ProAppLayoutProps {
   children: ReactNode
+}
+
+/** Recursively translate route names (i18n keys) using t() */
+function translateRoutes(routes: ProLayoutRoute[], t: (key: string) => string): ProLayoutRoute[] {
+  return routes.map(r => ({
+    ...r,
+    name: t(r.name),
+    routes: r.routes ? translateRoutes(r.routes, t) : undefined,
+  }))
 }
 
 export default function ProAppLayout({ children }: ProAppLayoutProps) {
@@ -21,36 +31,32 @@ export default function ProAppLayout({ children }: ProAppLayoutProps) {
   const { user, userPermissions, loading, logout } = useAuth()
 
   const routes = useMemo(() => {
-    const accessibleRoutes = menuRoutes
-      .filter(route => canAccessPage({
-        role: userPermissions?.role || user?.role,
-        permissions: userPermissions?.permissions,
-        frontendPages: userPermissions?.frontend_pages,
-      }, route.path, route.permission))
+    const permCtx = {
+      role: userPermissions?.role || user?.role,
+      permissions: userPermissions?.permissions,
+      frontendPages: userPermissions?.frontend_pages,
+    }
+
+    // Priority 1: Use backend menus (dynamic config takes effect)
+    if (userPermissions?.menus?.length) {
+      const menuTree = buildMenuRoutes(userPermissions.menus, appRoutes)
+      return translateRoutes(menuTree, t)
+    }
+
+    // Fallback: Hardcoded group logic (when backend menus not initialized)
+    const accessibleRoutes = menuRoutes.filter(route => canAccessPage(permCtx, route.path, route.permission))
 
     const systemRoutes = accessibleRoutes
       .filter(route => route.group === 'system')
-      .map(route => ({
-        path: route.path,
-        name: t(route.name),
-        icon: route.icon,
-      }))
+      .map(route => ({ path: route.path, name: t(route.name), icon: route.icon }))
 
     const vulnerabilityLibraryRoutes = accessibleRoutes
       .filter(route => route.group === 'vulnerabilityLibrary')
-      .map(route => ({
-        path: route.path,
-        name: t(route.name),
-        icon: route.icon,
-      }))
+      .map(route => ({ path: route.path, name: t(route.name), icon: route.icon }))
 
     const pentestRoutes = accessibleRoutes
       .filter(route => route.group === 'pentest')
-      .map(route => ({
-        path: route.path,
-        name: t(route.name),
-        icon: route.icon,
-      }))
+      .map(route => ({ path: route.path, name: t(route.name), icon: route.icon }))
 
     return [
       {
