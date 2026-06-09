@@ -12,6 +12,7 @@ This script:
     1. Creates all database tables (if not exists)
     2. Initializes default admin user
     3. Initializes default permissions and role mappings
+    4. Initializes sidebar menus (3 groups: pentest, vulnLibrary, system)
 """
 import asyncio
 import os
