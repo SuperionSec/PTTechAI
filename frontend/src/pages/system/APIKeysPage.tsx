@@ -136,7 +136,7 @@ export default function APIKeysPage() {
     {
       title: t('apiKeys.keyHash'),
       dataIndex: 'key_hash',
-      render: (_, key) => <Text code>{key.key_hash.slice(0, 16)}...</Text>,
+      render: (_, key) => <Text code>{(key.key_hash || '').slice(0, 16)}...</Text>,
     },
     {
       title: t('apiKeys.createdAt'),

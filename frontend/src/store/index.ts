@@ -87,7 +87,7 @@ export const useScanStore = create<ScanState>()(
       setVulnerabilities: (vulnerabilities) => set({ vulnerabilities }),
       addLog: (level, message) =>
         set((state) => ({
-          logs: [...state.logs, { level, message, time: new Date().toISOString() }].slice(-200)
+          logs: [...(state.logs || []), { level, message, time: new Date().toISOString() }].slice(-200)
         })),
       setLogs: (logs) => set({ logs }),
 
