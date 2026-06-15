@@ -16,6 +16,7 @@ import {
   Tag,
   Typography,
 } from 'antd'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts'
 import {
   AlertOutlined,
   ApiOutlined,
@@ -97,39 +98,36 @@ function ActivityIcon({ type }: { type: ActivityFeedItem['type'] }) {
   return <FileTextOutlined />
 }
 
-function DistributionCard({
-  title,
-  data,
-}: {
-  title: string
-  data: Array<{ name: string; value: number; color: string }>
-}) {
+function DonutChart({ title, data }: { title: string; data: Array<{ name: string; value: number; color: string }> }) {
   const { t } = useTranslation()
-  const filtered = data.filter(item => item.value > 0)
-  const total = filtered.reduce((sum, item) => sum + item.value, 0)
+  const filtered = data.filter(d => d.value > 0)
+  const total = filtered.reduce((s, d) => s + d.value, 0)
 
   return (
     <ProCard title={title} bordered>
       {filtered.length === 0 ? (
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('dashboard.noData', 'No data')} />
       ) : (
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          {filtered.map(item => {
-            const percent = total > 0 ? Math.round((item.value / total) * 100) : 0
-            return (
-              <div key={item.name}>
-                <Flex justify="space-between" align="center" style={{ marginBottom: 6 }}>
-                  <Space>
-                    <Badge color={item.color} />
-                    <Text>{item.name}</Text>
-                  </Space>
-                  <Text strong>{item.value}</Text>
-                </Flex>
-                <Progress percent={percent} strokeColor={item.color} size="small" />
-              </div>
-            )
-          })}
-        </Space>
+        <Flex gap={16} align="center">
+          <ResponsiveContainer width={140} height={140}>
+            <PieChart>
+              <Pie data={filtered} dataKey="value" cx="50%" cy="50%" innerRadius={38} outerRadius={62} paddingAngle={2} strokeWidth={0}>
+                {filtered.map((d, i) => <Cell key={i} fill={d.color} />)}
+              </Pie>
+              <RechartsTooltip contentStyle={{ background: '#1a1a2e', border: '1px solid #2a2a3e', borderRadius: 8, fontSize: 12 }} itemStyle={{ color: '#e2e8f0' }} />
+            </PieChart>
+          </ResponsiveContainer>
+          <Space direction="vertical" size={4}>
+            {filtered.map(d => (
+              <Flex key={d.name} align="center" gap={8}>
+                <Badge color={d.color} />
+                <Text style={{ whiteSpace: 'nowrap' }}>{d.name}</Text>
+                <Text strong style={{ marginLeft: 'auto' }}>{d.value}</Text>
+                <Text type="secondary" style={{ fontSize: 12, width: 40, textAlign: 'right' }}>{total > 0 ? ((d.value / total) * 100).toFixed(0) : 0}%</Text>
+              </Flex>
+            ))}
+          </Space>
+        </Flex>
       )}
     </ProCard>
   )
@@ -347,10 +345,10 @@ export default function HomePage() {
 
         <ProCard gutter={16} wrap>
           <ProCard colSpan={{ xs: 24, lg: 12 }} bodyStyle={{ padding: 0 }}>
-            <DistributionCard title={t('dashboard.vulnerabilitySeverity')} data={severityData} />
+            <DonutChart title={t('dashboard.vulnerabilitySeverity')} data={severityData} />
           </ProCard>
           <ProCard colSpan={{ xs: 24, lg: 12 }} bodyStyle={{ padding: 0 }}>
-            <DistributionCard title={t('dashboard.scanStatus')} data={scanStatusData} />
+            <DonutChart title={t('dashboard.scanStatus')} data={scanStatusData} />
           </ProCard>
         </ProCard>
 

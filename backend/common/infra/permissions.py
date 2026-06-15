@@ -194,6 +194,9 @@ def require_scheduler_manage():
 def require_knowledge_read():
     return require_permission(PermissionScope.KNOWLEDGE, PermissionAction.READ)
 
+def require_knowledge_manage():
+    return require_permission(PermissionScope.KNOWLEDGE, PermissionAction.MANAGE)
+
 def require_provider_read():
     return require_permission(PermissionScope.PROVIDER, PermissionAction.READ)
 

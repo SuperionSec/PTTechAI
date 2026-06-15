@@ -12,6 +12,7 @@ from backend.common.config import settings
 from backend.routes import register_v1_routers
 from backend.pentest.backend.api.websocket import manager as ws_manager
 from backend.app_lifecycle import shutdown_app, startup_app
+from backend.common.infra.auth import decode_token
 
 
 @asynccontextmanager
@@ -48,19 +49,64 @@ register_v1_routers(app)
 
 @app.get("/api/health")
 async def health_check():
-    """Minimal public health check endpoint."""
-    return {"status": "ok"}
+    """Health check endpoint with LLM status"""
+    import os
+
+    # Check LLM availability
+    anthropic_key = os.getenv("ANTHROPIC_API_KEY", "")
+    openai_key = os.getenv("OPENAI_API_KEY", "")
+    openrouter_key = os.getenv("OPENROUTER_API_KEY", "")
+    gemini_key = os.getenv("GEMINI_API_KEY", "")
+
+    llm_status = "not_configured"
+    llm_provider = None
+
+    if anthropic_key and anthropic_key not in ["", "your-anthropic-api-key"]:
+        llm_status = "configured"
+        llm_provider = "claude"
+    elif openai_key and openai_key not in ["", "your-openai-api-key"]:
+        llm_status = "configured"
+        llm_provider = "openai"
+    elif openrouter_key and openrouter_key not in ["", "your-openrouter-api-key"]:
+        llm_status = "configured"
+        llm_provider = "openrouter"
+    elif gemini_key and gemini_key not in ["", "your-gemini-api-key"]:
+        llm_status = "configured"
+        llm_provider = "gemini"
+
+    return {
+        "status": "healthy",
+        "app": settings.APP_NAME,
+        "version": settings.APP_VERSION,
+        "llm": {
+            "status": llm_status,
+            "provider": llm_provider,
+            "message": "AI agent ready" if llm_status == "configured" else "Set ANTHROPIC_API_KEY or OPENAI_API_KEY to enable AI features"
+        }
+    }
 
 
 @app.websocket("/ws/scan/{scan_id}")
-async def websocket_scan(websocket: WebSocket, scan_id: str):
-    """WebSocket endpoint for real-time scan updates"""
+async def websocket_scan(websocket: WebSocket, scan_id: str, token: str = ""):
+    """WebSocket endpoint for real-time scan updates with JWT authentication."""
+    # Verify JWT token from query parameter
+    if token:
+        try:
+            payload = decode_token(token)
+            if payload is None:
+                await websocket.close(code=4001, reason="Invalid token")
+                return
+        except Exception:
+            await websocket.close(code=4001, reason="Authentication failed")
+            return
+    else:
+        await websocket.close(code=4001, reason="Missing authentication token")
+        return
+
     await ws_manager.connect(websocket, scan_id)
     try:
         while True:
-            # Keep connection alive and handle client messages
             data = await websocket.receive_text()
-            # Handle client commands (pause, resume, etc.)
             if data == "ping":
                 await websocket.send_text("pong")
     except WebSocketDisconnect:

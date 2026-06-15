@@ -390,6 +390,17 @@ export default function SchedulerPage() {
                 <Form.Item name="selected_days" label={t('scheduler.selectDaysOfWeek')} rules={[{ required: true, message: t('scheduler.configureSchedule') }]}>
                   <Checkbox.Group options={daysOfWeek.map(day => ({ label: day.label, value: day.value, title: day.full }))} />
                 </Form.Item>
+                <Space style={{ marginBottom: 8 }}>
+                  <Button size="small" onClick={() => form.setFieldValue('selected_days', [1, 2, 3, 4, 5])}>
+                    {t('scheduler.weekdays', 'Weekdays')}
+                  </Button>
+                  <Button size="small" onClick={() => form.setFieldValue('selected_days', [0, 6])}>
+                    {t('scheduler.weekends', 'Weekends')}
+                  </Button>
+                  <Button size="small" onClick={() => form.setFieldValue('selected_days', [0, 1, 2, 3, 4, 5, 6])}>
+                    {t('scheduler.everyDay', 'Every Day')}
+                  </Button>
+                </Space>
                 <Space>
                   <Form.Item name="execution_hour" label={t('scheduler.executionTime')} rules={[{ required: true }]}>
                     <Select style={{ width: 96 }} options={Array.from({ length: 24 }, (_, i) => ({ label: String(i).padStart(2, '0'), value: String(i).padStart(2, '0') }))} />

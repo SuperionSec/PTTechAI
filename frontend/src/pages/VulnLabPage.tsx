@@ -11,6 +11,7 @@ import {
   Collapse,
   Descriptions,
   Empty,
+  Flex,
   Form,
   Input,
   Progress,
@@ -24,6 +25,7 @@ import {
   Timeline,
   Typography,
 } from 'antd'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts'
 import {
   BarChartOutlined,
   BugOutlined,
@@ -137,6 +139,40 @@ function LogTimeline({ logs, maxHeight = 360 }: { logs: VulnLabLogEntry[]; maxHe
         ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('vulnLab.noLogsMatch')} />}
       </div>
     </Space>
+  )
+}
+
+function DetectionDonut({ stats }: { stats: { result_counts?: { detected?: number; not_detected?: number; error?: number } } }) {
+  const rc = stats.result_counts || {}
+  const detected = rc.detected || 0
+  const notDetected = rc.not_detected || 0
+  const errorCount = rc.error || 0
+  if (detected + notDetected + errorCount === 0) return null
+  const data = [
+    { name: 'Detected', value: detected, color: '#22c55e' },
+    { name: 'Not Detected', value: notDetected, color: '#ef4444' },
+    ...(errorCount > 0 ? [{ name: 'Error', value: errorCount, color: '#eab308' }] : []),
+  ]
+  return (
+    <Flex align="center" gap={16} style={{ padding: '8px 0' }}>
+      <ResponsiveContainer width={96} height={96}>
+        <PieChart>
+          <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={38} innerRadius={20} strokeWidth={0} paddingAngle={2}>
+            {data.map((d, i) => <Cell key={i} fill={d.color} />)}
+          </Pie>
+          <RechartsTooltip contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #334155', borderRadius: 8, fontSize: 11 }} itemStyle={{ color: '#e2e8f0' }} />
+        </PieChart>
+      </ResponsiveContainer>
+      <Space direction="vertical" size={4}>
+        {data.map(d => (
+          <Flex key={d.name} align="center" gap={8}>
+            <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: d.color, flexShrink: 0 }} />
+            <Typography.Text style={{ fontSize: 12 }}>{d.name}</Typography.Text>
+            <Typography.Text strong style={{ fontSize: 12, marginLeft: 'auto' }}>{d.value}</Typography.Text>
+          </Flex>
+        ))}
+      </Space>
+    </Flex>
   )
 }
 
@@ -499,6 +535,11 @@ export default function VulnLabPage() {
                 <StatisticCard statistic={{ title: t('vulnLab.detectionRate'), value: `${stats.detection_rate}%`, icon: <CheckCircleOutlined /> }} />
                 <StatisticCard statistic={{ title: t('vulnLab.detectedShort'), value: stats.result_counts?.detected || 0, icon: <WarningOutlined /> }} />
               </StatisticCard.Group>
+              {stats.result_counts && (Object.values(stats.result_counts).some(v => (v || 0) > 0)) && (
+                <ProCard bordered title={t('vulnLab.detectionOverview', 'Detection Overview')}>
+                  <DetectionDonut stats={stats} />
+                </ProCard>
+              )}
               {Object.keys(stats.by_category || {}).length > 0 && (
                 <ProCard bordered title={t('vulnLab.detectionByCategory')} extra={<Button icon={<ReloadOutlined spin={refreshing} />} onClick={handleRefresh}>{t('common.refresh')}</Button>}>
                   <Space direction="vertical" style={{ width: '100%' }}>

@@ -8,12 +8,14 @@ import {
   App as AntApp,
   Button,
   Empty,
+  Flex,
   Progress,
   Space,
   Spin,
   Tag,
   Typography,
 } from 'antd'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts'
 import {
   ApiOutlined,
   CheckCircleOutlined,
@@ -63,6 +65,8 @@ function healthAlertType(status: string): 'success' | 'warning' | 'error' | 'inf
   if (status === 'error') return 'error'
   return 'info'
 }
+
+const DONUT_COLORS = ['#3b82f6', '#d1d5db']
 
 export default function SandboxDashboardPage() {
   const { t } = useTranslation()
@@ -169,6 +173,14 @@ export default function SandboxDashboardPage() {
   const connectionLost = pollFailures >= 3
   const imageName = pool?.image?.split(':')[0]?.split('/').pop() || 'N/A'
   const imageTag = pool?.image?.includes(':') ? pool.image.split(':')[1] : 'latest'
+
+  const donutData = useMemo(() => {
+    if (!pool || pool.max_concurrent === 0) return []
+    return [
+      { name: 'Active', value: pool.active },
+      { name: 'Available', value: Math.max(0, pool.max_concurrent - pool.active) },
+    ]
+  }, [pool])
 
   const containerColumns: ProColumns<SandboxContainer>[] = useMemo(() => [
     {
@@ -321,6 +333,32 @@ export default function SandboxDashboardPage() {
             }}
           />
         </StatisticCard.Group>
+
+        {donutData.length > 0 && (
+          <ProCard bordered>
+            <Flex align="center" gap={16}>
+              <ResponsiveContainer width={96} height={96}>
+                <PieChart>
+                  <Pie data={donutData} cx="50%" cy="50%" innerRadius={25} outerRadius={38} paddingAngle={2} dataKey="value" strokeWidth={0}>
+                    {donutData.map((_entry, index) => (
+                      <Cell key={`cell-${index}`} fill={DONUT_COLORS[index % DONUT_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }} itemStyle={{ color: '#e2e8f0' }} />
+                </PieChart>
+              </ResponsiveContainer>
+              <Space direction="vertical" size={4}>
+                {donutData.map((d, i) => (
+                  <Flex key={d.name} align="center" gap={8}>
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: DONUT_COLORS[i], flexShrink: 0 }} />
+                    <Text style={{ fontSize: 12 }}>{d.name}</Text>
+                    <Text strong style={{ fontSize: 12, marginLeft: 'auto' }}>{d.value}</Text>
+                  </Flex>
+                ))}
+              </Space>
+            </Flex>
+          </ProCard>
+        )}
 
         {pool && pool.max_concurrent > 0 && (
           <ProCard bordered title={t('sandbox.poolCapacity')} extra={<Text strong style={{ color: utilizationColor(utilizationPct) }}>{Math.round(utilizationPct)}%</Text>}>

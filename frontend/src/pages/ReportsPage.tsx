@@ -7,6 +7,7 @@ import {
   App as AntApp,
   Button,
   Empty,
+  Flex,
   Input,
   Popconfirm,
   Segmented,
@@ -16,6 +17,7 @@ import {
   Tooltip,
   Typography,
 } from 'antd'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts'
 import type { ProColumns } from '@ant-design/pro-components'
 import {
   CloudDownloadOutlined,
@@ -42,6 +44,48 @@ const formatColors: Record<string, string> = {
   html: 'blue',
   json: 'green',
   pdf: 'red',
+}
+
+const FORMAT_CHART_COLORS: Record<string, string> = {
+  html: '#3b82f6',
+  json: '#22c55e',
+  pdf: '#ef4444',
+}
+
+function FormatChart({ reports }: { reports: Report[] }) {
+  const data = useMemo(() => {
+    const counts: Record<string, number> = {}
+    reports.forEach(r => { counts[r.format] = (counts[r.format] || 0) + 1 })
+    return Object.entries(counts).map(([name, value]) => ({
+      name: name.toUpperCase(),
+      value,
+      color: FORMAT_CHART_COLORS[name] || '#6b7280',
+    }))
+  }, [reports])
+
+  if (data.length === 0) return null
+
+  return (
+    <Flex align="center" gap={16} style={{ padding: '8px 0' }}>
+      <ResponsiveContainer width={80} height={80}>
+        <PieChart>
+          <Pie data={data} dataKey="value" cx="50%" cy="50%" innerRadius={20} outerRadius={35} paddingAngle={2} strokeWidth={0}>
+            {data.map((d, i) => <Cell key={i} fill={d.color} />)}
+          </Pie>
+          <RechartsTooltip contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #334155', borderRadius: 8, fontSize: 11 }} itemStyle={{ color: '#e2e8f0' }} />
+        </PieChart>
+      </ResponsiveContainer>
+      <Space direction="vertical" size={4}>
+        {data.map(d => (
+          <Flex key={d.name} align="center" gap={8}>
+            <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: d.color, flexShrink: 0 }} />
+            <Typography.Text style={{ fontSize: 12 }}>{d.name}</Typography.Text>
+            <Typography.Text strong style={{ fontSize: 12, marginLeft: 'auto' }}>{d.value}</Typography.Text>
+          </Flex>
+        ))}
+      </Space>
+    </Flex>
+  )
 }
 
 export default function ReportsPage() {
@@ -297,6 +341,8 @@ export default function ReportsPage() {
             />
           </StatisticCard.Group>
         )}
+
+        {reports.length > 0 && <FormatChart reports={reports} />}
 
         <ProCard bordered>
           <Space direction="vertical" size="middle" style={{ width: '100%' }}>

@@ -140,6 +140,34 @@ function matchLogFilter(log: AgentLog, filter: string): boolean {
   return true
 }
 
+function getLogMessageColor(message: string): string | undefined {
+  if (message.startsWith('[STREAM 1]')) return '#60a5fa'
+  if (message.startsWith('[STREAM 2]')) return '#c084fc'
+  if (message.startsWith('[STREAM 3]')) return '#fb923c'
+  if (message.startsWith('[TOOL]')) return '#fdba74'
+  if (message.startsWith('[DEEP]')) return '#22d3ee'
+  if (message.startsWith('[FINAL]')) return '#4ade80'
+  if (message.startsWith('[CONTAINER]')) return '#67e8f9'
+  if (message.startsWith('[CLI-AGENT]')) return '#f472b6'
+  if (message.startsWith('[PHASE]')) return '#facc15'
+  if (message.startsWith('[PHASE FAIL]')) return '#f87171'
+  if (message.startsWith('[BANNER]')) return '#2dd4bf'
+  if (message.startsWith('[WAF]')) return '#fbbf24'
+  if (message.startsWith('[PLAYBOOK]')) return '#818cf8'
+  if (message.startsWith('[SITE ANALYZER]')) return '#34d399'
+  if (message.startsWith('[MD-AGENTS]')) return '#67e8f9'
+  if (message.startsWith('[AGENT GRID]')) return '#4ade80'
+  if (message.startsWith('[PHASE 1]')) return '#93c5fd'
+  if (message.startsWith('[PHASE 2]')) return '#d8b4fe'
+  if (message.startsWith('[PHASE 3]')) return '#fde047'
+  if (message.startsWith('[RECON]')) return '#60a5fa'
+  if (message.startsWith('[CVE]')) return '#fca5a5'
+  if (message.startsWith('[CHAIN]')) return '#fdba74'
+  if (message.startsWith('[JUDGE]')) return '#fcd34d'
+  if (message.includes('Starting (real HTTP)')) return '#86efac'
+  return undefined
+}
+
 function mapAgentFindingToVuln(f: AgentFinding, scanId: string): Vulnerability {
   return {
     id: f.id,
@@ -363,7 +391,7 @@ function LogViewer({ logs, logFilter, setLogFilter, logSearch, setLogSearch, t }
               <div key={index} style={{ display: 'grid', gridTemplateColumns: '76px 64px 1fr', gap: 8, color: '#d9d9d9' }}>
                 <Text type="secondary">{log.time?.slice(11, 19) || new Date(log.time).toLocaleTimeString().slice(0, 8)}</Text>
                 <Tag color={log.level === 'error' ? 'error' : log.level === 'warning' ? 'warning' : log.level === 'success' ? 'success' : 'processing'}>{log.level}</Tag>
-                <Text style={{ color: log.source === 'llm' ? '#b37feb' : undefined }}>{log.message}</Text>
+                <Text style={{ color: getLogMessageColor(log.message) || (log.source === 'llm' ? '#b37feb' : undefined) }}>{log.message}</Text>
               </div>
             ))}
           </Space>

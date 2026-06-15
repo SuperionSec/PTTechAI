@@ -13,6 +13,7 @@ import {
   Collapse,
   Descriptions,
   Empty,
+  Flex,
   Form,
   Input,
   Modal,
@@ -52,6 +53,7 @@ import {
 import { agentApi, reportsApi } from '../services/api'
 import type { AgentFinding, AgentLog, AgentStatus, ContainerStatus, ToolExecution } from '../types'
 import { isLogContainerNearBottom } from '../utils/logScroll'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts'
 
 const { Text, Paragraph } = Typography
 
@@ -98,6 +100,47 @@ function getSeverityColor(severity: string): string {
     info: 'default',
   }
   return map[severity] || 'default'
+}
+
+function getLogMessageColor(message: string): string | undefined {
+  if (message.startsWith('[LLM PENTEST]')) return '#f87171'
+  if (message.startsWith('[STREAM 1]')) return '#60a5fa'
+  if (message.startsWith('[STREAM 2]')) return '#c084fc'
+  if (message.startsWith('[STREAM 3]')) return '#fb923c'
+  if (message.startsWith('[TOOL]')) return '#fdba74'
+  if (message.startsWith('[DEEP]')) return '#22d3ee'
+  if (message.startsWith('[FINAL]')) return '#4ade80'
+  if (message.startsWith('[CONTAINER]')) return '#67e8f9'
+  if (message.startsWith('[PHASE]')) return '#facc15'
+  if (message.startsWith('[PHASE FAIL]')) return '#f87171'
+  if (message.startsWith('[BANNER]')) return '#2dd4bf'
+  if (message.startsWith('[WAF]')) return '#fbbf24'
+  if (message.startsWith('[PLAYBOOK]')) return '#818cf8'
+  if (message.startsWith('[SITE ANALYZER]')) return '#34d399'
+  return undefined
+}
+
+const SEVERITY_CHART_COLORS: Record<string, string> = {
+  critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#3b82f6', info: '#6b7280',
+}
+
+function SeverityMiniChart({ sevCounts }: { sevCounts: Record<string, number> }) {
+  const data = ['critical', 'high', 'medium', 'low', 'info']
+    .filter(s => (sevCounts[s] || 0) > 0)
+    .map(s => ({ name: s, value: sevCounts[s] || 0 }))
+  if (data.length === 0) return null
+  return (
+    <div style={{ width: 80, height: 80, flexShrink: 0 }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={32} innerRadius={16} strokeWidth={0}>
+            {data.map(entry => <Cell key={entry.name} fill={SEVERITY_CHART_COLORS[entry.name]} />)}
+          </Pie>
+          <RechartsTooltip contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #334155', borderRadius: 8, fontSize: 11, padding: '4px 8px' }} itemStyle={{ color: '#e2e8f0' }} formatter={(value: any, name: any) => [`${value}`, String(name).charAt(0).toUpperCase() + String(name).slice(1)]} />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+  )
 }
 
 function getStatusBadge(status?: string): 'processing' | 'success' | 'error' | 'warning' | 'default' {
@@ -186,7 +229,7 @@ function LogViewer({ logs, logFilter, setLogFilter, logSearch, setLogSearch, t }
             <Tag color={log.level === 'error' ? 'red' : log.level === 'warning' ? 'orange' : log.level === 'success' ? 'green' : 'blue'} style={{ marginInlineEnd: 0 }}>
               {log.level}
             </Tag>
-            <Text style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{log.message}</Text>
+            <Text style={{ color: getLogMessageColor(log.message), whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{log.message}</Text>
           </div>
         ))}
       </div>
@@ -741,9 +784,12 @@ export default function FullIATestingPage() {
                         </Radio.Group>
                       )}
                       {Object.keys(sevCounts).length > 0 && (
-                        <Space wrap>
-                          {Object.entries(sevCounts).map(([severity, count]) => <Tag key={severity} color={getSeverityColor(severity)}>{severity}: {count}</Tag>)}
-                        </Space>
+                        <Flex align="center" gap={12}>
+                          <SeverityMiniChart sevCounts={sevCounts} />
+                          <Space wrap>
+                            {Object.entries(sevCounts).map(([severity, count]) => <Tag key={severity} color={getSeverityColor(severity)}>{severity}: {count}</Tag>)}
+                          </Space>
+                        </Flex>
                       )}
                       {displayFindings.length === 0 ? (
                         <Empty description={isRunning ? t('fullIaTesting.pentestInProgress') : t('fullIaTesting.noFindings')} />
