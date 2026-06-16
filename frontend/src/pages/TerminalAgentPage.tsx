@@ -22,7 +22,7 @@ import {
   Typography,
   Upload,
 } from 'antd'
-import type { UploadFile } from 'antd'
+import type { InputRef, UploadFile } from 'antd'
 import {
   ArrowRightOutlined,
   BugOutlined,
@@ -143,6 +143,8 @@ export default function TerminalAgentPage() {
   const { t } = useTranslation()
   const { notification } = AntApp.useApp()
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const promptInputRef = useRef<InputRef>(null)
+  const commandInputRef = useRef<InputRef>(null)
   const [createForm] = Form.useForm<CreateSessionValues>()
   const [vpnForm] = Form.useForm<VpnFormValues>()
 
@@ -294,6 +296,7 @@ export default function TerminalAgentPage() {
         ...prev,
         messages: [...prev.messages, { role: 'assistant', content: result.response, timestamp: new Date().toISOString(), suggested_commands: result.suggested_commands || [] }],
       } : prev)
+      promptInputRef.current?.focus()
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } }; message?: string }
       setSessionData(prev => prev ? { ...prev, messages: [...prev.messages, { role: 'system', content: `Error: ${error.response?.data?.detail || error.message || t('terminal.failedToSendMessage')}`, timestamp: new Date().toISOString() }] } : prev)
@@ -323,6 +326,7 @@ export default function TerminalAgentPage() {
           duration: result.duration,
         }],
       } : prev)
+      commandInputRef.current?.focus()
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } }; message?: string }
       setSessionData(prev => prev ? { ...prev, messages: [...prev.messages, { role: 'tool', content: error.response?.data?.detail || error.message || t('terminal.commandExecutionFailed'), timestamp: new Date().toISOString(), exit_code: -1 }] } : prev)
@@ -464,6 +468,7 @@ export default function TerminalAgentPage() {
                   <div style={{ padding: 16, borderTop: '1px solid #f0f0f0' }}>
                     <Space direction="vertical" style={{ width: '100%' }}>
                       <Input.Search
+                        ref={promptInputRef}
                         value={message}
                         onChange={event => setMessage(event.target.value)}
                         placeholder={t('terminal.askAgentPlaceholder')}
@@ -472,7 +477,7 @@ export default function TerminalAgentPage() {
                         onSearch={sendMessage}
                       />
                       <Space.Compact style={{ width: '100%' }}>
-                        <Input value={command} onChange={event => setCommand(event.target.value)} placeholder={t('terminal.enterCommandPlaceholder')} prefix={<Text code>$</Text>} disabled={sendingMessage || executingCommand} onPressEnter={() => executeCommand()} />
+                        <Input ref={commandInputRef} value={command} onChange={event => setCommand(event.target.value)} placeholder={t('terminal.enterCommandPlaceholder')} prefix={<Text code>$</Text>} disabled={sendingMessage || executingCommand} onPressEnter={() => executeCommand()} />
                         <Button icon={<CodeOutlined />} loading={executingCommand} disabled={!command.trim() || sendingMessage} onClick={() => executeCommand()}>{t('terminal.executeCommands')}</Button>
                         <Segmented value={useSandbox ? 'sandbox' : 'direct'} options={[{ label: t('terminal.sandbox'), value: 'sandbox' }, { label: t('terminal.direct'), value: 'direct' }]} onChange={value => setUseSandbox(value === 'sandbox')} />
                       </Space.Compact>

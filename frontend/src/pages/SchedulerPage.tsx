@@ -44,7 +44,8 @@ interface ScheduleFormValues {
   schedule_mode: ScheduleMode
   cron_preset: string
   custom_cron?: string
-  interval_minutes?: number
+  interval_value?: number
+  interval_custom?: number
   selected_days?: number[]
   execution_hour: string
   execution_minute: string
@@ -87,7 +88,7 @@ function defaultFormValues(): ScheduleFormValues {
     scan_type: 'quick',
     schedule_mode: 'preset',
     cron_preset: '0 2 * * *',
-    interval_minutes: 60,
+    interval_value: 60,
     selected_days: [1, 2, 3, 4, 5],
     execution_hour: '02',
     execution_minute: '00',
@@ -127,7 +128,9 @@ export default function SchedulerPage() {
   const [form] = Form.useForm<ScheduleFormValues>()
   const scheduleMode = Form.useWatch('schedule_mode', form) || 'preset'
   const cronPreset = Form.useWatch('cron_preset', form) || '0 2 * * *'
-  const intervalMinutes = Form.useWatch('interval_minutes', form) || 60
+  const intervalValue = Form.useWatch('interval_value', form) || 60
+  const intervalCustom = Form.useWatch('interval_custom', form)
+  const intervalMinutes = intervalCustom || intervalValue || 60
   const selectedDays = Form.useWatch('selected_days', form) || []
   const executionHour = Form.useWatch('execution_hour', form) || '02'
   const executionMinute = Form.useWatch('execution_minute', form) || '00'
@@ -176,7 +179,7 @@ export default function SchedulerPage() {
   const handleCreate = async () => {
     const values = await form.validateFields()
     const cron = buildCronExpression(values)
-    const interval = values.schedule_mode === 'interval' ? values.interval_minutes || 60 : undefined
+    const interval = values.schedule_mode === 'interval' ? values.interval_custom || values.interval_value || 60 : undefined
     if (!cron && !interval) {
       notification.error({ message: t('scheduler.configureSchedule') })
       return
@@ -415,10 +418,10 @@ export default function SchedulerPage() {
 
             {scheduleMode === 'interval' && (
               <>
-                <Form.Item name="interval_minutes" label={t('scheduler.interval')} rules={[{ required: true }]}>
+                <Form.Item name="interval_value" label={t('scheduler.interval')} rules={[{ required: true }]}>
                   <Select options={intervalOptions.map(value => ({ label: intervalDisplayText(value), value }))} />
                 </Form.Item>
-                <Form.Item name="interval_minutes" label={t('scheduler.customIntervalMinutes')}>
+                <Form.Item name="interval_custom" label={t('scheduler.customIntervalMinutes')}>
                   <InputNumber min={1} style={{ width: '100%' }} />
                 </Form.Item>
               </>

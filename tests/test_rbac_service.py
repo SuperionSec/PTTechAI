@@ -191,7 +191,7 @@ async def test_build_menu_items_returns_grouped_pro_layout_contract(db_session):
     pentest_menu = menus[1]
     assert system_menu.icon == "SettingOutlined"
     assert system_menu.locale == "sidebar.systemSettings"
-    assert [item.path for item in system_menu.children] == ["/users", "/roles", "/unmapped-resources", "/languages"]
+    assert [item.path for item in system_menu.children] == ["/users", "/roles", "/languages"]
     assert all(item.access == "canAccessPage" for item in system_menu.children)
     assert [item.path for item in pentest_menu.children] == ["/settings"]
     assert pentest_menu.children[0].icon == "SettingOutlined"
@@ -206,7 +206,6 @@ async def test_build_menu_items_keeps_admin_access_to_all_groups(db_session):
     assert "/profile" not in paths
     assert "/roles" in paths
     assert "/scheduler" in paths
-    assert "/unmapped-resources" in paths
 
 
 @pytest.mark.asyncio

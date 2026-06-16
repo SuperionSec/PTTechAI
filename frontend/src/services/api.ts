@@ -604,6 +604,7 @@ export const providersApi = {
     const response = await api.post(`/providers/${providerId}/connect`, {
       credential,
       label: label || 'Manual API Key',
+      credential_type: 'api_key',
       model_override: modelOverride || undefined,
     })
     return response.data

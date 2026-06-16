@@ -630,7 +630,23 @@ export default function AgentStatusPage() {
             children: (
               <Space key={index} direction="vertical" size={2} style={{ width: '100%' }}>
                 <Text type="secondary">{new Date(log.time).toLocaleTimeString()}</Text>
-                <Text style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{log.message}</Text>
+                {log.message.startsWith('[USER PROMPT]') ? (
+                  <div style={{ background: '#e6f7ff', borderLeft: '4px solid #1890ff', padding: '4px 8px', borderRadius: 4 }}>
+                    <Space size={4}>
+                      <SendOutlined style={{ color: '#1890ff' }} />
+                      <Text style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{log.message}</Text>
+                    </Space>
+                  </div>
+                ) : log.message.startsWith('[AI RESPONSE]') ? (
+                  <div style={{ background: '#f9f0ff', borderLeft: '4px solid #722ed1', padding: '4px 8px', borderRadius: 4 }}>
+                    <Space size={4}>
+                      <RobotOutlined style={{ color: '#722ed1' }} />
+                      <Text style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{log.message}</Text>
+                    </Space>
+                  </div>
+                ) : (
+                  <Text style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{log.message}</Text>
+                )}
               </Space>
             ),
           }))}

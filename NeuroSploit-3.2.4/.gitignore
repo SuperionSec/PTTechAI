@@ -1,0 +1,80 @@
+# ==============================
+# Environment & Secrets
+# ==============================
+.env
+.env.local
+.env.production
+.env.*.local
+
+# ==============================
+# Python
+# ==============================
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ==============================
+# Node.js / Frontend
+# ==============================
+frontend/node_modules/
+frontend/dist/
+
+# ==============================
+# Database & Scan Data
+# ==============================
+data/neurosploit.db
+data/neurosploit.db.*
+data/*.db
+data/*.db.*
+data/execution_history.json
+data/access_control_learning.json
+data/reports/
+
+# ==============================
+# Reports & Screenshots
+# ==============================
+reports/screenshots/
+
+# ==============================
+# Logs & PIDs
+# ==============================
+logs/
+.pids/
+*.log
+
+# ==============================
+# macOS
+# ==============================
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ==============================
+# IDE & Editor
+# ==============================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ==============================
+# Claude Code local config
+# ==============================
+.claude/
+
+# ==============================
+# Docker (runtime)
+# ==============================
+docker/*.env
+
+# ==============================
+# Results (runtime output)
+# ==============================
+results/
