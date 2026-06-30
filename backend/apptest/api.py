@@ -218,12 +218,11 @@ async def download_report(
     report_type: int = Query(1, ge=1, le=2, description="1=Word, 2=PDF"),
     db: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:
-    content, filename = await service.download_report(
+    content, filename, media_type = await service.download_report(
         db=db,
         task_id=task_id,
         report_type=report_type,
     )
-    media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document" if report_type == 1 else "application/pdf"
     # RFC 5987 encoding for non-ASCII (e.g. Chinese) filenames in Content-Disposition
     from urllib.parse import quote
     ascii_fallback = filename.encode("ascii", "ignore").decode("ascii") or "report"

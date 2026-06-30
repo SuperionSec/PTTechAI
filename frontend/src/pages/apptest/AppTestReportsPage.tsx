@@ -40,9 +40,10 @@ export default function AppTestReportsPage() {
     setDownloadingId(taskId)
     try {
       const resp = await apptestApi.getReport(taskId, reportType)
-      const ext = reportType === 1 ? '.docx' : '.pdf'
-      const filename = `${taskName}_report${ext}`
       const blob = new Blob([resp.data])
+      const ct: string = resp.headers?.['content-type'] || ''
+      const ext = ct.includes('pdf') ? '.pdf' : ct.includes('word') ? '.docx' : (reportType === 1 ? '.docx' : '.pdf')
+      const filename = `${taskName}_report${ext}`
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url

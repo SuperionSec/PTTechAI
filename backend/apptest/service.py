@@ -632,7 +632,7 @@ async def download_report(
     db: AsyncSession,
     task_id: str,
     report_type: int = 1,
-) -> tuple[bytes, str]:
+) -> tuple[bytes, str, str]:
     result = await db.execute(select(AppTestTask).where(AppTestTask.id == task_id))
     task = result.scalar_one_or_none()
     if not task:
@@ -651,9 +651,22 @@ async def download_report(
     except IJiamiError as exc:
         raise HTTPException(status_code=502, detail=f"iJiami API error: {exc}")
 
-    ext = ".docx" if report_type == 1 else ".pdf"
+    # Detect the real format from magic bytes. iJiami may return PDF even when
+    # a Word report was requested, so trust the actual content over report_type.
+    if content[:4] == b"%PDF":
+        ext, media = ".pdf", "application/pdf"
+    elif content[:2] == b"PK":  # docx/xlsx are ZIP-based
+        ext = ".docx" if report_type == 1 else ".xlsx"
+        media = (
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            if report_type == 1
+            else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    else:
+        ext = ".docx" if report_type == 1 else ".pdf"
+        media = "application/octet-stream"
     filename = f"{task.name}_report{ext}"
-    return content, filename
+    return content, filename, media
 
 
 # ------------------------------------------------------------------

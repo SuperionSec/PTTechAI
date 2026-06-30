@@ -132,9 +132,12 @@ export default function AppTestDetailPage() {
     if (!taskId) return
     try {
       const resp = await apptestApi.getReport(taskId, reportType)
-      const ext = reportType === 1 ? '.docx' : '.pdf'
-      const filename = `${task?.name || 'report'}${ext}`
+      // Prefer the real extension from the blob type (iJiami may return PDF for
+      // a Word request); fall back to the report_type guess.
       const blob = new Blob([resp.data])
+      const ct: string = resp.headers?.['content-type'] || ''
+      const ext = ct.includes('pdf') ? '.pdf' : ct.includes('word') ? '.docx' : (reportType === 1 ? '.docx' : '.pdf')
+      const filename = `${task?.name || 'report'}${ext}`
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
