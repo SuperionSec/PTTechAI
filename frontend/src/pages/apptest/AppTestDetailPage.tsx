@@ -218,16 +218,14 @@ export default function AppTestDetailPage() {
         <Button key="refresh" icon={<ReloadOutlined />} onClick={() => { loadTask(); loadVulns(); }} loading={loading}>
           {t('common.refresh')}
         </Button>,
-        task?.status === 'completed' && (
-          <>
-            <Button key="word" icon={<FileTextOutlined />} onClick={() => handleDownloadReport(1)}>
-              Word
-            </Button>
-            <Button key="pdf" icon={<FileTextOutlined />} onClick={() => handleDownloadReport(2)}>
-              PDF
-            </Button>
-          </>
-        ),
+        ...(task?.status === 'completed' ? [
+          <Button key="word" icon={<FileTextOutlined />} onClick={() => handleDownloadReport(1)}>
+            Word
+          </Button>,
+          <Button key="pdf" icon={<FileTextOutlined />} onClick={() => handleDownloadReport(2)}>
+            PDF
+          </Button>,
+        ] : []),
       ]}
     >
       <Spin spinning={loading}>
