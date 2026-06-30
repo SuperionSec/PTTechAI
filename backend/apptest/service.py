@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+import httpx
 from fastapi import HTTPException
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -198,14 +199,14 @@ async def list_strategies(terminal_type: int | None = None) -> AppTestStrategies
             terminal = terminal.get("value")
         strategies.append(AppTestStrategy(
             id=item.get("id"),
-            name=item.get("name", ""),
+            name=item.get("name") or "",
             template_id=item.get("templateId"),
             terminal_type=terminal,
             terminal_type_name=get_terminal_type_name(terminal) if terminal else "",
-            detection_item_count=item.get("detectionItemCount", 0),
-            use_count=item.get("useCount", 0),
-            status=item.get("status", 1),
-            remark=item.get("remark", ""),
+            detection_item_count=item.get("detectionItemCount") or 0,
+            use_count=item.get("useCount") or 0,
+            status=item.get("status") if item.get("status") is not None else 1,
+            remark=item.get("remark") or "",
             create_time=item.get("createTime"),
         ))
 
@@ -236,16 +237,16 @@ async def list_assets(
         if isinstance(t_type, str):
             t_type = _terminal_type_from_name(t_type)
         assets.append(AppTestAsset(
-            assets_id=str(item.get("id", "")),
-            name=item.get("name", ""),
-            version=item.get("version", ""),
-            package=item.get("package", ""),
-            md5=item.get("md5", ""),
-            size=item.get("size", ""),
+            assets_id=str(item.get("id") or ""),
+            name=item.get("name") or "",
+            version=item.get("version") or "",
+            package=item.get("package") or "",
+            md5=item.get("md5") or "",
+            size=str(item.get("size") or ""),
             terminal_type=t_type,
             terminal_type_name=get_terminal_type_name(t_type) if t_type else "",
-            detection_count=item.get("detectionCount", 0),
-            detection_score=item.get("detectionScore", ""),
+            detection_count=item.get("detectionCount") or 0,
+            detection_score=str(item.get("detectionScore") or ""),
             logo=item.get("logo"),
             create_time=item.get("createTime"),
         ))
@@ -400,12 +401,17 @@ async def _upload_and_start(
             await db.commit()
         except IJiamiError as exc:
             task.status = "failed"
-            task.error_message = str(exc)
+            task.error_message = str(exc) or repr(exc)
             await db.commit()
             logger.warning("apptest task %s failed (iJiami): %s", task_id, exc)
+        except httpx.TimeoutException as exc:
+            task.status = "failed"
+            task.error_message = f"上传或检测超时，请重试或检查网络（{type(exc).__name__}）"
+            await db.commit()
+            logger.warning("apptest task %s timed out: %r", task_id, exc)
         except Exception as exc:  # noqa: BLE001 - record any failure on the task
             task.status = "failed"
-            task.error_message = str(exc)
+            task.error_message = str(exc) or f"{type(exc).__name__}: 任务执行失败"
             await db.commit()
             logger.exception("apptest task %s failed", task_id)
 

@@ -46,9 +46,11 @@ class IJiamiClient:
     @property
     def client(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
+            # Generous write/read timeouts: large APK/IPA/AAB uploads (tens of MB)
+            # need a long write window, and iJiami report/detail calls can be slow.
             self._client = httpx.AsyncClient(
                 base_url=self.base_url,
-                timeout=httpx.Timeout(120.0, connect=30.0),
+                timeout=httpx.Timeout(300.0, connect=30.0, write=600.0),
                 follow_redirects=True,
             )
         return self._client
