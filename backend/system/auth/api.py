@@ -32,6 +32,7 @@ from backend.common.infra.auth import (
 )
 from backend.common.infra.token_manager import store_token, revoke_token, is_token_revoked
 from backend.common.infra.rbac.access_helpers import is_admin_role, is_service_role, role_name_for
+from backend.common.infra.rate_limiter import login_limiter, _client_ip
 from backend.system.rbac.service import resolve_active_role
 from backend.system.audit.service import record_audit_log
 from backend.common.config import settings
@@ -95,8 +96,27 @@ async def login(
     db: AsyncSession = Depends(get_db)
 ):
     """Login with email and password to get access and refresh tokens"""
+    # Rate limit by client IP to slow brute-force attacks
+    rate_key = f"login:{_client_ip(request)}"
+    if not login_limiter.is_allowed(rate_key):
+        await record_audit_log(
+            db,
+            user=None,
+            action="auth.rate_limited",
+            resource_type="auth",
+            details={"email": credentials.email},
+            request=request,
+        )
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many login attempts. Please try again later.",
+            headers={"Retry-After": str(login_limiter.retry_after(rate_key))},
+        )
+
     user = await authenticate_user(db, credentials.email, credentials.password)
     if not user:
+        login_limiter.record_failure(rate_key)
         await record_audit_log(
             db,
             user=None,
@@ -116,6 +136,9 @@ async def login(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Inactive user"
         )
+
+    # Successful authentication: clear throttling state for this IP
+    login_limiter.record_success(rate_key)
 
     # Update last login
     user.last_login = datetime.now(timezone.utc).replace(tzinfo=None)

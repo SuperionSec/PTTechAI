@@ -565,6 +565,15 @@ ADMIN_PASSWORD=admin123
 # JWT Auth
 SECRET_KEY=change-this-to-a-random-secret-key
 
+# Security Hardening (optional; defaults shown)
+# RBAC policy for API routes with no explicit mapping: allow | warn | deny
+RBAC_UNMAPPED_API_POLICY=allow
+# Allow terminal commands to run directly on the host (default: sandbox-only)
+ALLOW_DIRECT_HOST_EXEC=false
+# Login brute-force protection
+LOGIN_RATE_LIMIT_MAX=5
+LOGIN_RATE_LIMIT_WINDOW=60
+
 # Server
 HOST=0.0.0.0
 PORT=8000

@@ -2,7 +2,8 @@
 PTTechAI v3 - FastAPI Main Application
 """
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from typing import Optional
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -12,7 +13,8 @@ from backend.common.config import settings
 from backend.routes import register_v1_routers
 from backend.pentest.backend.api.websocket import manager as ws_manager
 from backend.app_lifecycle import shutdown_app, startup_app
-from backend.common.infra.auth import decode_token
+from backend.common.infra.auth import decode_token, get_current_user_optional
+from backend.common.models.user import User
 
 
 @asynccontextmanager
@@ -48,20 +50,39 @@ register_v1_routers(app)
 
 
 @app.get("/api/health")
-async def health_check():
-    """Health check endpoint with LLM status"""
+async def health_check(current_user: Optional[User] = Depends(get_current_user_optional)):
+    """Health check endpoint.
+
+    Liveness info (status/app/version) is public. LLM configuration details are
+    only exposed to authenticated users to avoid leaking infrastructure config
+    to anonymous callers.
+    """
     import os
 
-    # Check LLM availability
+    response = {
+        "status": "healthy",
+        "app": settings.APP_NAME,
+        "version": settings.APP_VERSION,
+    }
+
+    # Anonymous callers get liveness only — no LLM/provider details
+    if current_user is None:
+        return response
+
+    # Check LLM availability (authenticated users only)
     anthropic_key = os.getenv("ANTHROPIC_API_KEY", "")
     openai_key = os.getenv("OPENAI_API_KEY", "")
+    nim_key = os.getenv("NIM_API_KEY", "")
     openrouter_key = os.getenv("OPENROUTER_API_KEY", "")
     gemini_key = os.getenv("GEMINI_API_KEY", "")
 
     llm_status = "not_configured"
     llm_provider = None
 
-    if anthropic_key and anthropic_key not in ["", "your-anthropic-api-key"]:
+    if nim_key and nim_key not in ["", "your-nim-api-key"]:
+        llm_status = "configured"
+        llm_provider = "nim"
+    elif anthropic_key and anthropic_key not in ["", "your-anthropic-api-key"]:
         llm_status = "configured"
         llm_provider = "claude"
     elif openai_key and openai_key not in ["", "your-openai-api-key"]:
@@ -74,16 +95,12 @@ async def health_check():
         llm_status = "configured"
         llm_provider = "gemini"
 
-    return {
-        "status": "healthy",
-        "app": settings.APP_NAME,
-        "version": settings.APP_VERSION,
-        "llm": {
-            "status": llm_status,
-            "provider": llm_provider,
-            "message": "AI agent ready" if llm_status == "configured" else "Set ANTHROPIC_API_KEY or OPENAI_API_KEY to enable AI features"
-        }
+    response["llm"] = {
+        "status": llm_status,
+        "provider": llm_provider,
+        "message": "AI agent ready" if llm_status == "configured" else "Set ANTHROPIC_API_KEY, OPENAI_API_KEY or NIM_API_KEY to enable AI features"
     }
+    return response
 
 
 @app.websocket("/ws/scan/{scan_id}")
