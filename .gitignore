@@ -103,3 +103,6 @@ results/
 # ==============================
 projeto.zip
 *.zip
+
+# apptest persisted iJiami credentials (contains secrets)
+backend/apptest/data/config.json

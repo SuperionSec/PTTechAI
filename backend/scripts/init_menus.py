@@ -26,7 +26,7 @@ SIDEBAR_GROUPS = [
         "name": "sidebar.apptest",
         "icon": "SafetyCertificateOutlined",
         "sort_order": 14,
-        "paths": ["/apptest", "/apptest/statistics"],
+        "paths": ["/apptest", "/apptest/statistics", "/apptest/config"],
     },
     {
         "name": "sidebar.vulnerabilityLibrary",

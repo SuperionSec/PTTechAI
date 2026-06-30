@@ -90,7 +90,8 @@ async def startup_app(app: FastAPI) -> None:
         print(f"Menu init warning: {e}")
 
     try:
-        from backend.apptest.service import reconcile_stale_tasks
+        from backend.apptest.service import load_persisted_config, reconcile_stale_tasks
+        load_persisted_config()
         reaped = await reconcile_stale_tasks()
         if reaped:
             print(f"AppTest: reconciled {reaped} stale task(s)")

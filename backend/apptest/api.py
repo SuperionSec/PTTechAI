@@ -21,6 +21,7 @@ from .schemas import (
     AppTestAssetsResponse,
     AppTestConfigResponse,
     AppTestConfigUpdate,
+    AppTestConnectionTestResponse,
     AppTestStatisticsResponse,
     AppTestStrategiesResponse,
     AppTestTaskCreate,
@@ -60,6 +61,12 @@ async def get_config() -> AppTestConfigResponse:
 @router.post("/config", response_model=AppTestConfigResponse, dependencies=[Depends(require_apptest_manage())])
 async def update_config(body: AppTestConfigUpdate) -> AppTestConfigResponse:
     return await service.update_config(body)
+
+
+@router.post("/config/test", response_model=AppTestConnectionTestResponse, dependencies=[Depends(require_apptest_manage())])
+async def test_connection(body: AppTestConfigUpdate | None = None) -> AppTestConnectionTestResponse:
+    result = await service.test_connection(body)
+    return AppTestConnectionTestResponse(**result)
 
 
 # ------------------------------------------------------------------

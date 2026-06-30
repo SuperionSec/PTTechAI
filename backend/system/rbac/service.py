@@ -46,6 +46,7 @@ FRONTEND_ROUTES = [
     ("/settings", "sidebar.settings", "settings:read", "SettingOutlined", "pentest"),
     ("/apptest", "sidebar.apptest", "apptest:read", "SafetyCertificateOutlined", "apptest"),
     ("/apptest/statistics", "apptest.statistics", "apptest:read", "LineChartOutlined", "apptest"),
+    ("/apptest/config", "apptest.platformConfig", "apptest:manage", "SettingOutlined", "apptest"),
     ("/api-keys", "apiKeys.title", "api_key:read", "KeyOutlined", None),
     ("/profile", "profile.title", None, "UserOutlined", None),
 ]

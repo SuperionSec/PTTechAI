@@ -173,8 +173,9 @@ PERMISSION_FRONTEND_PAGES = {
     "provider:manage": ["/providers"],
     "agent:read": ["/agent/:agentId", "/tasks", "/realtime"],
     "agent:execute": ["/auto", "/realtime", "/scan/new", "/full-ia", "/terminal", "/sandboxes"],
-    "apptest:read": ["/apptest", "/apptest/:taskId", "/apptest/:taskId/report"],
+    "apptest:read": ["/apptest", "/apptest/statistics", "/apptest/:taskId", "/apptest/:taskId/report"],
     "apptest:execute": ["/apptest/new"],
+    "apptest:manage": ["/apptest/config"],
     "scheduler:read": ["/scheduler"],
     "scheduler:manage": ["/scheduler"],
     "knowledge:read": ["/knowledge"],
@@ -277,6 +278,7 @@ PERMISSION_BACKEND_APIS = {
     ],
     "apptest:manage": [
         "POST /api/v1/apptest/config",
+        "POST /api/v1/apptest/config/test",
         "DELETE /api/v1/apptest/tasks/*",
     ],
     "scheduler:read": ["GET /api/v1/scheduler", "GET /api/v1/scheduler/*"],

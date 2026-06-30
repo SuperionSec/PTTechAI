@@ -66,6 +66,7 @@ import {
   AppTestDetailPage,
   AppTestReportsPage,
   AppTestStatisticsPage,
+  AppTestConfigPage,
 } from '../pages/apptest'
 import NotFound from '../pages/Exception/NotFound'
 
@@ -102,6 +103,7 @@ export const appRoutes: AppRoute[] = [
   { path: '/reports', name: 'sidebar.reports', element: <ReportsPage />, icon: <FileTextOutlined />, access: 'canAccessPage', permission: 'report:read', group: 'pentest' },
   { path: '/apptest', name: 'sidebar.apptest', element: <AppTestListPage />, icon: <SafetyCertificateOutlined />, access: 'canAccessPage', permission: 'apptest:read', group: 'apptest' },
   { path: '/apptest/statistics', name: 'apptest.statistics', element: <AppTestStatisticsPage />, icon: <LineChartOutlined />, access: 'canAccessPage', permission: 'apptest:read', group: 'apptest' },
+  { path: '/apptest/config', name: 'apptest.platformConfig', element: <AppTestConfigPage />, icon: <SettingOutlined />, access: 'canAccessPage', permission: 'apptest:manage', group: 'apptest' },
   { path: '/apptest/new', name: 'apptest.newTask', element: <AppTestNewPage />, icon: <PlusCircleOutlined />, access: 'canAccessPage', permission: 'apptest:execute', group: 'apptest', hideInMenu: true },
   { path: '/apptest/:taskId/report', name: 'apptest.reportDetail', element: <AppTestReportsPage />, access: 'canAccessPage', permission: 'apptest:read', group: 'apptest', hideInMenu: true },
   { path: '/apptest/:taskId', name: 'apptest.detail', element: <AppTestDetailPage />, access: 'canAccessPage', permission: 'apptest:read', group: 'apptest', hideInMenu: true },

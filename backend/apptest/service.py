@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 
 from fastapi import HTTPException
@@ -56,12 +58,53 @@ logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------
 # Config
 # ------------------------------------------------------------------
+CONFIG_PATH = Path(__file__).parent / "data" / "config.json"
+
+
 def _mask(value: str) -> str:
     if not value:
         return ""
     if len(value) <= 4:
         return "****"
     return value[:2] + "****" + value[-2:]
+
+
+def _save_config_file(client: IJiamiClient) -> None:
+    """Persist iJiami connection config to disk so it survives restarts."""
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    data = {
+        "base_url": client.base_url,
+        "client_id": client.client_id,
+        "client_secret": client.client_secret,
+        "username": client.username,
+        "password": client.password,
+    }
+    tmp = CONFIG_PATH.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(CONFIG_PATH)
+
+
+def load_persisted_config() -> None:
+    """Load saved config (if any) into the active client. Called at startup.
+
+    Persisted config takes precedence over environment variables so that
+    changes made through the UI survive restarts.
+    """
+    if not CONFIG_PATH.exists():
+        return
+    try:
+        data = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        logger.warning("apptest: failed to read persisted config at %s", CONFIG_PATH)
+        return
+    set_ijiami_client(IJiamiClient(
+        base_url=data.get("base_url") or None,
+        client_id=data.get("client_id") or None,
+        client_secret=data.get("client_secret") or None,
+        username=data.get("username") or None,
+        password=data.get("password") or None,
+    ))
+    logger.info("apptest: loaded persisted iJiami config from %s", CONFIG_PATH)
 
 
 async def get_config() -> AppTestConfigResponse:
@@ -91,26 +134,43 @@ async def update_config(data: AppTestConfigUpdate) -> AppTestConfigResponse:
         username=data.username or current.username,
         password=data.password or current.password,
     )
-    # Test connection
+    # Test connection before saving
     try:
         await new_client.login()
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Connection test failed: {exc}")
 
     set_ijiami_client(new_client)
-    # Persist to env for runtime
-    if data.base_url:
-        settings.IJIAMI_BASE_URL = data.base_url
-    if data.client_id:
-        settings.IJIAMI_CLIENT_ID = data.client_id
-    if data.client_secret:
-        settings.IJIAMI_CLIENT_SECRET = data.client_secret
-    if data.username:
-        settings.IJIAMI_USERNAME = data.username
-    if data.password:
-        settings.IJIAMI_PASSWORD = data.password
+    # Persist to disk (survives restart) and mirror into runtime settings
+    _save_config_file(new_client)
+    settings.IJIAMI_BASE_URL = new_client.base_url
+    settings.IJIAMI_CLIENT_ID = new_client.client_id
+    settings.IJIAMI_CLIENT_SECRET = new_client.client_secret
+    settings.IJIAMI_USERNAME = new_client.username
+    settings.IJIAMI_PASSWORD = new_client.password
 
     return await get_config()
+
+
+async def test_connection(data: AppTestConfigUpdate | None = None) -> dict[str, Any]:
+    """Test iJiami connection with given (or current) credentials without saving."""
+    current = get_ijiami_client()
+    if data:
+        client = IJiamiClient(
+            base_url=data.base_url or current.base_url,
+            client_id=data.client_id or current.client_id,
+            client_secret=data.client_secret or current.client_secret,
+            username=data.username or current.username,
+            password=data.password or current.password,
+        )
+    else:
+        client = current
+    try:
+        await client.login()
+        return {"connected": True, "message": "连接成功"}
+    except Exception as exc:
+        return {"connected": False, "message": str(exc)}
+
 
 
 # ------------------------------------------------------------------

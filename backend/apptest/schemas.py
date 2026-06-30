@@ -69,6 +69,11 @@ class AppTestConfigUpdate(BaseModel):
     password: str | None = None
 
 
+class AppTestConnectionTestResponse(BaseModel):
+    connected: bool = False
+    message: str = ""
+
+
 # ------------------------------------------------------------------
 # Strategy
 # ------------------------------------------------------------------
