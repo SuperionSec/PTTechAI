@@ -925,6 +925,7 @@ export const mcpApi = {
 export const apptestApi = {
   getConfig: () => api.get('/apptest/config'),
   updateConfig: (data: any) => api.post('/apptest/config', data),
+  testConnection: (data?: any) => api.post('/apptest/config/test', data || {}),
   listStrategies: (terminalType?: number) => api.get('/apptest/strategies', { params: terminalType !== undefined ? { terminal_type: terminalType } : {} }),
   listAssets: (params?: { terminal_type?: number; app_name?: string }) => api.get('/apptest/assets', { params }),
   createTask: (data: FormData) => api.post('/apptest/tasks', data, { headers: { 'Content-Type': 'multipart/form-data' } }),

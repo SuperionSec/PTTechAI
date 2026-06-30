@@ -29,6 +29,7 @@ import {
   RocketOutlined,
   ToolOutlined,
   UserSwitchOutlined,
+  LineChartOutlined,
 } from '@ant-design/icons'
 import type { AppRoute } from '../routes/routeConfig'
 
@@ -78,6 +79,7 @@ const ICON_MAP: Record<string, ReactNode> = {
   RocketOutlined: <RocketOutlined />,
   ToolOutlined: <ToolOutlined />,
   UserSwitchOutlined: <UserSwitchOutlined />,
+  LineChartOutlined: <LineChartOutlined />,
 }
 
 function getIcon(iconName?: string | null): ReactNode | undefined {

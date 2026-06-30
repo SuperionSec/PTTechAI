@@ -50,6 +50,8 @@ interface Settings {
   has_gemini_key: boolean
   has_together_key: boolean
   has_fireworks_key: boolean
+  has_nim_key: boolean
+  nim_base_url: string
   ollama_base_url: string
   lmstudio_base_url: string
   max_concurrent_scans: number
@@ -89,6 +91,7 @@ const PROVIDERS = [
   { id: 'openrouter', label: 'OpenRouter' },
   { id: 'together', label: 'Together AI' },
   { id: 'fireworks', label: 'Fireworks AI' },
+  { id: 'nim', label: 'NVIDIA NIM' },
   { id: 'ollama', label: 'Ollama' },
   { id: 'lmstudio', label: 'LM Studio' },
 ]
@@ -110,6 +113,8 @@ export default function SettingsPage() {
   const [geminiKey, setGeminiKey] = useState('')
   const [togetherKey, setTogetherKey] = useState('')
   const [fireworksKey, setFireworksKey] = useState('')
+  const [nimKey, setNimKey] = useState('')
+  const [nimUrl, setNimUrl] = useState('')
   const [ollamaUrl, setOllamaUrl] = useState('')
   const [lmstudioUrl, setLmstudioUrl] = useState('')
   const [llmProvider, setLlmProvider] = useState('claude')
@@ -151,6 +156,7 @@ export default function SettingsPage() {
       openrouter: settings.has_openrouter_key,
       together: settings.has_together_key,
       fireworks: settings.has_fireworks_key,
+      nim: settings.has_nim_key,
       ollama: true,
       lmstudio: true,
     }
@@ -172,6 +178,7 @@ export default function SettingsPage() {
       setMaxOutputTokens(data.max_output_tokens)
       setOllamaUrl(data.ollama_base_url || '')
       setLmstudioUrl(data.lmstudio_base_url || '')
+      setNimUrl(data.nim_base_url || '')
       setEnableNotifications(data.enable_notifications ?? false)
       setNotificationSeverityFilter(data.notification_severity_filter || 'critical,high')
     } catch (error) {
@@ -241,6 +248,8 @@ export default function SettingsPage() {
       if (geminiKey) body.gemini_api_key = geminiKey
       if (togetherKey) body.together_api_key = togetherKey
       if (fireworksKey) body.fireworks_api_key = fireworksKey
+      if (nimKey) body.nim_api_key = nimKey
+      if (nimUrl) body.nim_base_url = nimUrl
       if (ollamaUrl) body.ollama_base_url = ollamaUrl
       if (lmstudioUrl) body.lmstudio_base_url = lmstudioUrl
 
@@ -252,6 +261,7 @@ export default function SettingsPage() {
       setGeminiKey('')
       setTogetherKey('')
       setFireworksKey('')
+      setNimKey('')
       setDiscordWebhookUrl('')
       setTelegramBotToken('')
       setTelegramChatId('')
@@ -271,7 +281,7 @@ export default function SettingsPage() {
     maxOutputTokens, enableNotifications, notificationSeverityFilter,
     discordWebhookUrl, telegramBotToken, telegramChatId,
     twilioAccountSid, twilioAuthToken, twilioFromNumber, twilioToNumber,
-    apiKey, openaiKey, openrouterKey, geminiKey, togetherKey, fireworksKey,
+    apiKey, openaiKey, openrouterKey, geminiKey, togetherKey, fireworksKey, nimKey, nimUrl,
     ollamaUrl, lmstudioUrl, notification, t,
   ])
 
@@ -415,6 +425,34 @@ export default function SettingsPage() {
                     <Input.Password value={fireworksKey} onChange={event => setFireworksKey(event.target.value)} placeholder={settings?.has_fireworks_key ? '••••••••••••••••' : '...'} />
                   </Form.Item>
                 </Col>
+              )}
+              {llmProvider === 'nim' && (
+                <>
+                  <Col xs={24} lg={12}>
+                    <Form.Item
+                      label={t('settings.nimApiKey')}
+                      extra={settings?.has_nim_key ? t('settings.apiKeyConfigured') : t('settings.requiredForNim')}
+                    >
+                      <Input.Password
+                        value={nimKey}
+                        onChange={event => setNimKey(event.target.value)}
+                        placeholder={settings?.has_nim_key ? '••••••••••••••••' : 'nvapi-...'}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} lg={12}>
+                    <Form.Item
+                      label={t('settings.nimBaseUrl')}
+                      extra={t('settings.nimBaseUrlHelper')}
+                    >
+                      <Input
+                        value={nimUrl}
+                        onChange={event => setNimUrl(event.target.value)}
+                        placeholder="https://integrate.api.nvidia.com/v1"
+                      />
+                    </Form.Item>
+                  </Col>
+                </>
               )}
               {llmProvider === 'ollama' && (
                 <Col xs={24} lg={12}>

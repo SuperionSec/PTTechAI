@@ -72,8 +72,3 @@ services:
 volumes:
   pttechai-postgres-data:
   pttechai-data:
-
-networks:
-  default:
-    name: bctechai-network
-    external: true

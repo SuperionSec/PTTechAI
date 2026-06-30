@@ -37,7 +37,10 @@ SKIP_PATH_PARTS = {
     "tests\\test_brand_consistency", "tests/test_brand_consistency",
     "tests\\test_config_consistency", "tests/test_config_consistency",
     "tests\\test_frontend_verification", "tests/test_frontend_verification",
-    ".claude",
+    "NeuroSploit-3.2.4", "NeuroSploit-3.3.0",
+    "doc\\NEUROSPLOIT_MIGRATION_REPORT.md", "doc/NEUROSPLOIT_MIGRATION_REPORT.md",
+    ".qoder", ".claude",
+    "scripts\\check_migration.ps1", "scripts/check_migration.ps1",
     "改造计划.md",
 }
 

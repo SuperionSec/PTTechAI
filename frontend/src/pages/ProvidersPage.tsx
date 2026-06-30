@@ -93,6 +93,7 @@ const providerColors: Record<string, string> = {
   minimax: '#f59e0b',
   together: '#14b8a6',
   fireworks: '#f43f5e',
+  bctc: '#0ea5e9',
   ollama: '#4b5563',
   lmstudio: '#64748b',
 }
@@ -116,6 +117,7 @@ const providerInitials: Record<string, string> = {
   minimax: 'MM',
   together: 'TG',
   fireworks: 'FW',
+  bctc: 'BC',
   ollama: 'OL',
   lmstudio: 'LS',
 }
