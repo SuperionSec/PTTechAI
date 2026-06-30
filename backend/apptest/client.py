@@ -111,10 +111,20 @@ class IJiamiClient:
             data = response.json()
         except Exception:
             data = {"raw": response.text}
+        if not isinstance(data, dict):
+            # iJiami sometimes returns a bare list/string; wrap for uniform access.
+            data = {"data": data}
+
+        def _msg(default: str) -> str:
+            m = data.get("message") or data.get("msg")
+            if m:
+                return str(m)
+            text = (response.text or "").strip()
+            return text[:200] if text else default
 
         if response.status_code >= 400:
             raise IJiamiError(
-                f"HTTP {response.status_code}: {data.get('message', response.text)}",
+                f"HTTP {response.status_code}: {_msg(response.reason_phrase or 'request failed')}",
                 code=response.status_code,
                 response_data=data,
             )
@@ -128,13 +138,13 @@ class IJiamiClient:
         status = data.get("status")
         if code is not None and str(code) not in success:
             raise IJiamiError(
-                data.get("message", f"Business error: {code}"),
+                _msg(f"Business error: {code}"),
                 code=code,
                 response_data=data,
             )
         if status is not None and str(status) not in success:
             raise IJiamiError(
-                data.get("message", f"Business error: {status}"),
+                _msg(f"Business error: {status}"),
                 code=status,
                 response_data=data,
             )
@@ -467,7 +477,10 @@ class IJiamiClient:
             headers=self._auth_headers(token),
             follow_redirects=True,
         )
-        if response.status_code == 200 and response.headers.get("content-type", "").startswith("application/"):
+        ctype = response.headers.get("content-type", "")
+        # Binary report (pdf/word/octet-stream) — but NOT a JSON error body,
+        # which also starts with "application/".
+        if response.status_code == 200 and ctype.startswith("application/") and "json" not in ctype:
             return response.content
         # Try to parse as JSON error
         self._parse_response(response)

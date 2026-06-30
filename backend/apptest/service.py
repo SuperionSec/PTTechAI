@@ -57,6 +57,50 @@ logger = logging.getLogger(__name__)
 
 
 # ------------------------------------------------------------------
+# Safe parsers for iJiami's loosely-typed responses
+# (fields may be null, nested {value,name}, wrong type, or empty string)
+# ------------------------------------------------------------------
+def _as_dict(value: Any) -> dict:
+    return value if isinstance(value, dict) else {}
+
+
+def _as_list(value: Any) -> list:
+    return value if isinstance(value, list) else []
+
+
+def _as_str(value: Any) -> str:
+    """String for a possibly-null / nested {name} value; never returns 'None'."""
+    if value is None:
+        return ""
+    if isinstance(value, dict):
+        return str(value.get("name") or "")
+    return str(value)
+
+
+def _as_int(value: Any) -> int | None:
+    """Int from a possibly-null / nested {value} / string value; None if unparseable."""
+    if isinstance(value, dict):
+        value = value.get("value")
+    if value is None or value == "":
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _as_float(value: Any) -> float | None:
+    if isinstance(value, dict):
+        value = value.get("value")
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+# ------------------------------------------------------------------
 # Config
 # ------------------------------------------------------------------
 CONFIG_PATH = Path(__file__).parent / "data" / "config.json"
@@ -184,11 +228,11 @@ async def list_strategies(terminal_type: int | None = None) -> AppTestStrategies
     except IJiamiError as exc:
         raise HTTPException(status_code=502, detail=f"iJiami API error: {exc}")
 
-    page_data = result.get("data", {})
+    page_data = result.get("data")
     if isinstance(page_data, list):
         items = page_data
     else:
-        items = page_data.get("list", [])
+        items = _as_list(_as_dict(page_data).get("list"))
 
     strategies = []
     for item in items:
@@ -228,7 +272,7 @@ async def list_assets(
         raise HTTPException(status_code=502, detail=f"iJiami API error: {exc}")
 
     data = result.get("data", {})
-    assets_list = data.get("assetsList", []) if isinstance(data, dict) else []
+    assets_list = _as_list(_as_dict(data).get("assetsList"))
     assets = []
     for item in assets_list:
         if not isinstance(item, dict):
@@ -361,11 +405,12 @@ async def _upload_and_start(
             )
             upload_data = upload_result.get("data", {})
             if isinstance(upload_data, dict):
-                task.assets_id = str(upload_data.get("id", ""))
-                task.md5 = upload_data.get("md5", "")
-                task.package_name = upload_data.get("package", "")
-                task.version = upload_data.get("version", "")
-                task.file_size = str(upload_data.get("size", ""))
+                asset_id = upload_data.get("id")
+                task.assets_id = str(asset_id) if asset_id else None
+                task.md5 = _as_str(upload_data.get("md5"))
+                task.package_name = _as_str(upload_data.get("package"))
+                task.version = _as_str(upload_data.get("version"))
+                task.file_size = _as_str(upload_data.get("size"))
             else:
                 task.assets_id = str(upload_data) if upload_data else None
             await db.commit()
@@ -491,34 +536,33 @@ async def get_task_status(db: AsyncSession, task_id: str) -> AppTestTaskStatusRe
 
 
 def _update_task_from_ijiami_status(task: AppTestTask, data: dict[str, Any]) -> None:
-    """Update local task from iJiami status response."""
-    # iJiami status fields vary by terminal type
-    progress = data.get("progress")
+    """Update local task from iJiami status response (loosely-typed)."""
+    progress = _as_float(data.get("progress"))
     if progress is not None:
-        task.progress = float(progress)
+        task.progress = progress
 
     # Android/SDK/HarmonyOS use apkDetectionStatus
-    apk_status = data.get("apkDetectionStatus")
+    apk_status = _as_int(data.get("apkDetectionStatus"))
     if apk_status is not None:
-        task.progress = _map_ijiami_status_to_progress(int(apk_status), task.progress)
-        if int(apk_status) == 4:
+        task.progress = _map_ijiami_status_to_progress(apk_status, task.progress)
+        if apk_status == 4:
             task.status = "completed"
-            task.score = data.get("apkDetectionScore")
+            task.score = _as_int(data.get("apkDetectionScore"))
             if not task.completed_at:
                 task.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
-        elif int(apk_status) == 3:
+        elif apk_status == 3:
             task.status = "failed"
 
     # Wechat/MiniApp/H5 use detectionStatus
-    det_status = data.get("detectionStatus")
+    det_status = _as_int(data.get("detectionStatus"))
     if det_status is not None:
-        task.progress = _map_ijiami_status_to_progress(int(det_status), task.progress)
-        if int(det_status) == 4:
+        task.progress = _map_ijiami_status_to_progress(det_status, task.progress)
+        if det_status == 4:
             task.status = "completed"
-            task.score = data.get("detectionScore")
+            task.score = _as_int(data.get("detectionScore"))
             if not task.completed_at:
                 task.completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
-        elif int(det_status) == 3:
+        elif det_status == 3:
             task.status = "failed"
 
     task.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -561,28 +605,23 @@ async def get_task_vulnerabilities(
     if isinstance(data, list):
         items = data
     elif isinstance(data, dict):
-        items = data.get("list", [])
+        items = _as_list(data.get("list"))
     else:
         items = []
 
     vulnerabilities = []
     high_count = mid_count = low_count = 0
-
-    def _name_of(val: Any) -> str:
-        """Extract display name from iJiami nested {value, name} objects or plain values."""
-        if isinstance(val, dict):
-            return str(val.get("name", ""))
-        return "" if val is None else str(val)
+    _name_of = _as_str  # alias: nested {name} / null-safe string
 
     for item in items:
         if not isinstance(item, dict):
             continue
         grade = item.get("grade", {})
         if isinstance(grade, dict):
-            grade_name = grade.get("name", "")
-            grade_value = grade.get("value")
+            grade_name = _as_str(grade.get("name"))
+            grade_value = _as_int(grade.get("value"))
         else:
-            grade_name = str(grade)
+            grade_name = _as_str(grade)
             grade_value = None
 
         # Count severity. iJiami grade value: 3=高(high), 2=中(mid), 1=低(low).
@@ -749,8 +788,8 @@ async def get_statistics(
     except IJiamiError as exc:
         raise HTTPException(status_code=502, detail=f"iJiami API error: {exc}")
 
-    data = result.get("data", {}) or {}
-    ov = data.get("dataStatisticsOverviewVO", {}) or {}
+    data = _as_dict(result.get("data"))
+    ov = _as_dict(data.get("dataStatisticsOverviewVO"))
     overview = AppTestStatOverview(
         app_num=ov.get("appNum", 0) or 0,
         task_num=ov.get("taskNum", 0) or 0,
@@ -763,34 +802,32 @@ async def get_statistics(
         flaw_low_num=ov.get("flawLowNum", 0) or 0,
     )
 
-    dim = data.get("dataStatisticsDimensionVO", {}) or {}
+    dim = _as_dict(data.get("dataStatisticsDimensionVO"))
     trend = AppTestStatTrend(
-        date_list=dim.get("dateList", []) or [],
-        score_list=dim.get("scoreList", []) or [],
-        score_type=dim.get("scoreType", []) or [],
+        date_list=_as_list(dim.get("dateList")),
+        score_list=_as_list(dim.get("scoreList")),
+        score_type=_as_list(dim.get("scoreType")),
     )
 
     risk_top10 = []
-    for it in (data.get("dataStatisticsRiskItemTop10List") or []):
+    for it in _as_list(data.get("dataStatisticsRiskItemTop10List")):
         if not isinstance(it, dict):
             continue
-        grade = it.get("grade")
-        grade_name = grade.get("name", "") if isinstance(grade, dict) else (str(grade) if grade else "")
         risk_top10.append(AppTestStatRiskItem(
-            name=it.get("name", "") or "",
-            grade=grade_name,
-            risk_num=it.get("riskNum", 0) or 0,
+            name=_as_str(it.get("name")),
+            grade=_as_str(it.get("grade")),
+            risk_num=_as_int(it.get("riskNum")) or 0,
             rate=it.get("rate"),
-            type_name=it.get("typeName", "") or "",
+            type_name=_as_str(it.get("typeName")),
         ))
 
     risk_types = []
-    for it in (data.get("dataStatisticsRiskTypeVOList") or []):
+    for it in _as_list(data.get("dataStatisticsRiskTypeVOList")):
         if not isinstance(it, dict):
             continue
         risk_types.append(AppTestStatRiskType(
-            name=it.get("name", "") or it.get("typeName", "") or "",
-            count=it.get("count", 0) or it.get("riskNum", 0) or 0,
+            name=_as_str(it.get("name")) or _as_str(it.get("typeName")),
+            count=_as_int(it.get("count")) or _as_int(it.get("riskNum")) or 0,
         ))
 
     return AppTestStatisticsResponse(
@@ -815,66 +852,66 @@ async def get_task_detail(db: AsyncSession, task_id: str) -> AppTestTaskDetailRe
     except IJiamiError as exc:
         raise HTTPException(status_code=502, detail=f"iJiami API error: {exc}")
 
-    data = result.get("data", {}) or {}
-    bm = data.get("baseMessageVO", {}) or {}
+    data = _as_dict(result.get("data"))
+    bm = _as_dict(data.get("baseMessageVO"))
     base_info = AppTestBaseInfo(
-        app_name=bm.get("appName", "") or "",
-        package_name=bm.get("packageName", "") or "",
-        apk_size=bm.get("apkSize", "") or "",
-        version_name=bm.get("versionName", "") or "",
-        apk_md5=bm.get("apkMd5", "") or "",
-        sign_md5=bm.get("signMd5", "") or "",
-        sign_detail=bm.get("signDetail", "") or "",
-        encrypt_detail=bm.get("encryptDetail", "") or "",
+        app_name=_as_str(bm.get("appName")),
+        package_name=_as_str(bm.get("packageName")),
+        apk_size=_as_str(bm.get("apkSize")),
+        version_name=_as_str(bm.get("versionName")),
+        apk_md5=_as_str(bm.get("apkMd5")),
+        sign_md5=_as_str(bm.get("signMd5")),
+        sign_detail=_as_str(bm.get("signDetail")),
+        encrypt_detail=_as_str(bm.get("encryptDetail")),
         manufacturer=bm.get("manufacturer"),
     )
 
     permissions = []
     sensitive_count = 0
-    for p in (data.get("resultPermissionVOList") or []):
+    for p in _as_list(data.get("resultPermissionVOList")):
         if not isinstance(p, dict):
             continue
-        is_sensitive = str(p.get("isSensitive", "") or "")
+        is_sensitive = _as_str(p.get("isSensitive"))
         if is_sensitive == "是":
             sensitive_count += 1
         permissions.append(AppTestPermission(
-            permission_name=p.get("permissionName", "") or "",
-            permission_describe=p.get("permissionDescribe", "") or "",
-            permission_grade=p.get("permissionGrade", "") or "",
+            permission_name=_as_str(p.get("permissionName")),
+            permission_describe=_as_str(p.get("permissionDescribe")),
+            permission_grade=_as_str(p.get("permissionGrade")),
             permission_type=p.get("permissionType"),
             is_sensitive=is_sensitive,
-            is_abuse=str(p.get("isAbuse", "") or ""),
+            is_abuse=_as_str(p.get("isAbuse")),
         ))
 
     sdks = []
-    for s in (data.get("sdkVOList") or []):
+    for s in _as_list(data.get("sdkVOList")):
         if not isinstance(s, dict):
             continue
         sdks.append(AppTestSDK(
-            name=s.get("name", "") or "",
-            vendor=s.get("vendor", "") or "",
-            descript=s.get("descript", "") or "",
-            type_name=s.get("typeName", "") or "",
-            description=s.get("description", "") or "",
+            name=_as_str(s.get("name")),
+            vendor=_as_str(s.get("vendor")),
+            descript=_as_str(s.get("descript")),
+            type_name=_as_str(s.get("typeName")),
+            description=_as_str(s.get("description")),
         ))
 
     app_actions = []
-    for a in (data.get("appActionVOList") or []):
+    for a in _as_list(data.get("appActionVOList")):
         if not isinstance(a, dict):
             continue
         app_actions.append(AppTestAppAction(
-            name=a.get("name", "") or "",
-            action_function=a.get("actionFunction", "") or "",
-            action_function_position=a.get("actionFunctionPosition", "") or "",
+            name=_as_str(a.get("name")),
+            action_function=_as_str(a.get("actionFunction")),
+            action_function_position=_as_str(a.get("actionFunctionPosition")),
         ))
 
     item_types = [
-        it.get("typeName", "") for it in (data.get("detectionItemTypeList") or [])
+        _as_str(it.get("typeName")) for it in _as_list(data.get("detectionItemTypeList"))
         if isinstance(it, dict) and it.get("typeName")
     ]
 
     return AppTestTaskDetailResponse(
-        is_sdk_detection=data.get("isSdkDetection", 0) or 0,
+        is_sdk_detection=_as_int(data.get("isSdkDetection")) or 0,
         base_info=base_info,
         permissions=permissions,
         sdks=sdks,
@@ -920,33 +957,31 @@ async def get_version_history(db: AsyncSession, task_id: str) -> AppTestVersionH
     except IJiamiError as exc:
         logger.info("apptest version history (summary) empty for %s: %s", task_id, exc)
 
-    versions = versions_resp.get("data", []) or []
-    if not isinstance(versions, list):
-        versions = []
+    versions = _as_list(versions_resp.get("data"))
 
-    sd = summary_resp.get("data", {}) or {}
+    sd = _as_dict(summary_resp.get("data"))
     scores = []
-    for s in (sd.get("singleVersionScoreVOList") or []):
+    for s in _as_list(sd.get("singleVersionScoreVOList")):
         if not isinstance(s, dict):
             continue
         scores.append(AppTestVersionScore(
-            version=s.get("version", "") or "",
-            score=s.get("score"),
-            create_time=s.get("creatTime", "") or s.get("createTime", "") or "",
+            version=_as_str(s.get("version")),
+            score=_as_int(s.get("score")),
+            create_time=_as_str(s.get("creatTime")) or _as_str(s.get("createTime")),
         ))
 
     risks = []
-    for r in (sd.get("singleVersionRiskCountVOList") or []):
+    for r in _as_list(sd.get("singleVersionRiskCountVOList")):
         if not isinstance(r, dict):
             continue
         risks.append(AppTestVersionRisk(
-            app_name=r.get("appName", "") or "",
-            version=r.get("version", "") or "",
-            apk_highrisk_count=r.get("apk_highrisk_count", 0) or 0,
-            apk_middlerisk_count=r.get("apk_middlerisk_count", 0) or 0,
-            apk_lowrisk_count=r.get("apk_lowrisk_count", 0) or 0,
-            score=r.get("score"),
-            create_time=r.get("creatTime", "") or r.get("createTime", "") or "",
+            app_name=_as_str(r.get("appName")),
+            version=_as_str(r.get("version")),
+            apk_highrisk_count=_as_int(r.get("apk_highrisk_count")) or 0,
+            apk_middlerisk_count=_as_int(r.get("apk_middlerisk_count")) or 0,
+            apk_lowrisk_count=_as_int(r.get("apk_lowrisk_count")) or 0,
+            score=_as_int(r.get("score")),
+            create_time=_as_str(r.get("creatTime")) or _as_str(r.get("createTime")),
         ))
 
     return AppTestVersionHistoryResponse(scores=scores, risks=risks, versions=versions)
