@@ -1,0 +1,5 @@
+export { default as AppTestListPage } from './AppTestListPage'
+export { default as AppTestNewPage } from './AppTestNewPage'
+export { default as AppTestDetailPage } from './AppTestDetailPage'
+export { default as AppTestReportsPage } from './AppTestReportsPage'
+export { default as AppTestStatisticsPage } from './AppTestStatisticsPage'

@@ -44,6 +44,8 @@ FRONTEND_ROUTES = [
     ("/monitor", "monitor.title", "settings:manage", "DashboardOutlined", "system"),
     ("/languages", "languageManagement.title", "settings:read", "TranslationOutlined", "system"),
     ("/settings", "sidebar.settings", "settings:read", "SettingOutlined", "pentest"),
+    ("/apptest", "sidebar.apptest", "apptest:read", "SafetyCertificateOutlined", "apptest"),
+    ("/apptest/statistics", "apptest.statistics", "apptest:read", "LineChartOutlined", "apptest"),
     ("/api-keys", "apiKeys.title", "api_key:read", "KeyOutlined", None),
     ("/profile", "profile.title", None, "UserOutlined", None),
 ]
@@ -485,6 +487,7 @@ def _build_menu_items_from_routes(
     system_children = []
     pentest_children = []
     vuln_library_children = []
+    apptest_children = []
     for path, name, permission, icon, group in FRONTEND_ROUTES:
         if role == "admin" or permission is None or permission in permission_set or path in page_set:
             item = MenuItemOut(path=path, name=name, permission=permission, icon=icon, locale=name, access="canAccessPage")
@@ -494,6 +497,8 @@ def _build_menu_items_from_routes(
                 pentest_children.append(item)
             elif group == "vulnerabilityLibrary":
                 vuln_library_children.append(item)
+            elif group == "apptest":
+                apptest_children.append(item)
     menus = []
     if system_children:
         menus.append(MenuItemOut(path="/system-setting-group", name="sidebar.systemSettings", icon="SettingOutlined", locale="sidebar.systemSettings", children=system_children))
@@ -501,4 +506,6 @@ def _build_menu_items_from_routes(
         menus.append(MenuItemOut(path="/vulnerability-library-group", name="sidebar.vulnerabilityLibrary", icon="SafetyCertificateOutlined", locale="sidebar.vulnerabilityLibrary", children=vuln_library_children))
     if pentest_children:
         menus.append(MenuItemOut(path="/penetration-testing-group", name="sidebar.penetrationTesting", icon="BugOutlined", locale="sidebar.penetrationTesting", children=pentest_children))
+    if apptest_children:
+        menus.append(MenuItemOut(path="/apptest-group", name="sidebar.apptest", icon="SafetyCertificateOutlined", locale="sidebar.apptest", children=apptest_children))
     return menus

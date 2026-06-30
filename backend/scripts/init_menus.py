@@ -14,13 +14,19 @@ from backend.system.rbac.service import FRONTEND_ROUTES
 logger = logging.getLogger(__name__)
 
 # Sidebar groups aligned with frontend routeConfig.tsx groups:
-# pentest (penetrationTesting), vulnerabilityLibrary, system (systemSettings)
+# pentest (penetrationTesting), apptest, vulnerabilityLibrary, system (systemSettings)
 SIDEBAR_GROUPS = [
     {
         "name": "sidebar.penetrationTesting",
         "icon": "BugOutlined",
         "sort_order": 10,
         "paths": ["/", "/auto", "/scan/new", "/realtime", "/full-ia", "/vuln-lab", "/terminal", "/sandboxes", "/tasks", "/knowledge", "/mcp", "/providers", "/scheduler", "/reports", "/settings"],
+    },
+    {
+        "name": "sidebar.apptest",
+        "icon": "SafetyCertificateOutlined",
+        "sort_order": 14,
+        "paths": ["/apptest", "/apptest/statistics"],
     },
     {
         "name": "sidebar.vulnerabilityLibrary",

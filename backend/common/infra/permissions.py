@@ -173,6 +173,15 @@ def require_agent_read():
 def require_agent_execute():
     return require_permission(PermissionScope.AGENT, PermissionAction.EXECUTE)
 
+def require_apptest_read():
+    return require_permission(PermissionScope.APPTEST, PermissionAction.READ)
+
+def require_apptest_execute():
+    return require_permission(PermissionScope.APPTEST, PermissionAction.EXECUTE)
+
+def require_apptest_manage():
+    return require_permission(PermissionScope.APPTEST, PermissionAction.MANAGE)
+
 def require_target_read():
     return require_permission(PermissionScope.TARGET, PermissionAction.READ)
 

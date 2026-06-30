@@ -27,6 +27,7 @@ from backend.system.menu import api as menu
 from backend.system.audit import api as audit
 from backend.system.monitor import api as monitor
 from backend.vulnerability_library import api as vuln_library
+from backend.apptest import api as apptest
 
 
 @dataclass(frozen=True)
@@ -67,6 +68,7 @@ PENTEST_ROUTERS = [
     RouterSpec(providers.router, "/api/v1/providers", ["Providers"]),
     RouterSpec(full_ia.router, "/api/v1/full-ia", ["FULL AI Testing"]),
     RouterSpec(cli_agent.router, None, ["CLI Agent"]),
+    RouterSpec(apptest.router, "/api/v1/apptest", ["App Test"]),
 ]
 
 

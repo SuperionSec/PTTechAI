@@ -8,6 +8,7 @@ This directory contains project documentation for architecture, deployment, syst
 - [RBAC and permissions](architecture/rbac-and-permissions.md)
 - [System settings module](modules/system-settings.md)
 - [Vulnerability library module](modules/vulnerability-library.md)
+- [App security test module](modules/app-test.md)
 - [Deployment](deployment/README.md)
 
 ## Entry points

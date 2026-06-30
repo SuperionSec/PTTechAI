@@ -80,6 +80,11 @@ DEFAULT_PERMISSIONS = [
     {"name": "vuln_library:delete", "description": "Delete vulnerability library entries", "scope": PermissionScope.VULN_LIBRARY, "action": PermissionAction.DELETE},
     {"name": "vuln_library:manage", "description": "Manage vulnerability library categories", "scope": PermissionScope.VULN_LIBRARY, "action": PermissionAction.MANAGE},
     {"name": "vuln_library:read_exp", "description": "View EXP content", "scope": PermissionScope.VULN_LIBRARY, "action": PermissionAction.EXECUTE},
+
+    # App Test (iJiami) permissions
+    {"name": "apptest:read", "description": "View app test tasks, assets, strategies, and reports", "scope": PermissionScope.APPTEST, "action": PermissionAction.READ},
+    {"name": "apptest:execute", "description": "Create and run app detection tasks", "scope": PermissionScope.APPTEST, "action": PermissionAction.EXECUTE},
+    {"name": "apptest:manage", "description": "Manage app test settings and delete tasks", "scope": PermissionScope.APPTEST, "action": PermissionAction.MANAGE},
 ]
 
 # Role-Permission mappings
@@ -105,6 +110,7 @@ ROLE_PERMISSIONS = {
         "scheduler:read", "scheduler:manage",
         "knowledge:read", "knowledge:update",
         "vuln_library:read", "vuln_library:create", "vuln_library:update", "vuln_library:delete", "vuln_library:manage", "vuln_library:read_exp",
+        "apptest:read", "apptest:execute", "apptest:manage",
     ],
     "user": [
         "scan:create", "scan:read", "scan:update", "scan:delete", "scan:execute",
@@ -119,6 +125,7 @@ ROLE_PERMISSIONS = {
         "scheduler:read",
         "knowledge:read",
         "vuln_library:read",
+        "apptest:read", "apptest:execute",
     ],
     "viewer": [
         "scan:read",
@@ -131,6 +138,7 @@ ROLE_PERMISSIONS = {
         "agent:read",
         "knowledge:read",
         "vuln_library:read",
+        "apptest:read",
     ],
     "service": [],
 }
@@ -165,6 +173,8 @@ PERMISSION_FRONTEND_PAGES = {
     "provider:manage": ["/providers"],
     "agent:read": ["/agent/:agentId", "/tasks", "/realtime"],
     "agent:execute": ["/auto", "/realtime", "/scan/new", "/full-ia", "/terminal", "/sandboxes"],
+    "apptest:read": ["/apptest", "/apptest/:taskId", "/apptest/:taskId/report"],
+    "apptest:execute": ["/apptest/new"],
     "scheduler:read": ["/scheduler"],
     "scheduler:manage": ["/scheduler"],
     "knowledge:read": ["/knowledge"],
@@ -247,6 +257,27 @@ PERMISSION_BACKEND_APIS = {
         "DELETE /api/v1/terminal/*",
         "POST /api/v1/sandbox", "POST /api/v1/sandbox/*",
         "DELETE /api/v1/sandbox/*",
+    ],
+    "apptest:read": [
+        "GET /api/v1/apptest/statistics",
+        "GET /api/v1/apptest/config",
+        "GET /api/v1/apptest/strategies",
+        "GET /api/v1/apptest/assets",
+        "GET /api/v1/apptest/tasks",
+        "GET /api/v1/apptest/tasks/*",
+        "GET /api/v1/apptest/tasks/*/status",
+        "GET /api/v1/apptest/tasks/*/detail",
+        "GET /api/v1/apptest/tasks/*/version-history",
+        "GET /api/v1/apptest/tasks/*/vulns",
+        "GET /api/v1/apptest/tasks/*/report",
+    ],
+    "apptest:execute": [
+        "POST /api/v1/apptest/tasks",
+        "POST /api/v1/apptest/tasks/*/report",
+    ],
+    "apptest:manage": [
+        "POST /api/v1/apptest/config",
+        "DELETE /api/v1/apptest/tasks/*",
     ],
     "scheduler:read": ["GET /api/v1/scheduler", "GET /api/v1/scheduler/*"],
     "scheduler:manage": ["POST /api/v1/scheduler", "POST /api/v1/scheduler/*", "DELETE /api/v1/scheduler/*"],

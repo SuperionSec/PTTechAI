@@ -1,3 +1,5 @@
+export * from './apptest'
+
 // Scan types
 export interface Scan {
   id: string

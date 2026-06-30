@@ -28,6 +28,8 @@ class PermissionScope(str, Enum):
     SCHEDULER = "scheduler"      # Scheduler management
     KNOWLEDGE = "knowledge"      # Knowledge base management
     VULN_LIBRARY = "vuln_library"  # Vulnerability library management
+    PENTEST2 = "pentest2"        # PTTechAI Pentest 2.0 management
+    APPTEST = "apptest"          # App security test management
 
 
 class PermissionAction(str, Enum):

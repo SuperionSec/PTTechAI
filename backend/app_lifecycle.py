@@ -90,6 +90,14 @@ async def startup_app(app: FastAPI) -> None:
         print(f"Menu init warning: {e}")
 
     try:
+        from backend.apptest.service import reconcile_stale_tasks
+        reaped = await reconcile_stale_tasks()
+        if reaped:
+            print(f"AppTest: reconciled {reaped} stale task(s)")
+    except Exception as e:
+        print(f"AppTest reconcile warning: {e}")
+
+    try:
         config_path = Path(__file__).parent.parent / "config" / "config.json"
         if config_path.exists():
             with open(config_path) as f:
@@ -125,6 +133,12 @@ async def shutdown_app(app: FastAPI) -> None:
     try:
         from backend.pentest.backend.core.smart_router import shutdown_router
         await shutdown_router()
+    except Exception:
+        pass
+
+    try:
+        from backend.apptest.client import get_ijiami_client
+        await get_ijiami_client().close()
     except Exception:
         pass
 

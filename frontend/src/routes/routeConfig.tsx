@@ -21,6 +21,7 @@ import {
   SafetyCertificateOutlined,
   MenuOutlined,
   BugOutlined,
+  LineChartOutlined,
 } from '@ant-design/icons'
 import LoginPage from '../pages/LoginPage'
 import RegisterPage from '../pages/RegisterPage'
@@ -59,9 +60,16 @@ import {
   UserManagementPage,
   UserProfilePage,
 } from '../pages/system'
+import {
+  AppTestListPage,
+  AppTestNewPage,
+  AppTestDetailPage,
+  AppTestReportsPage,
+  AppTestStatisticsPage,
+} from '../pages/apptest'
 import NotFound from '../pages/Exception/NotFound'
 
-export type RouteGroup = 'system' | 'pentest' | 'vulnerabilityLibrary'
+export type RouteGroup = 'system' | 'pentest' | 'vulnerabilityLibrary' | 'apptest'
 
 export interface AppRoute {
   path: string
@@ -92,6 +100,11 @@ export const appRoutes: AppRoute[] = [
   { path: '/providers', name: 'sidebar.providers', element: <ProvidersPage />, icon: <ApiOutlined />, access: 'canAccessPage', permission: 'provider:read', group: 'pentest' },
   { path: '/scheduler', name: 'sidebar.scheduler', element: <SchedulerPage />, icon: <ScheduleOutlined />, access: 'canAccessPage', permission: 'scheduler:read', group: 'pentest' },
   { path: '/reports', name: 'sidebar.reports', element: <ReportsPage />, icon: <FileTextOutlined />, access: 'canAccessPage', permission: 'report:read', group: 'pentest' },
+  { path: '/apptest', name: 'sidebar.apptest', element: <AppTestListPage />, icon: <SafetyCertificateOutlined />, access: 'canAccessPage', permission: 'apptest:read', group: 'apptest' },
+  { path: '/apptest/statistics', name: 'apptest.statistics', element: <AppTestStatisticsPage />, icon: <LineChartOutlined />, access: 'canAccessPage', permission: 'apptest:read', group: 'apptest' },
+  { path: '/apptest/new', name: 'apptest.newTask', element: <AppTestNewPage />, icon: <PlusCircleOutlined />, access: 'canAccessPage', permission: 'apptest:execute', group: 'apptest', hideInMenu: true },
+  { path: '/apptest/:taskId/report', name: 'apptest.reportDetail', element: <AppTestReportsPage />, access: 'canAccessPage', permission: 'apptest:read', group: 'apptest', hideInMenu: true },
+  { path: '/apptest/:taskId', name: 'apptest.detail', element: <AppTestDetailPage />, access: 'canAccessPage', permission: 'apptest:read', group: 'apptest', hideInMenu: true },
   { path: '/vulnerability-library/overview', name: 'vulnerabilityLibrary.overview.title', element: <VulnerabilityLibraryOverviewPage />, icon: <DashboardOutlined />, access: 'canAccessPage', permission: 'vuln_library:read', group: 'vulnerabilityLibrary' },
   { path: '/vulnerability-library/entries', name: 'vulnerabilityLibrary.entries.title', element: <VulnerabilityEntriesPage />, icon: <BugOutlined />, access: 'canAccessPage', permission: 'vuln_library:read', group: 'vulnerabilityLibrary' },
   { path: '/vulnerability-library/artifacts', name: 'vulnerabilityLibrary.artifacts.title', element: <VulnerabilityArtifactsPage />, icon: <CodeOutlined />, access: 'canAccessPage', permission: 'vuln_library:read', group: 'vulnerabilityLibrary' },

@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     # LLM Settings
     ANTHROPIC_API_KEY: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
+    NIM_API_KEY: Optional[str] = os.getenv("NIM_API_KEY")
+    NIM_BASE_URL: str = os.getenv("NIM_BASE_URL", "https://integrate.api.nvidia.com/v1")
     OPENROUTER_API_KEY: Optional[str] = os.getenv("OPENROUTER_API_KEY")
     GEMINI_API_KEY: Optional[str] = os.getenv("GEMINI_API_KEY")
     AZURE_OPENAI_API_KEY: Optional[str] = os.getenv("AZURE_OPENAI_API_KEY")
@@ -74,6 +76,13 @@ class Settings(BaseSettings):
     MAX_CONCURRENT_SCANS: int = 5
     DEFAULT_TIMEOUT: int = 30
     MAX_REQUESTS_PER_SECOND: int = 10
+
+    # iJiami (爱加密) App Security Detection Platform
+    IJIAMI_BASE_URL: str = os.getenv("IJIAMI_BASE_URL", "https://rundet.ijiami.cn")
+    IJIAMI_CLIENT_ID: Optional[str] = os.getenv("IJIAMI_CLIENT_ID")
+    IJIAMI_CLIENT_SECRET: Optional[str] = os.getenv("IJIAMI_CLIENT_SECRET")
+    IJIAMI_USERNAME: Optional[str] = os.getenv("IJIAMI_USERNAME")
+    IJIAMI_PASSWORD: Optional[str] = os.getenv("IJIAMI_PASSWORD")
 
     # CORS
     CORS_ORIGINS: list = ["http://localhost:3000", "http://127.0.0.1:3000"]

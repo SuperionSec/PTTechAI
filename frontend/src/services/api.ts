@@ -5,10 +5,10 @@ import type {
   AgentTask, AgentRequest, AgentResponse, AgentStatus, AgentLog, AgentMode,
   ScanAgentTask, ActivityFeedItem, ScheduleJob, ScheduleJobRequest, AgentRole,
   VulnLabChallenge, VulnLabRunRequest, VulnLabRunResponse, VulnLabRealtimeStatus,
-  VulnTypeCategory, VulnLabStats, SandboxPoolStatus
+  VulnTypeCategory, VulnLabStats, SandboxPoolStatus,
 } from '../types'
 
-const api = axios.create({
+export const api = axios.create({
   baseURL: '/api/v1',
   headers: {
     'Content-Type': 'application/json',
@@ -918,6 +918,25 @@ export const mcpApi = {
     const response = await api.get(`/mcp/servers/${encodeURIComponent(name)}/tools`)
     return response.data
   },
+}
+
+
+// App Test (iJiami) API
+export const apptestApi = {
+  getConfig: () => api.get('/apptest/config'),
+  updateConfig: (data: any) => api.post('/apptest/config', data),
+  listStrategies: (terminalType?: number) => api.get('/apptest/strategies', { params: terminalType !== undefined ? { terminal_type: terminalType } : {} }),
+  listAssets: (params?: { terminal_type?: number; app_name?: string }) => api.get('/apptest/assets', { params }),
+  createTask: (data: FormData) => api.post('/apptest/tasks', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  listTasks: (params?: { page?: number; per_page?: number; status?: string; terminal_type?: number }) => api.get('/apptest/tasks', { params }),
+  getTask: (id: string) => api.get(`/apptest/tasks/${id}`),
+  deleteTask: (id: string) => api.delete(`/apptest/tasks/${id}`),
+  getStatus: (id: string) => api.get(`/apptest/tasks/${id}/status`),
+  getVulns: (id: string, params?: { page?: number; per_page?: number }) => api.get(`/apptest/tasks/${id}/vulns`, { params }),
+  getReport: (id: string, reportType: number) => api.get(`/apptest/tasks/${id}/report`, { params: { report_type: reportType }, responseType: 'blob' }),
+  getStatistics: (params?: { dimension?: number; terminal_type?: number; package_name?: string }) => api.get('/apptest/statistics', { params }),
+  getTaskDetail: (id: string) => api.get(`/apptest/tasks/${id}/detail`),
+  getVersionHistory: (id: string) => api.get(`/apptest/tasks/${id}/version-history`),
 }
 
 export default api

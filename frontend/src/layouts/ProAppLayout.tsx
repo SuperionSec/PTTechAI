@@ -58,6 +58,10 @@ export default function ProAppLayout({ children }: ProAppLayoutProps) {
       .filter(route => route.group === 'pentest')
       .map(route => ({ path: route.path, name: t(route.name), icon: route.icon }))
 
+    const apptestRoutes = accessibleRoutes
+      .filter(route => route.group === 'apptest')
+      .map(route => ({ path: route.path, name: t(route.name), icon: route.icon }))
+
     return [
       {
         path: '/system-setting-group',
@@ -76,6 +80,12 @@ export default function ProAppLayout({ children }: ProAppLayoutProps) {
         name: t('sidebar.penetrationTesting'),
         icon: <BugOutlined />,
         routes: pentestRoutes,
+      },
+      {
+        path: '/apptest-group',
+        name: t('sidebar.apptest'),
+        icon: <SafetyCertificateOutlined />,
+        routes: apptestRoutes,
       }
     ].filter(route => route.routes.length > 0)
   }, [t, user?.role, userPermissions])

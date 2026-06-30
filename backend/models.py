@@ -20,6 +20,7 @@ from backend.vulnerability_library.models import (  # noqa: F401
     VulnLibraryEntry,
     VulnLibraryIdentifier,
 )
+from backend.apptest.models import AppTestTask  # noqa: F401
 
 __all__ = [
     "AgentTask",
@@ -46,4 +47,5 @@ __all__ = [
     "VulnLibraryCategory",
     "VulnLibraryEntry",
     "VulnLibraryIdentifier",
+    "AppTestTask",
 ]
