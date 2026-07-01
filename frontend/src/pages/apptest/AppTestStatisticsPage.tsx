@@ -73,6 +73,20 @@ export default function AppTestStatisticsPage() {
       width: 100,
       render: (v: number) => <b>{v}</b>,
     },
+    {
+      title: t('apptest.riskRate'),
+      dataIndex: 'rate',
+      key: 'rate',
+      width: 100,
+      render: (v: number | string | null | undefined) => {
+        if (v === null || v === undefined || v === '') return '-'
+        const num = typeof v === 'number' ? v : parseFloat(String(v))
+        if (isNaN(num)) return String(v)
+        // rate may be a fraction (0-1) or a percentage already
+        const pct = num <= 1 ? num * 100 : num
+        return `${pct.toFixed(1)}%`
+      },
+    },
   ]
 
   return (
@@ -118,7 +132,17 @@ export default function AppTestStatisticsPage() {
           <StatisticCard loading={loading} statistic={{ title: t('apptest.statFlawNum'), value: ov?.flaw_num ?? 0, icon: <BugOutlined style={{ color: '#8c8c8c' }} /> }} />
         </Col>
         <Col xs={12} sm={8} md={6} lg={4}>
-          <StatisticCard loading={loading} statistic={{ title: t('apptest.statFlawHigh'), value: ov?.flaw_high_num ?? 0, valueStyle: { color: '#f5222d' } }} />
+          <StatisticCard
+            loading={loading}
+            statistic={{
+              title: t('apptest.statFlawHigh'),
+              value: ov?.flaw_high_num ?? 0,
+              valueStyle: { color: '#f5222d' },
+              description: ov && ov.flaw_num > 0
+                ? <span style={{ fontSize: 12, color: '#999' }}>{t('apptest.highRiskRatio')} {Math.round((ov.flaw_high_num / ov.flaw_num) * 100)}%</span>
+                : undefined,
+            }}
+          />
         </Col>
         <Col xs={12} sm={8} md={6} lg={4}>
           <StatisticCard loading={loading} statistic={{ title: t('apptest.statFlawMid'), value: ov?.flaw_middle_num ?? 0, valueStyle: { color: '#faad14' } }} />
@@ -131,8 +155,8 @@ export default function AppTestStatisticsPage() {
           <ProCard title={t('apptest.scoreTrend')} loading={loading} style={{ minHeight: 360 }}>
             {trendData.length ? (
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={trendData}>
-                  <XAxis dataKey="date" />
+                <BarChart data={trendData} margin={{ bottom: 20 }}>
+                  <XAxis dataKey="date" interval="preserveStartEnd" angle={trendData.length > 6 ? -30 : 0} textAnchor={trendData.length > 6 ? 'end' : 'middle'} height={trendData.length > 6 ? 50 : 30} />
                   <YAxis allowDecimals={false} />
                   <Tooltip />
                   <Legend />
@@ -141,7 +165,7 @@ export default function AppTestStatisticsPage() {
                   ))}
                 </BarChart>
               </ResponsiveContainer>
-            ) : <Empty description={t('apptest.noData')} />}
+            ) : <Empty description={t('apptest.noDetectionData')} />}
           </ProCard>
         </Col>
         {/* Risk type pie */}
@@ -150,13 +174,14 @@ export default function AppTestStatisticsPage() {
             {pieData.length ? (
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
-                  <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={(e: any) => e.name}>
+                  <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="45%" outerRadius={80}>
                     {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip formatter={(v: any, n: any) => [`${v} (${Math.round(Number(v) / pieData.reduce((s, d) => s + d.value, 0) * 100)}%)`, n]} />
+                  <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: 12 }} />
                 </PieChart>
               </ResponsiveContainer>
-            ) : <Empty description={t('apptest.noData')} />}
+            ) : <Empty description={t('apptest.noDetectionData')} />}
           </ProCard>
         </Col>
       </Row>
@@ -169,9 +194,13 @@ export default function AppTestStatisticsPage() {
           dataSource={stats?.risk_top10 || []}
           pagination={false}
           size="small"
-          locale={{ emptyText: <Empty description={t('apptest.noData')} /> }}
+          locale={{ emptyText: <Empty description={t('apptest.noDetectionData')} /> }}
         />
       </ProCard>
+
+      <div style={{ marginTop: 12, textAlign: 'right', color: '#999', fontSize: 12 }}>
+        {t('apptest.dataFromIjiami')}
+      </div>
     </PageContainer>
   )
 }

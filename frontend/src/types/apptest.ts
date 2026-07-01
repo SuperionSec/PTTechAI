@@ -44,6 +44,7 @@ export interface AppTestTaskSummary {
   file_size?: string | null
   package_name?: string | null
   version?: string | null
+  error_message?: string | null
   created_at: string
   completed_at?: string | null
   created_by?: string | null
@@ -157,6 +158,30 @@ export function getTerminalTypeColor(value: number): string {
 
 export function getStatusConfig(status: string): { label: string; color: string } {
   return DETECTION_STATUS_MAP[status] || { label: status, color: 'default' }
+}
+
+/** Format an ISO datetime string to local "YYYY-MM-DD HH:mm:ss". Returns '-' if empty/invalid. */
+export function formatDateTime(value?: string | null): string {
+  if (!value) return '-'
+  const d = new Date(value)
+  if (isNaN(d.getTime())) return value
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
+/** Score → antd color (success/warning/error). */
+export function getScoreColor(score?: number | null): string {
+  if (score === null || score === undefined) return 'default'
+  if (score >= 80) return 'success'
+  if (score >= 60) return 'warning'
+  return 'error'
+}
+
+/** Grade string / value → antd color. iJiami grade value: 3=高 2=中 1=低. */
+export function getGradeColor(grade?: string, gradeValue?: number | null): string {
+  if (gradeValue === 3 || (grade && grade.includes('高'))) return 'error'
+  if (gradeValue === 2 || (grade && grade.includes('中'))) return 'warning'
+  return 'default'
 }
 
 // ---- Statistics ----

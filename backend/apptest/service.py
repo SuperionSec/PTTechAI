@@ -766,6 +766,7 @@ def _task_to_summary(task: AppTestTask) -> AppTestTaskSummary:
         file_size=task.file_size,
         package_name=task.package_name,
         version=task.version,
+        error_message=task.error_message,
         created_at=task.created_at,
         completed_at=task.completed_at,
         created_by=task.created_by,

@@ -151,6 +151,7 @@ class AppTestTaskSummary(BaseModel):
     file_size: str | None = None
     package_name: str | None = None
     version: str | None = None
+    error_message: str | None = None
     created_at: datetime
     completed_at: datetime | None = None
     created_by: str | None = None

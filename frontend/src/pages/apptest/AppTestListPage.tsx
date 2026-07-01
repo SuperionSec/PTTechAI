@@ -2,16 +2,21 @@ import { useEffect, useRef, useState } from 'react'
 import { PageContainer, ProCard } from '@ant-design/pro-components'
 import {
   Button, Space, Table, Tag, Progress, Input, Select, message, Popconfirm,
+  Tooltip, Empty, Dropdown,
 } from 'antd'
+import type { MenuProps } from 'antd'
 import {
   PlusOutlined, ReloadOutlined, EyeOutlined, DeleteOutlined,
-  FileSearchOutlined,
+  DownloadOutlined, ExclamationCircleOutlined,
 } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { apptestApi } from '../../services/api'
 import type { AppTestTaskSummary } from '../../types'
-import { getTerminalTypeColor, getTerminalTypeLabel, getStatusConfig, TERMINAL_TYPE_OPTIONS } from '../../types/apptest'
+import {
+  getTerminalTypeColor, getTerminalTypeLabel, getStatusConfig, getScoreColor,
+  formatDateTime, TERMINAL_TYPE_OPTIONS,
+} from '../../types/apptest'
 
 const { Search } = Input
 
@@ -28,6 +33,7 @@ export default function AppTestListPage() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined)
   const [terminalFilter, setTerminalFilter] = useState<number | undefined>(undefined)
   const [searchKeyword, setSearchKeyword] = useState('')
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const load = async (p = page, silent = false) => {
@@ -53,8 +59,7 @@ export default function AppTestListPage() {
     setPage(1)
   }, [statusFilter, terminalFilter])
 
-  // Auto-refresh (silent) while any task is uploading/running, so users see
-  // progress without manual refreshes.
+  // Auto-refresh (silent) while any task is uploading/running.
   useEffect(() => {
     const hasActive = tasks.some(tk => ACTIVE_STATUSES.includes(tk.status))
     if (hasActive && !pollRef.current) {
@@ -78,6 +83,29 @@ export default function AppTestListPage() {
       load()
     } catch (err: any) {
       message.error(err.response?.data?.detail || t('common.deleteFailed'))
+    }
+  }
+
+  const handleDownload = async (id: string, name: string, reportType: number) => {
+    setDownloadingId(id)
+    try {
+      const resp = await apptestApi.getReport(id, reportType)
+      const blob = new Blob([resp.data])
+      const ct: string = resp.headers?.['content-type'] || ''
+      const ext = ct.includes('pdf') ? '.pdf' : ct.includes('word') ? '.docx' : (reportType === 1 ? '.docx' : '.pdf')
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${name}_report${ext}`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      message.success(t('apptest.reportDownloaded'))
+    } catch (err: any) {
+      message.error(err.response?.data?.detail || t('apptest.reportDownloadFailed'))
+    } finally {
+      setDownloadingId(null)
     }
   }
 
@@ -105,7 +133,7 @@ export default function AppTestListPage() {
       title: t('apptest.terminalType'),
       dataIndex: 'terminal_type',
       key: 'terminal_type',
-      width: 120,
+      width: 110,
       render: (v: number) => (
         <Tag color={getTerminalTypeColor(v)}>{getTerminalTypeLabel(v)}</Tag>
       ),
@@ -114,9 +142,16 @@ export default function AppTestListPage() {
       title: t('apptest.status'),
       dataIndex: 'status',
       key: 'status',
-      width: 120,
+      width: 130,
       render: (v: string, record: AppTestTaskSummary) => {
         const cfg = getStatusConfig(v)
+        if (v === 'failed') {
+          return (
+            <Tooltip title={record.error_message || t('apptest.detectionFailed')}>
+              <Tag color={cfg.color} icon={<ExclamationCircleOutlined />}>{cfg.label}</Tag>
+            </Tooltip>
+          )
+        }
         return (
           <Space direction="vertical" size={0}>
             <Tag color={cfg.color}>{cfg.label}</Tag>
@@ -128,13 +163,18 @@ export default function AppTestListPage() {
       },
     },
     {
-      title: t('apptest.score'),
+      title: (
+        <Tooltip title={`${t('apptest.gradeHigh')} <60 / ${t('apptest.gradeMid')} 60-80 / ${t('apptest.gradeLow')} ≥80`}>
+          <span>{t('apptest.score')}</span>
+        </Tooltip>
+      ),
       dataIndex: 'score',
       key: 'score',
       width: 100,
+      sorter: (a: AppTestTaskSummary, b: AppTestTaskSummary) => (a.score ?? -1) - (b.score ?? -1),
       render: (v?: number) => (
         v !== null && v !== undefined
-          ? <Tag color={v >= 80 ? 'success' : v >= 60 ? 'warning' : 'error'}>{v}分</Tag>
+          ? <Tag color={getScoreColor(v)}>{v}分</Tag>
           : '-'
       ),
     },
@@ -142,54 +182,73 @@ export default function AppTestListPage() {
       title: t('apptest.vulnerabilities'),
       key: 'vulns',
       width: 180,
-      render: (_: unknown, record: AppTestTaskSummary) => (
-        <Space>
-          {record.vuln_high > 0 && <Tag color="error">高 {record.vuln_high}</Tag>}
-          {record.vuln_mid > 0 && <Tag color="warning">中 {record.vuln_mid}</Tag>}
-          {record.vuln_low > 0 && <Tag color="default">低 {record.vuln_low}</Tag>}
-          {record.vuln_high + record.vuln_mid + record.vuln_low === 0 && '-'}
-        </Space>
-      ),
+      render: (_: unknown, record: AppTestTaskSummary) => {
+        const totalV = record.vuln_high + record.vuln_mid + record.vuln_low
+        if (record.status !== 'completed') return '-'
+        if (totalV === 0) return <Tag color="success">{t('apptest.noRisk')}</Tag>
+        return (
+          <Space size={4}>
+            {record.vuln_high > 0 && <Tag color="error">{t('apptest.gradeHigh')} {record.vuln_high}</Tag>}
+            {record.vuln_mid > 0 && <Tag color="warning">{t('apptest.gradeMid')} {record.vuln_mid}</Tag>}
+            {record.vuln_low > 0 && <Tag>{t('apptest.gradeLow')} {record.vuln_low}</Tag>}
+          </Space>
+        )
+      },
     },
     {
       title: t('apptest.createdAt'),
       dataIndex: 'created_at',
       key: 'created_at',
-      width: 180,
+      width: 175,
+      sorter: (a: AppTestTaskSummary, b: AppTestTaskSummary) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+      defaultSortOrder: 'descend' as const,
+      render: (v: string) => formatDateTime(v),
     },
     {
       title: t('common.operation'),
       key: 'action',
-      width: 200,
-      render: (_: unknown, record: AppTestTaskSummary) => (
-        <Space>
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => navigate(`/apptest/${record.id}`)}
-          >
-            {t('common.detail')}
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<FileSearchOutlined />}
-            onClick={() => navigate(`/apptest/${record.id}/report`)}
-            disabled={record.status !== 'completed'}
-          >
-            {t('apptest.report')}
-          </Button>
-          <Popconfirm
-            title={t('common.confirmDelete')}
-            onConfirm={() => handleDelete(record.id)}
-          >
-            <Button type="link" danger size="small" icon={<DeleteOutlined />}>
-              {t('common.delete')}
+      width: 210,
+      fixed: 'right' as const,
+      render: (_: unknown, record: AppTestTaskSummary) => {
+        const reportMenu: MenuProps = {
+          items: [
+            { key: 'word', label: 'Word', onClick: () => handleDownload(record.id, record.name, 1) },
+            { key: 'pdf', label: 'PDF', onClick: () => handleDownload(record.id, record.name, 2) },
+          ],
+        }
+        return (
+          <Space size={4}>
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => navigate(`/apptest/${record.id}`)}
+            >
+              {t('common.detail')}
             </Button>
-          </Popconfirm>
-        </Space>
-      ),
+            <Dropdown menu={reportMenu} disabled={record.status !== 'completed'} trigger={['click']}>
+              <Button
+                type="link"
+                size="small"
+                icon={<DownloadOutlined />}
+                loading={downloadingId === record.id}
+                disabled={record.status !== 'completed'}
+              >
+                {t('apptest.downloadReport')}
+              </Button>
+            </Dropdown>
+            <Popconfirm
+              title={t('common.confirmDelete')}
+              onConfirm={() => handleDelete(record.id)}
+            >
+              <Button type="link" danger size="small" icon={<DeleteOutlined />}>
+                {t('common.delete')}
+              </Button>
+            </Popconfirm>
+          </Space>
+        )
+      },
     },
   ]
 
@@ -241,11 +300,25 @@ export default function AppTestListPage() {
           columns={columns}
           dataSource={displayTasks}
           loading={loading}
+          scroll={{ x: 1100 }}
+          locale={{
+            emptyText: (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={t('apptest.noCompletedTasks')}
+              >
+                <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/apptest/new')}>
+                  {t('apptest.newTask')}
+                </Button>
+              </Empty>
+            ),
+          }}
           pagination={{
             current: page,
             pageSize: perPage,
             total,
             showSizeChanger: false,
+            showTotal: (tt) => `${t('common.total') || '共'} ${tt}`,
             onChange: (p) => {
               setPage(p)
               load(p)

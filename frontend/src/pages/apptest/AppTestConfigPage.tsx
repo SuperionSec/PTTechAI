@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { PageContainer, ProCard } from '@ant-design/pro-components'
-import { Form, Input, Button, message, Space, Alert, Badge, Descriptions } from 'antd'
+import { Form, Input, Button, message, Space, Alert, Badge, Descriptions, Typography } from 'antd'
 import { SaveOutlined, ApiOutlined, ReloadOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { apptestApi } from '../../services/api'
+
+const { Text } = Typography
 
 interface ConfigData {
   base_url: string
@@ -108,7 +110,9 @@ export default function AppTestConfigPage() {
             ? <Space><Badge status="success" />{t('apptest.connStatusOk')}</Space>
             : <Space><Badge status="error" />{t('apptest.connStatusFail')}</Space>
         }
-        description={config?.connected ? t('apptest.connStatusOkDesc') : t('apptest.connStatusFailDesc')}
+        description={config?.connected
+          ? t('apptest.connStatusOkDesc')
+          : <span>{t('apptest.connStatusFailDesc')}<br /><Text type="secondary" style={{ fontSize: 12 }}>{t('apptest.connExpiredHint')}</Text></span>}
       />
 
       <ProCard
