@@ -26,6 +26,7 @@ from backend.system.system import api as system
 from backend.system.menu import api as menu
 from backend.system.audit import api as audit
 from backend.system.monitor import api as monitor
+from backend.system.organization import api as organization
 from backend.vulnerability_library import api as vuln_library
 from backend.apptest import api as apptest
 
@@ -42,6 +43,7 @@ SYSTEM_ROUTERS = [
     RouterSpec(menu.router, "/api/v1/menus", ["Menu Management"]),
     RouterSpec(audit.router, "/api/v1/audit", ["Audit Logs"]),
     RouterSpec(monitor.router, "/api/v1/monitor", ["System Monitor"]),
+    RouterSpec(organization.router, "/api/v1/organization", ["Organization Management"]),
 ]
 
 

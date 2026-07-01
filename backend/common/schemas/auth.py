@@ -18,6 +18,9 @@ class UserCreate(BaseModel):
     password: str = Field(..., min_length=8, description="User password (min 8 chars)")
     full_name: Optional[str] = Field(None, description="User full name")
     role: Optional[str] = Field(None, description="User role name")
+    tenant_id: Optional[str] = Field(None, description="Tenant ID (platform admin only; tenant admins locked to own tenant)")
+    department_id: Optional[str] = Field(None, description="Department ID within the tenant")
+    data_scope: Optional[str] = Field(None, description="Data visibility scope: self / department / tenant")
 
 
 class UserUpdate(BaseModel):
@@ -27,6 +30,9 @@ class UserUpdate(BaseModel):
     password: Optional[str] = Field(None, min_length=8)
     is_active: Optional[bool] = None
     role: Optional[str] = None
+    tenant_id: Optional[str] = None
+    department_id: Optional[str] = None
+    data_scope: Optional[str] = None
 
 
 class UserProfileUpdate(BaseModel):
@@ -49,6 +55,9 @@ def user_to_response(user) -> "UserResponse":
         full_name=user.full_name,
         role=role,
         is_active=user.is_active,
+        tenant_id=getattr(user, "tenant_id", None),
+        department_id=getattr(user, "department_id", None),
+        data_scope=getattr(user, "data_scope", "self"),
         created_at=user.created_at.isoformat() if user.created_at else None,
         last_login=user.last_login.isoformat() if user.last_login else None,
     )
@@ -61,6 +70,9 @@ class UserResponse(BaseModel):
     full_name: Optional[str]
     role: str
     is_active: bool
+    tenant_id: Optional[str] = None
+    department_id: Optional[str] = None
+    data_scope: Optional[str] = None
     created_at: Optional[str] = None
     last_login: Optional[str] = None
 

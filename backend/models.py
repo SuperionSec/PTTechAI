@@ -14,6 +14,7 @@ from backend.common.models.permission import Permission, PermissionAction, Permi
 from backend.common.models.user import APIKey, Role, RoleModel, User  # noqa: F401
 from backend.system.audit.models import AuditLog  # noqa: F401
 from backend.system.menu.models import Menu  # noqa: F401
+from backend.system.organization.models import Department, Tenant  # noqa: F401
 from backend.vulnerability_library.models import (  # noqa: F401
     VulnLibraryArtifact,
     VulnLibraryCategory,
@@ -43,6 +44,8 @@ __all__ = [
     "User",
     "AuditLog",
     "Menu",
+    "Tenant",
+    "Department",
     "VulnLibraryArtifact",
     "VulnLibraryCategory",
     "VulnLibraryEntry",

@@ -153,6 +153,17 @@ async def get_current_user(
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user")
 
+    # Reject requests from users whose tenant has been suspended (covers tokens
+    # issued before suspension). Platform users (tenant_id NULL) are unaffected.
+    if getattr(user, "tenant_id", None):
+        from backend.system.organization.models import Tenant
+        tenant = await db.get(Tenant, user.tenant_id)
+        if tenant and (not tenant.is_active or tenant.status != "active"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Your organization has been suspended.",
+            )
+
     # Update token last used timestamp (fire and forget)
     if jti:
         try:
@@ -160,7 +171,48 @@ async def get_current_user(
         except Exception:
             pass  # Don't fail request if update fails
 
+    _activate_tenant_context(user)
+    await _set_db_tenant_guc_safe(db)
     return user
+
+
+async def _set_db_tenant_guc_safe(db) -> None:
+    """Best-effort: set the RLS session variable on the request transaction.
+
+    Enables PostgreSQL row-level-security policies (defense-in-depth). Safe
+    no-op if RLS is not installed. Never fails the request.
+    """
+    try:
+        from backend.common.infra.tenant_query import set_db_tenant_guc
+        await set_db_tenant_guc(db)
+    except Exception:
+        pass
+
+
+def _activate_tenant_context(user: User) -> None:
+    """Populate the request-scoped tenant context from the authenticated user.
+
+    Set here so every route using ``Depends(get_current_user)`` participates in
+    multi-tenant isolation with no per-endpoint changes. Safe before the
+    tenant columns exist (getattr defaults to None => no filtering).
+    """
+    try:
+        from backend.common.infra.tenant_context import TenantContextData, set_tenant_context
+        from backend.common.infra.rbac.access_helpers import is_platform_admin, is_tenant_admin_role
+
+        set_tenant_context(
+            TenantContextData(
+                user_id=user.id,
+                tenant_id=getattr(user, "tenant_id", None),
+                department_id=getattr(user, "department_id", None),
+                data_scope=getattr(user, "data_scope", "self"),
+                is_platform_admin=is_platform_admin(user),
+                is_tenant_admin=is_tenant_admin_role(user),
+            )
+        )
+    except Exception:
+        # Never fail auth because of tenant-context wiring.
+        pass
 
 
 def require_role(*roles: str):
@@ -268,6 +320,8 @@ async def get_current_user_from_api_key(
         raise credentials_exception
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user")
+    _activate_tenant_context(user)
+    await _set_db_tenant_guc_safe(db)
     return user
 
 
@@ -286,14 +340,16 @@ async def get_current_user_optional(
                 user_id: str = payload.get("sub")
                 user = await get_user_by_id(db, user_id=user_id)
                 if user and user.is_active:
+                    _activate_tenant_context(user)
                     return user
         except HTTPException:
             pass
-    
+
     # Try API key
     if x_api_key:
         user = await verify_api_key(db, x_api_key)
         if user and user.is_active:
+            _activate_tenant_context(user)
             return user
-    
+
     return None

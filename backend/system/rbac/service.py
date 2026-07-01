@@ -39,6 +39,8 @@ FRONTEND_ROUTES = [
     ("/vulnerability-library/categories", "vulnerabilityLibrary.categories.title", "vuln_library:manage", "MenuOutlined", "vulnerabilityLibrary"),
     ("/users", "usersManagement.title", "user:manage", "TeamOutlined", "system"),
     ("/roles", "roleManagement.title", "user:manage", "SafetyCertificateOutlined", "system"),
+    ("/tenants", "tenantManagement.title", "tenant:manage", "BankOutlined", "system"),
+    ("/departments", "departmentManagement.title", "org:manage", "ApartmentOutlined", "system"),
     ("/menus", "menuManagement.title", "settings:manage", "MenuOutlined", "system"),
     ("/audit", "audit.title", "settings:manage", "FileTextOutlined", "system"),
     ("/monitor", "monitor.title", "settings:manage", "DashboardOutlined", "system"),
@@ -387,6 +389,10 @@ def build_access_map(permission_names: list[str], role: str) -> dict[str, bool]:
         "canUserRead": is_admin or "user:read" in ps,
         "canSettingsRead": is_admin or "settings:read" in ps,
         "canSettingsManage": is_admin or "settings:manage" in ps,
+        # Organization / Tenant
+        "canTenantManage": is_admin or "tenant:manage" in ps,
+        "canOrgRead": is_admin or "org:read" in ps or "org:manage" in ps,
+        "canOrgManage": is_admin or "org:manage" in ps,
         # API Key
         "canApiKeyRead": is_admin or "api_key:read" in ps,
         "canApiKeyCreate": is_admin or "api_key:create" in ps,

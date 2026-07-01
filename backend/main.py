@@ -16,6 +16,11 @@ from backend.app_lifecycle import shutdown_app, startup_app
 from backend.common.infra.auth import decode_token, get_current_user_optional
 from backend.common.models.user import User
 
+# ── Multi-tenant infrastructure (event listeners register on import) ──
+from backend.common.infra import tenant_context  # noqa: F401 – context var
+from backend.common.infra import tenant_query     # noqa: F401 – ORM filter listener
+from backend.common.infra import tenant_mixin     # noqa: F401 – write-time tenant fill
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

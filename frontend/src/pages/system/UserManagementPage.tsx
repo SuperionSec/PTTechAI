@@ -28,8 +28,9 @@ import {
   UserOutlined,
 } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContext'
-import { systemApi, usersApi } from '../../services/system'
-import type { RoleSummary } from '../../services/system'
+import { useAccess } from '../../hooks/useAccess'
+import { systemApi, usersApi, organizationApi } from '../../services/system'
+import type { RoleSummary, DepartmentNode, Tenant } from '../../services/system'
 
 const { Text } = Typography
 
@@ -41,6 +42,9 @@ interface User {
   is_active: boolean
   created_at: string
   last_login: string | null
+  tenant_id?: string | null
+  department_id?: string | null
+  data_scope?: string | null
 }
 
 interface CreateUserForm {
@@ -48,6 +52,9 @@ interface CreateUserForm {
   password: string
   full_name: string
   role: string
+  tenant_id?: string | null
+  department_id?: string | null
+  data_scope?: string
 }
 
 interface ResetPasswordForm {
@@ -72,6 +79,8 @@ function UserStatisticCards({ totalUsers, activeUsers, adminUsers, t }: {
 export default function UserManagementPage() {
   const { t } = useTranslation()
   const { user: currentUser } = useAuth()
+  const access = useAccess()
+  const isPlatformAdmin = access.canTenantManage
   const { notification } = AntApp.useApp()
   const actionRef = useRef<ActionType>()
   const [users, setUsers] = useState<User[]>([])
@@ -81,6 +90,9 @@ export default function UserManagementPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showServiceNotice, setShowServiceNotice] = useState(false)
   const [availableRoles, setAvailableRoles] = useState<RoleSummary[]>([])
+  const [tenants, setTenants] = useState<Tenant[]>([])
+  const [departments, setDepartments] = useState<DepartmentNode[]>([])
+  const [createTenantId, setCreateTenantId] = useState<string | undefined>(undefined)
   const [selectedRows, setSelectedRows] = useState<User[]>([])
   const [batchRoleModalOpen, setBatchRoleModalOpen] = useState(false)
   const [batchRole, setBatchRole] = useState<string>('')
@@ -150,8 +162,36 @@ export default function UserManagementPage() {
     }
   }
 
+  const fetchTenants = async () => {
+    if (!isPlatformAdmin) return
+    try {
+      const data = await organizationApi.tenants()
+      setTenants(data.tenants)
+    } catch (error) {
+      console.error('Failed to fetch tenants:', error)
+    }
+  }
+
+  const fetchDepartments = async (tenantId?: string) => {
+    try {
+      const data = await organizationApi.departmentTree(tenantId)
+      const flat: DepartmentNode[] = []
+      const walk = (nodes: DepartmentNode[]) => {
+        for (const n of nodes) { flat.push(n); if (n.children?.length) walk(n.children) }
+      }
+      walk(data.departments)
+      setDepartments(flat)
+    } catch (error) {
+      console.error('Failed to fetch departments:', error)
+    }
+  }
+
   useEffect(() => {
     fetchAvailableRoles()
+    fetchTenants()
+    // Load departments for the display column. Tenant admins get their own
+    // tenant's tree; platform admins load lazily per selected tenant.
+    if (!isPlatformAdmin) fetchDepartments()
     setLoading(false)
   }, [])
 
@@ -277,6 +317,15 @@ export default function UserManagementPage() {
       render: (_, user) => <Tag color={roleColors[user.role]}>{roleLabels[user.role] || user.role}</Tag>,
     },
     {
+      title: t('usersManagement.department', 'Department'),
+      dataIndex: 'department_id',
+      width: 140,
+      render: (_, user) => {
+        const dept = departments.find(d => d.id === user.department_id)
+        return dept ? <Text>{dept.name}</Text> : <Text type="secondary">-</Text>
+      },
+    },
+    {
       title: t('usersManagement.status'),
       dataIndex: 'is_active',
       width: 140,
@@ -343,7 +392,10 @@ export default function UserManagementPage() {
             </Space>
             <Space wrap>
               <Button icon={<ReloadOutlined />} onClick={() => actionRef.current?.reload()}>{t('common.refresh')}</Button>
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowCreateModal(true)}>
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => {
+                setShowCreateModal(true)
+                if (!isPlatformAdmin) fetchDepartments()
+              }}>
                 {t('usersManagement.createUser')}
               </Button>
             </Space>
@@ -414,6 +466,37 @@ export default function UserManagementPage() {
           </Form.Item>
           <Form.Item name="role" label={t('usersManagement.role')} rules={[{ required: true }]}>
             <Select options={availableRoles.map(role => ({ label: roleLabels[role.role] || role.role, value: role.role }))} />
+          </Form.Item>
+          {isPlatformAdmin && (
+            <Form.Item name="tenant_id" label={t('usersManagement.tenant', 'Tenant')}>
+              <Select
+                allowClear
+                placeholder={t('usersManagement.tenantPlaceholder', 'Platform user (no tenant)')}
+                options={tenants.map(x => ({ label: `${x.name} (${x.code})`, value: x.id }))}
+                onChange={(value) => {
+                  setCreateTenantId(value)
+                  createForm.setFieldsValue({ department_id: undefined })
+                  fetchDepartments(value)
+                }}
+              />
+            </Form.Item>
+          )}
+          <Form.Item name="department_id" label={t('usersManagement.department', 'Department')}>
+            <Select
+              allowClear
+              placeholder={t('usersManagement.departmentPlaceholder', 'Select department')}
+              disabled={isPlatformAdmin && !createTenantId}
+              options={departments.map(d => ({ label: d.name, value: d.id }))}
+            />
+          </Form.Item>
+          <Form.Item name="data_scope" label={t('usersManagement.dataScope', 'Data Scope')} initialValue="self">
+            <Select
+              options={[
+                { label: t('usersManagement.scopeSelf', 'Own data only'), value: 'self' },
+                { label: t('usersManagement.scopeDepartment', 'Department data'), value: 'department' },
+                { label: t('usersManagement.scopeTenant', 'All tenant data'), value: 'tenant' },
+              ]}
+            />
           </Form.Item>
         </Form>
       </Modal>

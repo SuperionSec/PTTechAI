@@ -54,6 +54,7 @@ class TestRouterRegistration:
         "/api/v1/providers",
         "/api/v1/full-ia",
         "/api/v1/system",
+        "/api/v1/organization",
     ]
 
     def test_all_routers_registered(self, app):
@@ -76,7 +77,7 @@ class TestRouterRegistration:
         system_prefixes = {spec.prefix for spec in SYSTEM_ROUTERS}
         pentest_prefixes = {spec.prefix for spec in PENTEST_ROUTERS}
 
-        assert system_prefixes == {"/api/v1/system", "/api/v1/menus", "/api/v1/audit", "/api/v1/monitor"}
+        assert system_prefixes == {"/api/v1/system", "/api/v1/menus", "/api/v1/audit", "/api/v1/monitor", "/api/v1/organization"}
         assert "/api/v1/settings" in pentest_prefixes
         assert "/api/v1/scheduler" in pentest_prefixes
         assert "/api/v1/knowledge" in pentest_prefixes

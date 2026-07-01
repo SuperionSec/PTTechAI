@@ -116,7 +116,7 @@ class TestFrontendPages:
             if "group: 'system'" in line and "hideInMenu: true" not in line:
                 path = line.split("path: '")[1].split("'")[0]
                 system_paths.append(path)
-        assert system_paths == ["/users", "/roles", "/menus", "/audit", "/monitor", "/languages"]
+        assert system_paths == ["/users", "/roles", "/tenants", "/departments", "/menus", "/audit", "/monitor", "/languages"]
         profile_line = next(line for line in content.splitlines() if "path: '/profile'" in line)
         api_keys_line = next(line for line in content.splitlines() if "path: '/api-keys'" in line)
         assert "hideInMenu: true" in profile_line
@@ -457,7 +457,7 @@ class TestFrontendI18n:
         assert en["sidebar"]["systemSettings"] == "System Settings"
         assert en["sidebar"]["penetrationTesting"] == "Penetration Testing"
         assert zh["sidebar"]["systemSettings"] == "系统设置"
-        assert zh["sidebar"]["penetrationTesting"] == "渗透测试"
+        assert zh["sidebar"]["penetrationTesting"] == "Web安全检测"
 
 
 class TestFrontendNoStaleBrand:

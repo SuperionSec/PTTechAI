@@ -104,6 +104,9 @@ export interface UserCreateRequest {
   password: string
   full_name: string
   role: string
+  tenant_id?: string | null
+  department_id?: string | null
+  data_scope?: string
 }
 
 export interface UserUpdateRequest {
@@ -112,11 +115,14 @@ export interface UserUpdateRequest {
   full_name?: string
   role?: string
   is_active?: boolean
+  tenant_id?: string | null
+  department_id?: string | null
+  data_scope?: string
 }
 
 export const usersApi = {
-  list: async () => {
-    const response = await api.get('/system/users')
+  list: async (params?: { tenant_id?: string; department_id?: string; role?: string; is_active?: boolean }) => {
+    const response = await api.get('/system/users', { params })
     return response.data
   },
   create: async (data: UserCreateRequest) => {
@@ -133,6 +139,121 @@ export const usersApi = {
   },
   resetPassword: async (userId: string, newPassword: string) => {
     const response = await api.post(`/system/users/${userId}/reset-password`, { new_password: newPassword })
+    return response.data
+  },
+}
+
+// ── Organization: Tenants + Departments ──
+export interface Tenant {
+  id: string
+  code: string
+  name: string
+  status: string
+  logo_url?: string | null
+  contact_email?: string | null
+  contact_phone?: string | null
+  max_users?: number | null
+  max_storage_gb?: number | null
+  expires_at?: string | null
+  is_active: boolean
+  created_at?: string | null
+  updated_at?: string | null
+  user_count: number
+  department_count: number
+}
+
+export interface TenantCreateRequest {
+  code: string
+  name: string
+  status?: string
+  contact_email?: string | null
+  contact_phone?: string | null
+  max_users?: number | null
+  max_storage_gb?: number | null
+  expires_at?: string | null
+}
+
+export interface TenantUpdateRequest {
+  name?: string
+  status?: string
+  contact_email?: string | null
+  contact_phone?: string | null
+  max_users?: number | null
+  max_storage_gb?: number | null
+  expires_at?: string | null
+  is_active?: boolean
+}
+
+export interface DepartmentNode {
+  id: string
+  tenant_id: string
+  parent_id: string | null
+  name: string
+  sort_order: number
+  description?: string | null
+  is_active: boolean
+  user_count?: number
+  children: DepartmentNode[]
+}
+
+export interface DepartmentCreateRequest {
+  name: string
+  parent_id?: string | null
+  sort_order?: number
+  description?: string | null
+  tenant_id?: string | null
+}
+
+export interface DepartmentUpdateRequest {
+  name?: string
+  parent_id?: string | null
+  sort_order?: number
+  description?: string | null
+  is_active?: boolean
+}
+
+export const organizationApi = {
+  tenants: async (params?: { search?: string; skip?: number; limit?: number }) => {
+    const response = await api.get<{ tenants: Tenant[]; total: number }>('/organization/tenants', { params })
+    return response.data
+  },
+  tenant: async (id: string) => {
+    const response = await api.get<Tenant>(`/organization/tenants/${id}`)
+    return response.data
+  },
+  createTenant: async (data: TenantCreateRequest) => {
+    const response = await api.post<Tenant>('/organization/tenants', data)
+    return response.data
+  },
+  updateTenant: async (id: string, data: TenantUpdateRequest) => {
+    const response = await api.put<Tenant>(`/organization/tenants/${id}`, data)
+    return response.data
+  },
+  suspendTenant: async (id: string) => {
+    const response = await api.delete<void>(`/organization/tenants/${id}`)
+    return response.data
+  },
+  setTenantAdmin: async (tenantId: string, userId: string) => {
+    const response = await api.post(`/organization/tenants/${tenantId}/admins`, { user_id: userId })
+    return response.data
+  },
+  departmentTree: async (tenantId?: string) => {
+    const response = await api.get<{ departments: DepartmentNode[]; total: number }>(
+      '/organization/departments/tree',
+      { params: tenantId ? { tenant_id: tenantId } : undefined },
+    )
+    return response.data
+  },
+  createDepartment: async (data: DepartmentCreateRequest) => {
+    const response = await api.post<DepartmentNode>('/organization/departments', data)
+    return response.data
+  },
+  updateDepartment: async (id: string, data: DepartmentUpdateRequest) => {
+    const response = await api.put<DepartmentNode>(`/organization/departments/${id}`, data)
+    return response.data
+  },
+  deleteDepartment: async (id: string) => {
+    const response = await api.delete<void>(`/organization/departments/${id}`)
     return response.data
   },
 }

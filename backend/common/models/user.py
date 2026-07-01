@@ -56,6 +56,11 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     role_id: Mapped[str] = mapped_column(String(36), ForeignKey("roles.id"), nullable=False)
+    # ── Multi-tenant organization ──
+    # tenant_id NULL => platform-level user (super admin). Nullable for backward compat.
+    tenant_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=True, index=True)
+    department_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("departments.id"), nullable=True)
+    data_scope: Mapped[str] = mapped_column(String(20), default="self", nullable=False)  # self / department / tenant
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     last_login: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
@@ -92,6 +97,9 @@ class User(Base):
             "full_name": self.full_name,
             "role": self.role_ref.name if self.role_ref else None,
             "role_id": self.role_id,
+            "tenant_id": self.tenant_id,
+            "department_id": self.department_id,
+            "data_scope": self.data_scope,
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "last_login": self.last_login.isoformat() if self.last_login else None

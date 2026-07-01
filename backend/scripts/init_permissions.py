@@ -85,11 +85,19 @@ DEFAULT_PERMISSIONS = [
     {"name": "apptest:read", "description": "View app test tasks, assets, strategies, and reports", "scope": PermissionScope.APPTEST, "action": PermissionAction.READ},
     {"name": "apptest:execute", "description": "Create and run app detection tasks", "scope": PermissionScope.APPTEST, "action": PermissionAction.EXECUTE},
     {"name": "apptest:manage", "description": "Manage app test settings and delete tasks", "scope": PermissionScope.APPTEST, "action": PermissionAction.MANAGE},
+
+    # Tenant management (platform super-admin only)
+    {"name": "tenant:manage", "description": "Manage tenants (create/suspend companies)", "scope": PermissionScope.TENANT, "action": PermissionAction.MANAGE},
+
+    # Organization / department management (tenant admin)
+    {"name": "org:read", "description": "View organization structure and departments", "scope": PermissionScope.ORG, "action": PermissionAction.READ},
+    {"name": "org:manage", "description": "Manage departments and member assignments", "scope": PermissionScope.ORG, "action": PermissionAction.MANAGE},
 ]
 
 # Role-Permission mappings
 DEFAULT_ROLES = {
     "admin": {"display_name": "Administrator", "description": "Full system administrator"},
+    "tenant_admin": {"display_name": "Tenant Administrator", "description": "Manages own tenant's departments and members"},
     "user": {"display_name": "Standard User", "description": "Standard authenticated user"},
     "viewer": {"display_name": "Viewer", "description": "Read-only user"},
     "service": {"display_name": "Service Account", "description": "API-only service account"},
@@ -111,6 +119,24 @@ ROLE_PERMISSIONS = {
         "knowledge:read", "knowledge:update",
         "vuln_library:read", "vuln_library:create", "vuln_library:update", "vuln_library:delete", "vuln_library:manage", "vuln_library:read_exp",
         "apptest:read", "apptest:execute", "apptest:manage",
+        "tenant:manage", "org:read", "org:manage",
+    ],
+    "tenant_admin": [
+        "scan:create", "scan:read", "scan:update", "scan:delete", "scan:execute",
+        "target:create", "target:read", "target:update", "target:delete",
+        "report:create", "report:read", "report:delete",
+        "vulnerability:read", "vulnerability:update",
+        "dashboard:read",
+        "settings:read",
+        "user:create", "user:read", "user:update", "user:delete", "user:manage",
+        "api_key:create", "api_key:read", "api_key:delete",
+        "provider:read",
+        "agent:read", "agent:execute",
+        "scheduler:read",
+        "knowledge:read",
+        "vuln_library:read",
+        "apptest:read", "apptest:execute", "apptest:manage",
+        "org:read", "org:manage",
     ],
     "user": [
         "scan:create", "scan:read", "scan:update", "scan:delete", "scan:execute",
@@ -182,6 +208,9 @@ PERMISSION_FRONTEND_PAGES = {
     "knowledge:update": ["/knowledge"],
     "vuln_library:read": ["/vulnerability-library/overview", "/vulnerability-library/entries", "/vulnerability-library/artifacts", "/vulnerability-library/identifiers", "/vulnerability-library/categories"],
     "vuln_library:manage": ["/vulnerability-library/categories"],
+    "tenant:manage": ["/tenants"],
+    "org:read": ["/departments"],
+    "org:manage": ["/departments"],
 }
 
 # Permission -> Backend APIs mapping
@@ -314,6 +343,23 @@ PERMISSION_BACKEND_APIS = {
         "POST /api/v1/vulnerability-library/categories",
         "PUT /api/v1/vulnerability-library/categories/*",
         "DELETE /api/v1/vulnerability-library/categories/*",
+    ],
+    "tenant:manage": [
+        "GET /api/v1/organization/tenants",
+        "GET /api/v1/organization/tenants/*",
+        "POST /api/v1/organization/tenants",
+        "POST /api/v1/organization/tenants/*",
+        "PUT /api/v1/organization/tenants/*",
+        "DELETE /api/v1/organization/tenants/*",
+    ],
+    "org:read": [
+        "GET /api/v1/organization/departments/tree",
+    ],
+    "org:manage": [
+        "GET /api/v1/organization/departments/tree",
+        "POST /api/v1/organization/departments",
+        "PUT /api/v1/organization/departments/*",
+        "DELETE /api/v1/organization/departments/*",
     ],
 }
 

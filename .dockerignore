@@ -1,0 +1,21 @@
+# Python bytecode / caches — must never be copied into images.
+# Stale .pyc from the host can shadow updated .py sources at runtime.
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node / frontend build artifacts (backend image doesn't need them)
+**/node_modules/
+frontend/dist/
+
+# Local env / VCS / test output
+.git/
+.venv/
+venv/
+*.log
+test-results/
+playwright-report/

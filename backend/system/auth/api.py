@@ -137,6 +137,26 @@ async def login(
             detail="Inactive user"
         )
 
+    # Reject login when the user's tenant has been suspended/deactivated.
+    # Platform-level users (tenant_id is NULL) are unaffected.
+    if getattr(user, "tenant_id", None):
+        from backend.system.organization.models import Tenant
+        tenant = await db.get(Tenant, user.tenant_id)
+        if tenant and (not tenant.is_active or tenant.status != "active"):
+            await record_audit_log(
+                db,
+                user=None,
+                action="auth.tenant_suspended",
+                resource_type="auth",
+                details={"email": credentials.email, "tenant_id": user.tenant_id},
+                request=request,
+            )
+            await db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Your organization has been suspended. Please contact your administrator."
+            )
+
     # Successful authentication: clear throttling state for this IP
     login_limiter.record_success(rate_key)
 

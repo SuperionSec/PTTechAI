@@ -1,0 +1,20 @@
+# PTTechAI E2E override — remaps host ports to avoid conflict with the
+# redamon stack (which occupies 5432 / 8000 / 3000 on the host).
+# `!override` replaces the base port list instead of merging (which would
+# otherwise re-bind the conflicting base ports).
+# Usage:
+#   docker compose -p pttechai -f docker-compose.yml -f docker-compose.e2e.yml up -d --build
+services:
+  postgres:
+    ports: !override
+      - "5433:5432"
+  backend:
+    # Never write/read stale .pyc — a bytecode file shadowing updated source
+    # otherwise causes the worker to run old code after a rebuild.
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+    ports: !override
+      - "8100:8000"
+  frontend:
+    ports: !override
+      - "3100:80"

@@ -15,6 +15,7 @@ class AppTestTask(Base):
     __tablename__ = "apptest_tasks"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=True, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     assets_id: Mapped[Optional[str]] = mapped_column(String(64), index=True)
     document_id: Mapped[Optional[str]] = mapped_column(String(64), index=True)

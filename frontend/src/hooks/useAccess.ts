@@ -41,6 +41,10 @@ export interface AccessMap {
   canUserRead: boolean
   canSettingsRead: boolean
   canSettingsManage: boolean
+  // Organization / Tenant
+  canTenantManage: boolean
+  canOrgRead: boolean
+  canOrgManage: boolean
   // API Key
   canApiKeyRead: boolean
   canApiKeyCreate: boolean
@@ -77,6 +81,9 @@ const DEFAULT_ACCESS: AccessMap = {
   canUserRead: false,
   canSettingsRead: false,
   canSettingsManage: false,
+  canTenantManage: false,
+  canOrgRead: false,
+  canOrgManage: false,
   canApiKeyRead: false,
   canApiKeyCreate: false,
   canApiKeyDelete: false,
@@ -116,6 +123,9 @@ export function useAccess(): AccessMap {
     canUserRead: access.canUserRead ?? false,
     canSettingsRead: access.canSettingsRead ?? false,
     canSettingsManage: access.canSettingsManage ?? false,
+    canTenantManage: access.canTenantManage ?? false,
+    canOrgRead: access.canOrgRead ?? false,
+    canOrgManage: access.canOrgManage ?? false,
     canApiKeyRead: access.canApiKeyRead ?? false,
     canApiKeyCreate: access.canApiKeyCreate ?? false,
     canApiKeyDelete: access.canApiKeyDelete ?? false,

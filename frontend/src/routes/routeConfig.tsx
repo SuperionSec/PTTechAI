@@ -22,6 +22,8 @@ import {
   MenuOutlined,
   BugOutlined,
   LineChartOutlined,
+  BankOutlined,
+  ApartmentOutlined,
 } from '@ant-design/icons'
 import LoginPage from '../pages/LoginPage'
 import RegisterPage from '../pages/RegisterPage'
@@ -59,6 +61,8 @@ import {
   RoleManagementPage,
   UserManagementPage,
   UserProfilePage,
+  TenantManagementPage,
+  DepartmentManagementPage,
 } from '../pages/system'
 import {
   AppTestListPage,
@@ -117,6 +121,8 @@ export const appRoutes: AppRoute[] = [
   { path: '/agent/:agentId', name: 'pages.agentStatus', element: <AgentStatusPage />, access: 'canAccessPage', permission: 'agent:read', hideInMenu: true },
   { path: '/users', name: 'usersManagement.title', element: <UserManagementPage />, icon: <TeamOutlined />, access: 'canAccessPage', permission: 'user:manage', group: 'system' },
   { path: '/roles', name: 'roleManagement.title', element: <RoleManagementPage />, icon: <SafetyCertificateOutlined />, access: 'canAccessPage', permission: 'user:manage', group: 'system' },
+  { path: '/tenants', name: 'tenantManagement.title', element: <TenantManagementPage />, icon: <BankOutlined />, access: 'canAccessPage', permission: 'tenant:manage', group: 'system' },
+  { path: '/departments', name: 'departmentManagement.title', element: <DepartmentManagementPage />, icon: <ApartmentOutlined />, access: 'canAccessPage', permission: 'org:manage', group: 'system' },
   { path: '/menus', name: 'menuManagement.title', element: <MenuManagementPage />, icon: <MenuOutlined />, access: 'canAccessPage', permission: 'settings:manage', group: 'system' },
   { path: '/audit', name: 'audit.title', element: <AuditLogPage />, icon: <FileTextOutlined />, access: 'canAccessPage', permission: 'settings:manage', group: 'system' },
   { path: '/monitor', name: 'monitor.title', element: <SystemMonitorPage />, icon: <DashboardOutlined />, access: 'canAccessPage', permission: 'settings:manage', group: 'system' },
