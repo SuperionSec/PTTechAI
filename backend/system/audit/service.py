@@ -51,6 +51,7 @@ async def record_audit_log(
     request: Request | None = None,
 ) -> None:
     log = AuditLog(
+        tenant_id=getattr(user, "tenant_id", None) if user else None,
         user_id=user.id if user else None,
         username=user.email if user else None,
         action=action,

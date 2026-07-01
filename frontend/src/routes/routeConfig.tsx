@@ -124,7 +124,7 @@ export const appRoutes: AppRoute[] = [
   { path: '/tenants', name: 'tenantManagement.title', element: <TenantManagementPage />, icon: <BankOutlined />, access: 'canAccessPage', permission: 'tenant:manage', group: 'system' },
   { path: '/departments', name: 'departmentManagement.title', element: <DepartmentManagementPage />, icon: <ApartmentOutlined />, access: 'canAccessPage', permission: 'org:manage', group: 'system' },
   { path: '/menus', name: 'menuManagement.title', element: <MenuManagementPage />, icon: <MenuOutlined />, access: 'canAccessPage', permission: 'settings:manage', group: 'system' },
-  { path: '/audit', name: 'audit.title', element: <AuditLogPage />, icon: <FileTextOutlined />, access: 'canAccessPage', permission: 'settings:manage', group: 'system' },
+  { path: '/audit', name: 'audit.title', element: <AuditLogPage />, icon: <FileTextOutlined />, access: 'canAccessPage', permission: 'audit:read', group: 'system' },
   { path: '/monitor', name: 'monitor.title', element: <SystemMonitorPage />, icon: <DashboardOutlined />, access: 'canAccessPage', permission: 'settings:manage', group: 'system' },
 
   { path: '/languages', name: 'languageManagement.title', element: <LanguagesPage />, icon: <TranslationOutlined />, access: 'canAccessPage', permission: 'settings:read', group: 'system' },

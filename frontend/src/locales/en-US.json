@@ -2502,7 +2502,10 @@
     "ip": "IP Address",
     "details": "Details",
     "filterAction": "Filter action",
-    "filterResource": "Filter resource"
+    "filterResource": "Filter resource",
+    "exportCsv": "Export CSV",
+    "exportJson": "Export JSON",
+    "exportFailed": "Failed to export audit logs"
   },
   "monitor": {
     "title": "System Monitor",

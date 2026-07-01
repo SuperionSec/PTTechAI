@@ -2507,7 +2507,10 @@
     "ip": "IP 地址",
     "details": "详情",
     "filterAction": "筛选操作",
-    "filterResource": "筛选资源"
+    "filterResource": "筛选资源",
+    "exportCsv": "导出 CSV",
+    "exportJson": "导出 JSON",
+    "exportFailed": "导出审计日志失败"
   },
   "monitor": {
     "title": "系统监控",

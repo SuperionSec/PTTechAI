@@ -2,8 +2,8 @@ import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { PageContainer, ProTable, StatisticCard } from '@ant-design/pro-components'
 import type { ActionType, ProColumns } from '@ant-design/pro-components'
-import { App as AntApp, Space, Tag, Typography } from 'antd'
-import { FileTextOutlined } from '@ant-design/icons'
+import { App as AntApp, Button, Space, Tag, Typography } from 'antd'
+import { DownloadOutlined, FileTextOutlined } from '@ant-design/icons'
 import { auditApi } from '../../services/system'
 import type { AuditLog } from '../../services/system'
 
@@ -33,6 +33,19 @@ export default function AuditLogPage() {
   const { notification } = AntApp.useApp()
   const actionRef = useRef<ActionType>()
   const [total, setTotal] = useState(0)
+  const [lastFilters, setLastFilters] = useState<Record<string, string | undefined>>({})
+  const [exporting, setExporting] = useState(false)
+
+  const handleExport = async (format: 'csv' | 'json') => {
+    setExporting(true)
+    try {
+      await auditApi.export(format, lastFilters)
+    } catch (err: any) {
+      notification.error({ message: err?.response?.data?.detail || t('audit.exportFailed', 'Failed to export audit logs') })
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const columns: ProColumns<AuditLog>[] = [
     {
@@ -141,12 +154,16 @@ export default function AuditLogPage() {
         }}
         request={async (params) => {
           try {
-            const data = await auditApi.list({
+            const filters = {
               action: params.action || undefined,
               resource_type: params.resource_type || undefined,
               username: params.username || undefined,
               start_date: params.start_date || undefined,
               end_date: params.end_date || undefined,
+            }
+            setLastFilters(filters)
+            const data = await auditApi.list({
+              ...filters,
               page: params.current,
               per_page: params.pageSize,
             })
@@ -169,6 +186,12 @@ export default function AuditLogPage() {
               }}
             />
           </StatisticCard.Group>,
+          <Button key="export-csv" icon={<DownloadOutlined />} loading={exporting} onClick={() => handleExport('csv')}>
+            {t('audit.exportCsv', 'Export CSV')}
+          </Button>,
+          <Button key="export-json" icon={<DownloadOutlined />} loading={exporting} onClick={() => handleExport('json')}>
+            {t('audit.exportJson', 'Export JSON')}
+          </Button>,
         ]}
       />
     </PageContainer>

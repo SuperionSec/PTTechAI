@@ -379,6 +379,22 @@ export const auditApi = {
     const response = await api.get<{ logs: AuditLog[]; total: number }>('/audit', { params })
     return response.data
   },
+  export: async (format: 'csv' | 'json', params?: { action?: string; resource_type?: string; username?: string; start_date?: string; end_date?: string }) => {
+    const response = await api.get('/audit/export', {
+      params: { ...params, format },
+      responseType: 'blob',
+    })
+    // Trigger a browser download of the returned file.
+    const blob = new Blob([response.data], { type: format === 'csv' ? 'text/csv' : 'application/json' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `audit-logs.${format}`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    window.URL.revokeObjectURL(url)
+  },
 }
 
 export interface MonitorHealth {

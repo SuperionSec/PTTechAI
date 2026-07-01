@@ -92,6 +92,9 @@ DEFAULT_PERMISSIONS = [
     # Organization / department management (tenant admin)
     {"name": "org:read", "description": "View organization structure and departments", "scope": PermissionScope.ORG, "action": PermissionAction.READ},
     {"name": "org:manage", "description": "Manage departments and member assignments", "scope": PermissionScope.ORG, "action": PermissionAction.MANAGE},
+
+    # Audit log access / export (compliance)
+    {"name": "audit:read", "description": "View and export audit logs (tenant-scoped)", "scope": PermissionScope.AUDIT, "action": PermissionAction.READ},
 ]
 
 # Role-Permission mappings
@@ -120,6 +123,7 @@ ROLE_PERMISSIONS = {
         "vuln_library:read", "vuln_library:create", "vuln_library:update", "vuln_library:delete", "vuln_library:manage", "vuln_library:read_exp",
         "apptest:read", "apptest:execute", "apptest:manage",
         "tenant:manage", "org:read", "org:manage",
+        "audit:read",
     ],
     "tenant_admin": [
         "scan:create", "scan:read", "scan:update", "scan:delete", "scan:execute",
@@ -137,6 +141,7 @@ ROLE_PERMISSIONS = {
         "vuln_library:read",
         "apptest:read", "apptest:execute", "apptest:manage",
         "org:read", "org:manage",
+        "audit:read",
     ],
     "user": [
         "scan:create", "scan:read", "scan:update", "scan:delete", "scan:execute",
@@ -185,7 +190,7 @@ PERMISSION_FRONTEND_PAGES = {
     "vulnerability:update": ["/vuln-lab"],
     "settings:read": ["/settings", "/languages"],
     "settings:update": ["/settings"],
-    "settings:manage": ["/settings", "/languages", "/mcp", "/menus", "/audit", "/monitor"],
+    "settings:manage": ["/settings", "/languages", "/mcp", "/menus", "/monitor"],
     "user:create": ["/users"],
     "user:read": ["/users", "/profile"],
     "user:update": ["/users"],
@@ -211,6 +216,7 @@ PERMISSION_FRONTEND_PAGES = {
     "tenant:manage": ["/tenants"],
     "org:read": ["/departments"],
     "org:manage": ["/departments"],
+    "audit:read": ["/audit"],
 }
 
 # Permission -> Backend APIs mapping
@@ -249,12 +255,12 @@ PERMISSION_BACKEND_APIS = {
         "POST /api/v1/menus", "POST /api/v1/menus/*",
         "PUT /api/v1/menus/*",
         "DELETE /api/v1/menus/*",
-        "GET /api/v1/audit", "GET /api/v1/audit/*",
         "GET /api/v1/monitor", "GET /api/v1/monitor/*",
         "POST /api/v1/settings/notifications/test/*",
         "POST /api/v1/settings/clear-database",
         "GET /api/v1/settings/models/*",
     ],
+    "audit:read": ["GET /api/v1/audit", "GET /api/v1/audit/*"],
     "user:create": ["POST /api/v1/system/users"],
     "user:read": ["GET /api/v1/system/users", "GET /api/v1/system/users/*", "GET /api/v1/system/profile/me"],
     "user:update": ["PUT /api/v1/system/users/*", "PUT /api/v1/system/profile/me", "PUT /api/v1/system/profile/change-password"],

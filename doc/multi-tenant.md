@@ -107,6 +107,15 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE O
 
 RLS 的会话变量在认证时由 `_set_db_tenant_guc_safe()` 通过 `SELECT set_config('app.current_tenant_id', <tenant>, true)` 设置(事务级,平台超管为空 → 放行)。
 
+## 6.5 审计合规(Audit)
+
+审计日志 `audit_logs` 记录管理操作(who/what/resource/IP/UA/details,敏感字段自动脱敏),
+并携带 `tenant_id`(迁移 `20260701_0003` 加列 + 按用户回填 + `ALTER TYPE permissionscope ADD VALUE 'AUDIT'`)。
+
+- **权限**:新增 `audit:read`(scope `AUDIT`),授予 `admin` 与 `tenant_admin`。菜单 `/audit` 从 `settings:manage` 迁移到 `audit:read`。
+- **租户隔离**:平台超管看全部(可 `?tenant_id=` 收窄);租户管理员**只见本租户**日志;普通用户 403。
+- **导出**:`GET /api/v1/audit/export?format=csv|json`(遵循同一过滤 + 租户范围),前端审计页提供「导出 CSV / JSON」按钮,供合规归档。
+
 ## 7. 测试
 
 ### 7.1 后端(pytest)
