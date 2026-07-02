@@ -31,6 +31,7 @@ class PermissionScope(str, Enum):
     PENTEST2 = "pentest2"        # PTTechAI Pentest 2.0 management
     APPTEST = "apptest"          # App security test management
     AUDIT = "audit"              # Audit log access / export
+    SESSION = "session"          # Online session management
     TENANT = "tenant"            # Tenant management (platform super-admin)
     ORG = "org"                  # Organization/department management (tenant admin)
 

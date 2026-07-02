@@ -38,7 +38,7 @@ SIDEBAR_GROUPS = [
         "name": "sidebar.systemSettings",
         "icon": "SettingOutlined",
         "sort_order": 20,
-        "paths": ["/users", "/roles", "/tenants", "/departments", "/menus", "/audit", "/monitor", "/languages"],
+        "paths": ["/users", "/roles", "/tenants", "/departments", "/menus", "/audit", "/sessions", "/monitor", "/languages"],
     },
 ]
 

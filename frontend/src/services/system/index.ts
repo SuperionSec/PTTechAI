@@ -259,8 +259,8 @@ export const organizationApi = {
 }
 
 export const profileApi = {
-  update: async (fullName: string) => {
-    const response = await api.put('/system/profile/me', { full_name: fullName })
+  update: async (data: { full_name?: string; phone?: string; remark?: string }) => {
+    const response = await api.put('/system/profile/me', data)
     return response.data
   },
   changePassword: async (currentPassword: string, newPassword: string) => {
@@ -380,11 +380,7 @@ export const auditApi = {
     return response.data
   },
   export: async (format: 'csv' | 'json', params?: { action?: string; resource_type?: string; username?: string; start_date?: string; end_date?: string }) => {
-    const response = await api.get('/audit/export', {
-      params: { ...params, format },
-      responseType: 'blob',
-    })
-    // Trigger a browser download of the returned file.
+    const response = await api.get('/audit/export', { params: { ...params, format }, responseType: 'blob' })
     const blob = new Blob([response.data], { type: format === 'csv' ? 'text/csv' : 'application/json' })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -394,6 +390,31 @@ export const auditApi = {
     a.click()
     a.remove()
     window.URL.revokeObjectURL(url)
+  },
+}
+
+export interface OnlineSession {
+  jti: string
+  user_id: string
+  username: string
+  full_name?: string | null
+  tenant_id?: string | null
+  ip_address?: string | null
+  device_info?: string | null
+  login_method?: string | null
+  created_at?: string | null
+  last_used_at?: string | null
+  expires_at?: string | null
+}
+
+export const sessionApi = {
+  list: async () => {
+    const response = await api.get<{ sessions: OnlineSession[]; total: number }>('/system/sessions')
+    return response.data
+  },
+  forceLogout: async (jti: string) => {
+    const response = await api.delete(`/system/sessions/${jti}`)
+    return response.data
   },
 }
 

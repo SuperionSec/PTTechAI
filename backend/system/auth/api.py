@@ -23,7 +23,7 @@ from backend.common.infra.auth import (
     authenticate_user,
     create_access_token,
     create_refresh_token,
-    get_password_hash,
+    hash_new_password,
     get_current_user,
     get_user,
     get_user_by_id,
@@ -73,7 +73,7 @@ async def register(
         )
 
     # Create new user
-    hashed_password = get_password_hash(user_data.password)
+    hashed_password = hash_new_password(user_data.password, email=user_data.email)
     role_model = await resolve_active_role(db, user_data.role)
     db_user = User(
         email=user_data.email,
@@ -351,7 +351,13 @@ async def update_me(
     
     if user_data.full_name is not None:
         current_user.full_name = user_data.full_name
-    
+    if user_data.phone is not None:
+        current_user.phone = user_data.phone
+    if user_data.avatar is not None:
+        current_user.avatar = user_data.avatar
+    if user_data.remark is not None:
+        current_user.remark = user_data.remark
+
     await record_audit_log(
         db,
         user=current_user,
@@ -376,16 +382,29 @@ async def change_password(
 ):
     """Change current user password"""
     from backend.common.infra.auth import verify_password
-    
+    from backend.common.infra.token_manager import revoke_all_user_tokens
+
     # Verify current password
     if not verify_password(password_data.current_password, current_user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Current password is incorrect"
         )
-    
-    # Update to new password
-    current_user.hashed_password = get_password_hash(password_data.new_password)
+
+    # Reject reusing the same password
+    if verify_password(password_data.new_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be different from the current password"
+        )
+
+    # Update to new password (policy-validated) and stamp the change time.
+    current_user.hashed_password = hash_new_password(password_data.new_password, email=current_user.email)
+    if hasattr(current_user, "pwd_update_date"):
+        from datetime import datetime, timezone
+        current_user.pwd_update_date = datetime.now(timezone.utc).replace(tzinfo=None)
+    # Invalidate all existing sessions so the change forces re-login everywhere.
+    await revoke_all_user_tokens(db, current_user.id, commit=False)
     await record_audit_log(
         db,
         user=current_user,
@@ -395,8 +414,8 @@ async def change_password(
         request=request,
     )
     await db.commit()
-    
-    return {"message": "Password changed successfully"}
+
+    return {"message": "Password changed successfully. Please log in again."}
 
 
 @router.post("/logout")

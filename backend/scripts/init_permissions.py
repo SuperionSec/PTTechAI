@@ -95,6 +95,9 @@ DEFAULT_PERMISSIONS = [
 
     # Audit log access / export (compliance)
     {"name": "audit:read", "description": "View and export audit logs (tenant-scoped)", "scope": PermissionScope.AUDIT, "action": PermissionAction.READ},
+
+    # Online session management (list active sessions, force-logout)
+    {"name": "session:manage", "description": "View active sessions and force-logout users", "scope": PermissionScope.SESSION, "action": PermissionAction.MANAGE},
 ]
 
 # Role-Permission mappings
@@ -123,7 +126,7 @@ ROLE_PERMISSIONS = {
         "vuln_library:read", "vuln_library:create", "vuln_library:update", "vuln_library:delete", "vuln_library:manage", "vuln_library:read_exp",
         "apptest:read", "apptest:execute", "apptest:manage",
         "tenant:manage", "org:read", "org:manage",
-        "audit:read",
+        "audit:read", "session:manage",
     ],
     "tenant_admin": [
         "scan:create", "scan:read", "scan:update", "scan:delete", "scan:execute",
@@ -141,7 +144,7 @@ ROLE_PERMISSIONS = {
         "vuln_library:read",
         "apptest:read", "apptest:execute", "apptest:manage",
         "org:read", "org:manage",
-        "audit:read",
+        "audit:read", "session:manage",
     ],
     "user": [
         "scan:create", "scan:read", "scan:update", "scan:delete", "scan:execute",
@@ -217,6 +220,7 @@ PERMISSION_FRONTEND_PAGES = {
     "org:read": ["/departments"],
     "org:manage": ["/departments"],
     "audit:read": ["/audit"],
+    "session:manage": ["/sessions"],
 }
 
 # Permission -> Backend APIs mapping
@@ -261,6 +265,7 @@ PERMISSION_BACKEND_APIS = {
         "GET /api/v1/settings/models/*",
     ],
     "audit:read": ["GET /api/v1/audit", "GET /api/v1/audit/*"],
+    "session:manage": ["GET /api/v1/system/sessions", "DELETE /api/v1/system/sessions/*"],
     "user:create": ["POST /api/v1/system/users"],
     "user:read": ["GET /api/v1/system/users", "GET /api/v1/system/users/*", "GET /api/v1/system/profile/me"],
     "user:update": ["PUT /api/v1/system/users/*", "PUT /api/v1/system/profile/me", "PUT /api/v1/system/profile/change-password"],

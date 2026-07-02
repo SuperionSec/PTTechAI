@@ -114,6 +114,10 @@ test.describe('模块: 系统设置 (system)', () => {
   test('审计日志页', async ({ page }) => {
     await assertPageRenders(page, '/audit')
   })
+  test('在线用户页 (新)', async ({ page }) => {
+    await assertPageRenders(page, '/sessions')
+    await expect(page.locator('.ant-table, .ant-statistic').first()).toBeVisible()
+  })
   test('系统监控页', async ({ page }) => {
     await assertPageRenders(page, '/monitor')
   })

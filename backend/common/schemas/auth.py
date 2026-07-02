@@ -15,8 +15,10 @@ class UserLogin(BaseModel):
 class UserCreate(BaseModel):
     """Schema for user registration"""
     email: EmailStr = Field(..., description="User email")
-    password: str = Field(..., min_length=8, description="User password (min 8 chars)")
+    password: str = Field(..., min_length=8, description="User password (policy-validated)")
     full_name: Optional[str] = Field(None, description="User full name")
+    phone: Optional[str] = Field(None, max_length=32, description="Contact phone")
+    remark: Optional[str] = Field(None, max_length=500, description="Free-text remark")
     role: Optional[str] = Field(None, description="User role name")
     tenant_id: Optional[str] = Field(None, description="Tenant ID (platform admin only; tenant admins locked to own tenant)")
     department_id: Optional[str] = Field(None, description="Department ID within the tenant")
@@ -27,6 +29,8 @@ class UserUpdate(BaseModel):
     """Schema for admin updating user information."""
     email: Optional[EmailStr] = None
     full_name: Optional[str] = None
+    phone: Optional[str] = Field(None, max_length=32)
+    remark: Optional[str] = Field(None, max_length=500)
     password: Optional[str] = Field(None, min_length=8)
     is_active: Optional[bool] = None
     role: Optional[str] = None
@@ -39,20 +43,30 @@ class UserProfileUpdate(BaseModel):
     """Schema for users updating their own profile."""
     email: Optional[EmailStr] = None
     full_name: Optional[str] = None
+    phone: Optional[str] = Field(None, max_length=32)
+    avatar: Optional[str] = Field(None, max_length=512)
+    remark: Optional[str] = Field(None, max_length=500)
 
 
 class ResetPasswordRequest(BaseModel):
     """Schema for admin password reset."""
-    new_password: str = Field(..., min_length=8, description="New password (min 8 chars)")
+    new_password: str = Field(..., min_length=8, description="New password (policy-validated)")
 
 
 def user_to_response(user) -> "UserResponse":
-    """Convert a User ORM object to UserResponse."""
-    role = user.role_ref.name if getattr(user, "role_ref", None) else (user.role or "")
+    """Convert a User ORM object to UserResponse.
+
+    Uses ``user.role`` (which reads an already-loaded role_ref or a transient
+    override without triggering async lazy-load) to avoid MissingGreenlet.
+    """
+    role = getattr(user, "role", None) or ""
     return UserResponse(
         id=user.id,
         email=user.email,
         full_name=user.full_name,
+        phone=getattr(user, "phone", None),
+        avatar=getattr(user, "avatar", None),
+        remark=getattr(user, "remark", None),
         role=role,
         is_active=user.is_active,
         tenant_id=getattr(user, "tenant_id", None),
@@ -68,6 +82,9 @@ class UserResponse(BaseModel):
     id: str
     email: str
     full_name: Optional[str]
+    phone: Optional[str] = None
+    avatar: Optional[str] = None
+    remark: Optional[str] = None
     role: str
     is_active: bool
     tenant_id: Optional[str] = None

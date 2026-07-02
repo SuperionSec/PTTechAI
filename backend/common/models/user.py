@@ -55,6 +55,11 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    # ── Profile fields (RuoYi-style sys_user parity) ──
+    phone: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    avatar: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    remark: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    pwd_update_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     role_id: Mapped[str] = mapped_column(String(36), ForeignKey("roles.id"), nullable=False)
     # ── Multi-tenant organization ──
     # tenant_id NULL => platform-level user (super admin). Nullable for backward compat.
@@ -95,6 +100,9 @@ class User(Base):
             "id": self.id,
             "email": self.email,
             "full_name": self.full_name,
+            "phone": self.phone,
+            "avatar": self.avatar,
+            "remark": self.remark,
             "role": self.role_ref.name if self.role_ref else None,
             "role_id": self.role_id,
             "tenant_id": self.tenant_id,
@@ -102,7 +110,8 @@ class User(Base):
             "data_scope": self.data_scope,
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,
-            "last_login": self.last_login.isoformat() if self.last_login else None
+            "last_login": self.last_login.isoformat() if self.last_login else None,
+            "pwd_update_date": self.pwd_update_date.isoformat() if self.pwd_update_date else None,
         }
 
 

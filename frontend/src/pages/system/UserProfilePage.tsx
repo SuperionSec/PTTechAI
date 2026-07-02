@@ -16,6 +16,8 @@ const { Text } = Typography
 
 interface ProfileFormValues {
   full_name: string
+  phone?: string
+  remark?: string
 }
 
 interface PasswordFormValues {
@@ -92,7 +94,11 @@ export default function UserProfilePage() {
   }, [roles])
 
   const handleEditProfile = () => {
-    profileForm.setFieldsValue({ full_name: user?.full_name || '' })
+    profileForm.setFieldsValue({
+      full_name: user?.full_name || '',
+      phone: (user as { phone?: string })?.phone || '',
+      remark: (user as { remark?: string })?.remark || '',
+    })
     setEditing(true)
   }
 
@@ -100,7 +106,7 @@ export default function UserProfilePage() {
     const values = await profileForm.validateFields()
     setProfileLoading(true)
     try {
-      await profileApi.update(values.full_name)
+      await profileApi.update({ full_name: values.full_name, phone: values.phone, remark: values.remark })
       notification.success({ message: t('profile.updateSuccess') })
       setEditing(false)
       fetchUser()
@@ -177,6 +183,12 @@ export default function UserProfilePage() {
               <Form.Item name="full_name" label={t('usersManagement.fullName')} rules={[{ required: true }]}>
                 <Input />
               </Form.Item>
+              <Form.Item name="phone" label={t('usersManagement.phone', 'Phone')}>
+                <Input />
+              </Form.Item>
+              <Form.Item name="remark" label={t('usersManagement.remark', 'Remark')}>
+                <Input.TextArea rows={2} maxLength={500} />
+              </Form.Item>
               <Form.Item label={t('login.email')}>
                 <Input value={user.email} disabled />
               </Form.Item>
@@ -209,7 +221,7 @@ export default function UserProfilePage() {
               <Form.Item name="current_password" label={t('profile.currentPassword')} rules={[{ required: true }]}>
                 <Input.Password />
               </Form.Item>
-              <Form.Item name="new_password" label={t('profile.newPassword')} rules={[{ required: true }, { min: 8, message: t('register.passwordTooShort') }]}>
+              <Form.Item name="new_password" label={t('profile.newPassword')} rules={[{ required: true }, { min: 8, message: t('register.passwordTooShort') }]} extra={t('passwordPolicy.hint')}>
                 <Input.Password />
               </Form.Item>
               <Form.Item name="confirm_password" label={t('profile.confirmNewPassword')} rules={[{ required: true }]}>

@@ -437,7 +437,9 @@
     "newPasswordOptional": "New Password (leave blank to keep)",
     "passwordTooShort": "Password must be at least 8 characters",
     "deactivate": "Deactivate",
-    "activate": "Activate"
+    "activate": "Activate",
+    "phone": "Phone",
+    "remark": "Remark"
   },
   "apiKeys": {
     "title": "My API Tokens",
@@ -2734,5 +2736,26 @@
     "noMembers": "This department has no direct members",
     "selectPrompt": "Select a department to view details and members",
     "resetPasswordFor": "Reset password for"
+  },
+  "sessionManagement": {
+    "title": "Online Sessions",
+    "subtitle": "Active user sessions; force-logout if needed",
+    "online": "Online Sessions",
+    "user": "User",
+    "ip": "IP",
+    "device": "Device",
+    "loginMethod": "Login",
+    "loginTime": "Login Time",
+    "lastActive": "Last Active",
+    "forceLogout": "Force logout",
+    "forceLogoutTitle": "Force logout",
+    "forceLogoutConfirm": "This will immediately sign the user out.",
+    "logoutSuccess": "Session terminated",
+    "logoutFailed": "Failed to terminate session",
+    "fetchFailed": "Failed to fetch sessions"
+  },
+  "passwordPolicy": {
+    "hint": "8-72 chars; at least 3 of: lowercase, uppercase, digit, special char",
+    "tooWeak": "Password does not meet the strength requirements"
   }
 }

@@ -437,7 +437,9 @@
     "newPasswordOptional": "新密码(留空则不改)",
     "passwordTooShort": "密码至少需要8位",
     "deactivate": "停用",
-    "activate": "启用"
+    "activate": "启用",
+    "phone": "手机号",
+    "remark": "备注"
   },
   "apiKeys": {
     "title": "我的 API Token",
@@ -2739,5 +2741,26 @@
     "noMembers": "该部门暂无直属成员",
     "selectPrompt": "选择左侧部门查看详情与成员",
     "resetPasswordFor": "重置密码"
+  },
+  "sessionManagement": {
+    "title": "在线用户",
+    "subtitle": "当前活跃会话,可强制下线",
+    "online": "在线会话",
+    "user": "用户",
+    "ip": "IP",
+    "device": "设备",
+    "loginMethod": "登录方式",
+    "loginTime": "登录时间",
+    "lastActive": "最近活跃",
+    "forceLogout": "强制下线",
+    "forceLogoutTitle": "强制下线",
+    "forceLogoutConfirm": "该用户会话将被立即注销。",
+    "logoutSuccess": "会话已终止",
+    "logoutFailed": "终止会话失败",
+    "fetchFailed": "获取会话失败"
+  },
+  "passwordPolicy": {
+    "hint": "8-72位;至少包含小写、大写、数字、特殊字符中的3类",
+    "tooWeak": "密码不满足强度要求"
   }
 }

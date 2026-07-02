@@ -43,6 +43,7 @@ FRONTEND_ROUTES = [
     ("/departments", "departmentManagement.title", "org:manage", "ApartmentOutlined", "system"),
     ("/menus", "menuManagement.title", "settings:manage", "MenuOutlined", "system"),
     ("/audit", "audit.title", "audit:read", "FileTextOutlined", "system"),
+    ("/sessions", "sessionManagement.title", "session:manage", "TeamOutlined", "system"),
     ("/monitor", "monitor.title", "settings:manage", "DashboardOutlined", "system"),
     ("/languages", "languageManagement.title", "settings:read", "TranslationOutlined", "system"),
     ("/settings", "sidebar.settings", "settings:read", "SettingOutlined", "pentest"),

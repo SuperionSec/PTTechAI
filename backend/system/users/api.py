@@ -10,7 +10,7 @@ from sqlalchemy import select
 from backend.common.db.database import get_db
 from backend.common.models.user import User
 from backend.common.schemas.auth import UserResponse, UserUpdate, UserCreate, ResetPasswordRequest, user_to_response
-from backend.common.infra.auth import get_current_user, get_password_hash, get_user_by_id, get_user
+from backend.common.infra.auth import get_current_user, hash_new_password, get_user_by_id, get_user
 from backend.common.infra.permissions import require_user_manage, require_user_read, require_user_create, require_user_update, require_user_delete
 from backend.common.infra.rbac.access_helpers import is_platform_admin
 from backend.system.rbac.service import resolve_active_role
@@ -69,7 +69,7 @@ async def create_user(
             detail="Email already registered"
         )
     
-    hashed_password = get_password_hash(user_data.password)
+    hashed_password = hash_new_password(user_data.password, email=user_data.email)
     role_model = await resolve_active_role(db, user_data.role)
     tenant_id, department_id = await _resolve_org_assignment(
         db, current_user, user_data.tenant_id, user_data.department_id
@@ -78,6 +78,8 @@ async def create_user(
         email=user_data.email,
         hashed_password=hashed_password,
         full_name=user_data.full_name,
+        phone=user_data.phone,
+        remark=user_data.remark,
         role_id=role_model.id,
         tenant_id=tenant_id,
         department_id=department_id,
@@ -98,18 +100,8 @@ async def create_user(
     await db.commit()
     await db.refresh(db_user)
 
-    return UserResponse(
-        id=db_user.id,
-        email=db_user.email,
-        full_name=db_user.full_name,
-        role=role_model.name,
-        is_active=db_user.is_active,
-        tenant_id=db_user.tenant_id,
-        department_id=db_user.department_id,
-        data_scope=db_user.data_scope,
-        created_at=db_user.created_at.isoformat() if db_user.created_at else None,
-        last_login=db_user.last_login.isoformat() if db_user.last_login else None,
-    )
+    db_user.role = role_model.name  # transient override so response has role without lazy-load
+    return user_to_response(db_user)
 
 
 @router.get("/me", response_model=UserResponse)
@@ -253,8 +245,14 @@ async def update_user(
     if user_data.full_name is not None:
         user.full_name = user_data.full_name
 
+    if user_data.phone is not None:
+        user.phone = user_data.phone
+
+    if user_data.remark is not None:
+        user.remark = user_data.remark
+
     if user_data.password is not None:
-        user.hashed_password = get_password_hash(user_data.password)
+        user.hashed_password = hash_new_password(user_data.password, email=user.email)
 
     if user_data.is_active is not None:
         user.is_active = user_data.is_active
@@ -350,20 +348,20 @@ async def reset_user_password(
     db: AsyncSession = Depends(get_db)
 ):
     """Reset user password (Admin only)"""
-    if len(body.new_password) < 8:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password must be at least 8 characters"
-        )
-    
     user = await get_user_by_id(db, user_id=user_id)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    
-    user.hashed_password = get_password_hash(body.new_password)
+
+    # Policy-validate against the target user's email, then invalidate their sessions.
+    user.hashed_password = hash_new_password(body.new_password, email=user.email)
+    if hasattr(user, "pwd_update_date"):
+        from datetime import datetime, timezone
+        user.pwd_update_date = datetime.now(timezone.utc).replace(tzinfo=None)
+    from backend.common.infra.token_manager import revoke_all_user_tokens
+    await revoke_all_user_tokens(db, user.id, commit=False)
     await record_audit_log(
         db,
         user=current_user,

@@ -53,6 +53,23 @@ def get_password_hash(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
+def hash_new_password(password: str, *, email: str | None = None) -> str:
+    """Validate a user-chosen password against the policy, then hash it.
+
+    Use this at all user-facing password set points (register, admin create,
+    change, reset). Service/seed accounts that bypass the policy should call
+    ``get_password_hash`` directly.
+    """
+    from fastapi import HTTPException, status as _status
+    from backend.common.infra.password_policy import validate_password, PasswordPolicyError
+
+    try:
+        validate_password(password, email=email)
+    except PasswordPolicyError as exc:
+        raise HTTPException(status_code=_status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    return get_password_hash(password)
+
+
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """Create a JWT access token with JTI for revocation support"""
     to_encode = data.copy()

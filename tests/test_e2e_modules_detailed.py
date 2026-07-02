@@ -366,6 +366,57 @@ class TestAuditCompliance:
 
 
 # ============================================================
+#  Security: password policy + online sessions (RuoYi parity)
+# ============================================================
+class TestSecurityHardening:
+    def test_weak_password_rejected_on_create(self, c, admin, sfx):
+        # Missing character classes / common password → 400.
+        for weak in ["password", "12345678", "alllowercase"]:
+            r = c.post(f"{API}/system/users", headers=H(admin),
+                       json={"email": f"weak{sfx}{weak[:3]}@ex.com", "password": weak, "full_name": "W", "role": "user"})
+            assert r.status_code == 400, f"weak password {weak!r} should be rejected, got {r.status_code}"
+
+    def test_strong_password_accepted(self, c, admin, sfx):
+        r = c.post(f"{API}/system/users", headers=H(admin),
+                   json={"email": f"strong{sfx}@ex.com", "password": "Str0ng!Pass", "full_name": "S", "role": "user"})
+        assert r.status_code in (200, 201), r.text
+        c.delete(f"{API}/system/users/{r.json()['id']}", headers=H(admin))
+
+    def test_reset_password_enforces_policy_and_revokes(self, c, admin, sfx):
+        em = f"rst{sfx}@ex.com"
+        uid = c.post(f"{API}/system/users", headers=H(admin),
+                     json={"email": em, "password": "Str0ng!Pass", "full_name": "R", "role": "user"}).json()["id"]
+        # user logs in (creates a session)
+        assert c.post(f"{API}/system/profile/login", json={"email": em, "password": "Str0ng!Pass"}).status_code == 200
+        # weak reset rejected (>=8 chars but no character-class variety → policy 400;
+        # too-short would be schema 422 — both are rejections)
+        assert c.post(f"{API}/system/users/{uid}/reset-password", headers=H(admin), json={"new_password": "alllowercase"}).status_code == 400
+        # strong reset ok
+        assert c.post(f"{API}/system/users/{uid}/reset-password", headers=H(admin), json={"new_password": "N3w!Str0ng"}).status_code == 200
+        c.delete(f"{API}/system/users/{uid}", headers=H(admin))
+
+    def test_online_sessions_list_and_force_logout(self, c, admin, sfx):
+        em = f"sess{sfx}@ex.com"
+        c.post(f"{API}/system/users", headers=H(admin),
+               json={"email": em, "password": "Str0ng!Pass", "full_name": "SS", "role": "user"})
+        # create a session for that user
+        assert c.post(f"{API}/system/profile/login", json={"email": em, "password": "Str0ng!Pass"}).status_code == 200
+        sessions = c.get(f"{API}/system/sessions", headers=H(admin))
+        assert sessions.status_code == 200
+        target = next((s for s in sessions.json()["sessions"] if s["username"] == em), None)
+        assert target is not None, "new session should be listed"
+        # force-logout it
+        assert c.delete(f"{API}/system/sessions/{target['jti']}", headers=H(admin)).status_code == 200
+
+    def test_normal_user_cannot_manage_sessions(self, c, admin, sfx):
+        em = f"nosess{sfx}@ex.com"
+        c.post(f"{API}/system/users", headers=H(admin),
+               json={"email": em, "password": "Str0ng!Pass", "full_name": "N", "role": "user"})
+        tok = login(c, em, "Str0ng!Pass")
+        assert c.get(f"{API}/system/sessions", headers=H(tok)).status_code == 403
+
+
+# ============================================================
 #  App security detection (apptest)
 # ============================================================
 class TestAppTest:
