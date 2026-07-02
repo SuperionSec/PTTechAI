@@ -79,6 +79,9 @@ COPY --from=go-builder /go/bin/ /usr/local/bin/
 COPY --from=python-deps /root/.local /root/.local
 ENV PATH=/root/.local/bin:$PATH
 ENV PYTHONPATH=/app:/app/backend
+# Never read/write .pyc — avoids stale bytecode shadowing updated sources.
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 # Copy application code
 COPY backend/ ./backend/
