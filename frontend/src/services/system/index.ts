@@ -243,8 +243,8 @@ export const organizationApi = {
     const response = await api.delete<void>(`/organization/tenants/${id}`)
     return response.data
   },
-  setTenantAdmin: async (tenantId: string, userId: string) => {
-    const response = await api.post(`/organization/tenants/${tenantId}/admins`, { user_id: userId })
+  setTenantAdmin: async (tenantId: string, userId: string, isTenantAdmin: boolean = true) => {
+    const response = await api.post(`/organization/tenants/${tenantId}/admins`, { user_id: userId, is_tenant_admin: isTenantAdmin })
     return response.data
   },
   departmentTree: async (tenantId?: string) => {

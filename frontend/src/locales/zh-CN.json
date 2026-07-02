@@ -439,7 +439,10 @@
     "deactivate": "停用",
     "activate": "启用",
     "phone": "手机号",
-    "remark": "备注"
+    "remark": "备注",
+    "platformUser": "平台",
+    "filterByTenant": "按租户筛选",
+    "filterByRole": "按角色筛选"
   },
   "apiKeys": {
     "title": "我的 API Token",
@@ -2420,7 +2423,10 @@
     "unmappedTab": "资源覆盖",
     "unmappedDesc": "未绑定权限的前端页面和后端 API",
     "clone": "克隆",
-    "details": "详情"
+    "details": "详情",
+    "members": "成员",
+    "noMembers": "没有用户拥有该角色",
+    "tenantAdmin": "租户管理员"
   },
   "vulnAgent": {
     "notEnabled": "此扫描未启用逐漏洞 Agent 编排。",
@@ -2704,7 +2710,17 @@
     "admins": "租户管理员",
     "noAdmins": "暂无租户管理员",
     "deptTree": "部门树",
-    "detailFailed": "加载租户详情失败"
+    "detailFailed": "加载租户详情失败",
+    "setAdmin": "设为管理员",
+    "setAdminHint": "将本租户的现有用户提升为租户管理员。",
+    "selectUser": "选择用户",
+    "noEligibleUsers": "无可选用户(均已是管理员)",
+    "removeAdmin": "取消",
+    "removeAdminConfirm": "将该管理员降级为普通用户?",
+    "adminSet": "已设置租户管理员",
+    "adminSetFailed": "设置管理员失败",
+    "adminRemoved": "已取消租户管理员",
+    "adminRemoveFailed": "取消管理员失败"
   },
   "departmentManagement": {
     "title": "部门管理",

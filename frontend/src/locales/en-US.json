@@ -439,7 +439,10 @@
     "deactivate": "Deactivate",
     "activate": "Activate",
     "phone": "Phone",
-    "remark": "Remark"
+    "remark": "Remark",
+    "platformUser": "Platform",
+    "filterByTenant": "Filter by tenant",
+    "filterByRole": "Filter by role"
   },
   "apiKeys": {
     "title": "My API Tokens",
@@ -2420,7 +2423,10 @@
     "unmappedTab": "Access Coverage",
     "unmappedDesc": "Frontend pages and backend APIs without explicit permission bindings",
     "clone": "Clone",
-    "details": "Details"
+    "details": "Details",
+    "members": "Members",
+    "noMembers": "No users hold this role",
+    "tenantAdmin": "Tenant Administrator"
   },
   "vulnAgent": {
     "notEnabled": "Per-vulnerability agent orchestration is not enabled for this scan.",
@@ -2699,7 +2705,17 @@
     "admins": "Tenant Administrators",
     "noAdmins": "No tenant administrators assigned",
     "deptTree": "Department Tree",
-    "detailFailed": "Failed to load tenant detail"
+    "detailFailed": "Failed to load tenant detail",
+    "setAdmin": "Set Admin",
+    "setAdminHint": "Promote an existing tenant user to tenant administrator.",
+    "selectUser": "Select a user",
+    "noEligibleUsers": "No eligible users (all are already admins)",
+    "removeAdmin": "Remove",
+    "removeAdminConfirm": "Demote this administrator to a regular user?",
+    "adminSet": "Tenant administrator set",
+    "adminSetFailed": "Failed to set admin",
+    "adminRemoved": "Tenant administrator removed",
+    "adminRemoveFailed": "Failed to remove admin"
   },
   "departmentManagement": {
     "title": "Department Management",

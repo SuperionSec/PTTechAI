@@ -17,6 +17,7 @@ import {
   Switch,
   Tag,
   Tooltip,
+  TreeSelect,
   Typography,
 } from 'antd'
 import {
@@ -33,6 +34,15 @@ import { systemApi, usersApi, organizationApi } from '../../services/system'
 import type { RoleSummary, DepartmentNode, Tenant } from '../../services/system'
 
 const { Text } = Typography
+
+/** Convert a DepartmentNode tree into antd TreeSelect treeData. */
+function deptToTreeSelect(nodes: DepartmentNode[]): any[] {
+  return nodes.map(n => ({
+    title: n.name,
+    value: n.id,
+    children: n.children?.length ? deptToTreeSelect(n.children) : undefined,
+  }))
+}
 
 interface User {
   id: string
@@ -91,8 +101,14 @@ export default function UserManagementPage() {
   const [showServiceNotice, setShowServiceNotice] = useState(false)
   const [availableRoles, setAvailableRoles] = useState<RoleSummary[]>([])
   const [tenants, setTenants] = useState<Tenant[]>([])
-  const [departments, setDepartments] = useState<DepartmentNode[]>([])
   const [createTenantId, setCreateTenantId] = useState<string | undefined>(undefined)
+  // Department tree (raw) for the create form's TreeSelect.
+  const [deptTree, setDeptTree] = useState<DepartmentNode[]>([])
+  // Filters (platform admin): by tenant and by role.
+  const [filterTenantId, setFilterTenantId] = useState<string | undefined>(undefined)
+  const [filterRole, setFilterRole] = useState<string | undefined>(undefined)
+  // id -> name maps for showing tenant/department names in the table.
+  const [deptNameMap, setDeptNameMap] = useState<Record<string, string>>({})
   const [selectedRows, setSelectedRows] = useState<User[]>([])
   const [batchRoleModalOpen, setBatchRoleModalOpen] = useState(false)
   const [batchRole, setBatchRole] = useState<string>('')
@@ -139,10 +155,18 @@ export default function UserManagementPage() {
     notification[type]({ message })
   }
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (params?: { tenant_id?: string; role?: string }) => {
     try {
-      const data = await usersApi.list()
+      const data = await usersApi.list({ tenant_id: params?.tenant_id, role: params?.role })
       setUsers(data)
+      // Build a department id->name map for the visible tenant scope.
+      try {
+        const treeData = await organizationApi.departmentTree(params?.tenant_id)
+        const flat: DepartmentNode[] = []
+        const walk = (n: DepartmentNode[]) => { n.forEach(d => { flat.push(d); if (d.children?.length) walk(d.children) }) }
+        walk(treeData.departments)
+        setDeptNameMap(Object.fromEntries(flat.map(d => [d.id, d.name])))
+      } catch { /* ignore */ }
       return data
     } catch (error) {
       console.error('Failed to fetch users:', error)
@@ -175,12 +199,7 @@ export default function UserManagementPage() {
   const fetchDepartments = async (tenantId?: string) => {
     try {
       const data = await organizationApi.departmentTree(tenantId)
-      const flat: DepartmentNode[] = []
-      const walk = (nodes: DepartmentNode[]) => {
-        for (const n of nodes) { flat.push(n); if (n.children?.length) walk(n.children) }
-      }
-      walk(data.departments)
-      setDepartments(flat)
+      setDeptTree(data.departments)  // raw tree for the create-form TreeSelect
     } catch (error) {
       console.error('Failed to fetch departments:', error)
     }
@@ -317,12 +336,23 @@ export default function UserManagementPage() {
       render: (_, user) => <Tag color={roleColors[user.role]}>{roleLabels[user.role] || user.role}</Tag>,
     },
     {
+      title: t('usersManagement.tenant', 'Tenant'),
+      dataIndex: 'tenant_id',
+      width: 150,
+      hideInTable: !isPlatformAdmin,
+      render: (_, user) => {
+        if (!user.tenant_id) return <Tag>{t('usersManagement.platformUser', 'Platform')}</Tag>
+        const tenant = tenants.find(x => x.id === user.tenant_id)
+        return tenant ? <Text>{tenant.name}</Text> : <Text type="secondary">{String(user.tenant_id).slice(0, 8)}</Text>
+      },
+    },
+    {
       title: t('usersManagement.department', 'Department'),
       dataIndex: 'department_id',
       width: 140,
       render: (_, user) => {
-        const dept = departments.find(d => d.id === user.department_id)
-        return dept ? <Text>{dept.name}</Text> : <Text type="secondary">-</Text>
+        const name = user.department_id ? deptNameMap[user.department_id] : undefined
+        return name ? <Text>{name}</Text> : <Text type="secondary">-</Text>
       },
     },
     {
@@ -391,6 +421,24 @@ export default function UserManagementPage() {
               <Text type="secondary">{t('usersManagement.subtitle')}</Text>
             </Space>
             <Space wrap>
+              {isPlatformAdmin && (
+                <Select
+                  allowClear
+                  style={{ minWidth: 180 }}
+                  placeholder={t('usersManagement.filterByTenant', 'Filter by tenant')}
+                  value={filterTenantId}
+                  onChange={(v) => { setFilterTenantId(v); actionRef.current?.reload() }}
+                  options={tenants.map(x => ({ label: `${x.name} (${x.code})`, value: x.id }))}
+                />
+              )}
+              <Select
+                allowClear
+                style={{ minWidth: 150 }}
+                placeholder={t('usersManagement.filterByRole', 'Filter by role')}
+                value={filterRole}
+                onChange={(v) => { setFilterRole(v); actionRef.current?.reload() }}
+                options={availableRoles.map(r => ({ label: roleLabels[r.role] || r.role, value: r.role }))}
+              />
               <Button icon={<ReloadOutlined />} onClick={() => actionRef.current?.reload()}>{t('common.refresh')}</Button>
               <Button type="primary" icon={<PlusOutlined />} onClick={() => {
                 setShowCreateModal(true)
@@ -432,7 +480,7 @@ export default function UserManagementPage() {
               </Space>
             )}
             request={async () => {
-              const data: User[] = await fetchUsers()
+              const data: User[] = await fetchUsers({ tenant_id: filterTenantId, role: filterRole })
               const validData = data.filter(user => user && user.id)
               return { data: validData, success: true, total: validData.length }
             }}
@@ -482,11 +530,15 @@ export default function UserManagementPage() {
             </Form.Item>
           )}
           <Form.Item name="department_id" label={t('usersManagement.department', 'Department')}>
-            <Select
+            <TreeSelect
               allowClear
               placeholder={t('usersManagement.departmentPlaceholder', 'Select department')}
               disabled={isPlatformAdmin && !createTenantId}
-              options={departments.map(d => ({ label: d.name, value: d.id }))}
+              treeDefaultExpandAll
+              treeData={deptToTreeSelect(deptTree)}
+              fieldNames={{ label: 'title', value: 'value', children: 'children' }}
+              showSearch
+              treeNodeFilterProp="title"
             />
           </Form.Item>
           <Form.Item name="data_scope" label={t('usersManagement.dataScope', 'Data Scope')} initialValue="self">

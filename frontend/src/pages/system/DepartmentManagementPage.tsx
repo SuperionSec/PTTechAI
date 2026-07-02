@@ -91,7 +91,7 @@ export default function DepartmentManagementPage() {
   // Members of the selected department
   const [members, setMembers] = useState<OrgUser[]>([])
   const [membersLoading, setMembersLoading] = useState(false)
-  const [roles, setRoles] = useState<string[]>([])
+  const [roles, setRoles] = useState<Array<{ value: string; label: string }>>([])
   const [memberModalOpen, setMemberModalOpen] = useState(false)
   const [editMember, setEditMember] = useState<OrgUser | null>(null)
   const [memberForm] = Form.useForm<MemberFormValues>()
@@ -151,13 +151,24 @@ export default function DepartmentManagementPage() {
   }, [isPlatformAdmin, selectedTenant, notify, t])
 
   const fetchRoles = useCallback(async () => {
+    const friendly: Record<string, string> = {
+      admin: t('usersManagement.admin', 'Administrator'),
+      tenant_admin: t('roleManagement.tenantAdmin', 'Tenant Administrator'),
+      user: t('usersManagement.user', 'Standard User'),
+      viewer: t('usersManagement.viewer', 'Viewer'),
+      service: t('usersManagement.service', 'Service Account'),
+    }
     try {
       const data = await systemApi.roles()
-      setRoles(data.map(r => r.role))
+      setRoles(data.map(r => ({ value: r.role, label: friendly[r.role] || r.display_name || r.role })))
     } catch {
-      setRoles(['user', 'viewer', 'tenant_admin'])
+      setRoles([
+        { value: 'user', label: friendly.user },
+        { value: 'tenant_admin', label: friendly.tenant_admin },
+        { value: 'viewer', label: friendly.viewer },
+      ])
     }
-  }, [])
+  }, [t])
 
   useEffect(() => { fetchTenants(); fetchRoles() }, [fetchTenants, fetchRoles])
   useEffect(() => {
@@ -339,7 +350,10 @@ export default function DepartmentManagementPage() {
         <Text type="secondary" style={{ fontSize: 12 }}>{u.email}</Text>
       </Space>
     ) },
-    { title: t('usersManagement.role', 'Role'), dataIndex: 'role', width: 130, render: (r: string) => <Tag color={r === 'tenant_admin' ? 'gold' : r === 'admin' ? 'red' : 'default'}>{r}</Tag> },
+    { title: t('usersManagement.role', 'Role'), dataIndex: 'role', width: 130, render: (r: string) => {
+      const label = roles.find(x => x.value === r)?.label || r
+      return <Tag color={r === 'tenant_admin' ? 'gold' : r === 'admin' ? 'red' : 'default'}>{label}</Tag>
+    } },
     { title: t('usersManagement.dataScope', 'Data Scope'), dataIndex: 'data_scope', width: 120, render: (s: string) => <Tag>{s === 'tenant' ? t('usersManagement.scopeTenant', 'All tenant') : s === 'department' ? t('usersManagement.scopeDepartment', 'Department') : t('usersManagement.scopeSelf', 'Own only')}</Tag> },
     { title: t('common.status', 'Status'), dataIndex: 'is_active', width: 90, render: (a: boolean) => <Tag color={a ? 'green' : 'default'}>{a ? t('common.active', 'Active') : t('common.inactive', 'Inactive')}</Tag> },
     { title: t('common.actions', 'Actions'), width: 150, render: (_, u) => (
@@ -491,7 +505,7 @@ export default function DepartmentManagementPage() {
             <Input.Password placeholder={editMember ? '••••••' : t('usersManagement.passwordHint', 'Min 8 characters')} />
           </Form.Item>
           <Form.Item name="role" label={t('usersManagement.role', 'Role')} rules={[{ required: true }]}>
-            <Select options={roles.map(r => ({ value: r, label: r }))} />
+            <Select options={roles} />
           </Form.Item>
           <Form.Item name="data_scope" label={t('usersManagement.dataScope', 'Data Scope')} rules={[{ required: true }]}>
             <Select options={[

@@ -7,6 +7,7 @@ import {
   Alert,
   App as AntApp,
   Button,
+  Drawer,
   Empty,
   Form,
   Input,
@@ -16,6 +17,7 @@ import {
   Space,
   Switch,
   Spin,
+  Table,
   Tabs,
   Tag,
   Tooltip,
@@ -38,7 +40,7 @@ import {
   TeamOutlined,
   WarningOutlined,
 } from '@ant-design/icons'
-import { systemApi } from '../../services/system'
+import { systemApi, usersApi } from '../../services/system'
 import type { Permission, ResourceMapping, RoleSummary, UnmappedResource } from '../../services/system'
 
 const { Text } = Typography
@@ -128,6 +130,25 @@ export default function RoleManagementPage() {
   const [viewRoleActive, setViewRoleActive] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [form] = Form.useForm<RoleFormValues>()
+
+  // Role members drawer (drill-down: users holding a given role)
+  const [membersRole, setMembersRole] = useState<string | null>(null)
+  const [members, setMembers] = useState<Array<{ id: string; email: string; full_name?: string; tenant_id?: string | null }>>([])
+  const [membersLoading, setMembersLoading] = useState(false)
+
+  const openMembers = useCallback(async (role: string) => {
+    setMembersRole(role)
+    setMembersLoading(true)
+    setMembers([])
+    try {
+      const data = await usersApi.list({ role })
+      setMembers(data)
+    } catch (e) {
+      console.error('Failed to load role members:', e)
+    } finally {
+      setMembersLoading(false)
+    }
+  }, [])
 
   // Unmapped resources state
   const [unmappedOpen, setUnmappedOpen] = useState(false)
@@ -477,7 +498,11 @@ export default function RoleManagementPage() {
       title: t('roleManagement.userCount'),
       dataIndex: 'user_count',
       width: 160,
-      render: (_, role) => <Space><TeamOutlined />{role.user_count}</Space>,
+      render: (_, role) => (
+        <Button type="link" size="small" disabled={!role.user_count} onClick={() => openMembers(role.role)}>
+          <Space><TeamOutlined />{role.user_count}</Space>
+        </Button>
+      ),
     },
     {
       title: t('roleManagement.permissionCount'),
@@ -775,6 +800,31 @@ export default function RoleManagementPage() {
           />
         </Space>
       </Modal>
+
+      <Drawer
+        title={membersRole ? `${roleLabels[membersRole] || membersRole} · ${t('roleManagement.members', 'Members')}` : ''}
+        open={Boolean(membersRole)}
+        onClose={() => setMembersRole(null)}
+        width={480}
+      >
+        <Table
+          rowKey="id"
+          size="small"
+          loading={membersLoading}
+          pagination={{ pageSize: 10, hideOnSinglePage: true }}
+          dataSource={members}
+          locale={{ emptyText: t('roleManagement.noMembers', 'No users hold this role') }}
+          columns={[
+            { title: t('usersManagement.email', 'User'), dataIndex: 'email', render: (_: string, u: any) => (
+              <Space direction="vertical" size={0}>
+                <Typography.Text strong>{u.full_name || u.email}</Typography.Text>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>{u.email}</Typography.Text>
+              </Space>
+            ) },
+            { title: t('usersManagement.tenant', 'Tenant'), dataIndex: 'tenant_id', width: 120, render: (v: string | null) => v ? <Tag>{String(v).slice(0, 8)}</Tag> : <Tag color="blue">{t('usersManagement.platformUser', 'Platform')}</Tag> },
+          ]}
+        />
+      </Drawer>
     </PageContainer>
   )
 }

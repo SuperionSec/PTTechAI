@@ -12,6 +12,7 @@ import {
   InputNumber,
   Modal,
   Popconfirm,
+  Select,
   Space,
   Table,
   Tag,
@@ -25,6 +26,7 @@ import {
   PlusOutlined,
   StopOutlined,
   TeamOutlined,
+  UserAddOutlined,
   ApartmentOutlined,
 } from '@ant-design/icons'
 import { organizationApi, usersApi } from '../../services/system'
@@ -56,7 +58,11 @@ export default function TenantManagementPage() {
   const [viewTenant, setViewTenant] = useState<Tenant | null>(null)
   const [drawerDepts, setDrawerDepts] = useState<DepartmentNode[]>([])
   const [drawerAdmins, setDrawerAdmins] = useState<Array<{ id: string; email: string; full_name?: string; role: string }>>([])
+  const [drawerUsers, setDrawerUsers] = useState<Array<{ id: string; email: string; full_name?: string; role: string }>>([])
   const [drawerLoading, setDrawerLoading] = useState(false)
+  // Set-admin modal (pick an existing tenant user to promote)
+  const [setAdminOpen, setSetAdminOpen] = useState(false)
+  const [setAdminUserId, setSetAdminUserId] = useState<string | undefined>(undefined)
 
   const notify = useCallback((message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
     notification[type]({ message })
@@ -134,18 +140,14 @@ export default function TenantManagementPage() {
     }
   }
 
-  const openView = async (tenant: Tenant) => {
-    setViewTenant(tenant)
+  const loadTenantDetail = async (tenant: Tenant) => {
     setDrawerLoading(true)
-    setDrawerDepts([])
-    setDrawerAdmins([])
     try {
       const [treeData, admins, allUsers] = await Promise.all([
         organizationApi.departmentTree(tenant.id),
         usersApi.list({ tenant_id: tenant.id, role: 'tenant_admin' }),
         usersApi.list({ tenant_id: tenant.id }),
       ])
-      // Client-side headcount rollup (robust, independent of backend rollup).
       const counts: Record<string, number> = {}
       for (const u of allUsers as Array<{ department_id?: string | null; is_active: boolean }>) {
         if (u.department_id && u.is_active) counts[u.department_id] = (counts[u.department_id] || 0) + 1
@@ -159,11 +161,52 @@ export default function TenantManagementPage() {
       treeData.departments.forEach(rollup)
       setDrawerDepts([...treeData.departments])
       setDrawerAdmins(admins)
+      setDrawerUsers(allUsers)
     } catch (error) {
       console.error('Failed to load tenant detail:', error)
       notify(t('tenantManagement.detailFailed', 'Failed to load tenant detail'), 'error')
     } finally {
       setDrawerLoading(false)
+    }
+  }
+
+  const openView = async (tenant: Tenant) => {
+    setViewTenant(tenant)
+    setDrawerDepts([])
+    setDrawerAdmins([])
+    setDrawerUsers([])
+    await loadTenantDetail(tenant)
+  }
+
+  const handleSetAdmin = async () => {
+    if (!viewTenant || !setAdminUserId) return
+    setActionLoading(true)
+    try {
+      await organizationApi.setTenantAdmin(viewTenant.id, setAdminUserId, true)
+      notify(t('tenantManagement.adminSet', 'Tenant administrator set'), 'success')
+      setSetAdminOpen(false)
+      setSetAdminUserId(undefined)
+      await loadTenantDetail(viewTenant)
+      actionRef.current?.reload()
+    } catch (error: any) {
+      notify(error.response?.data?.detail || t('tenantManagement.adminSetFailed', 'Failed to set admin'), 'error')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleRemoveAdmin = async (userId: string) => {
+    if (!viewTenant) return
+    setActionLoading(true)
+    try {
+      await organizationApi.setTenantAdmin(viewTenant.id, userId, false)
+      notify(t('tenantManagement.adminRemoved', 'Tenant administrator removed'), 'success')
+      await loadTenantDetail(viewTenant)
+      actionRef.current?.reload()
+    } catch (error: any) {
+      notify(error.response?.data?.detail || t('tenantManagement.adminRemoveFailed', 'Failed to remove admin'), 'error')
+    } finally {
+      setActionLoading(false)
     }
   }
 
@@ -352,7 +395,12 @@ export default function TenantManagementPage() {
             </Descriptions>
 
             <div>
-              <Text strong><TeamOutlined /> {t('tenantManagement.admins', 'Tenant Administrators')}</Text>
+              <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                <Text strong><TeamOutlined /> {t('tenantManagement.admins', 'Tenant Administrators')}</Text>
+                <Button size="small" icon={<UserAddOutlined />} onClick={() => { setSetAdminUserId(undefined); setSetAdminOpen(true) }}>
+                  {t('tenantManagement.setAdmin', 'Set Admin')}
+                </Button>
+              </Space>
               <Table
                 style={{ marginTop: 8 }}
                 rowKey="id"
@@ -365,7 +413,16 @@ export default function TenantManagementPage() {
                   { title: t('usersManagement.email', 'Email'), dataIndex: 'email', render: (_: string, u: any) => (
                     <Space direction="vertical" size={0}><Text strong>{u.full_name || u.email}</Text><Text type="secondary" style={{ fontSize: 12 }}>{u.email}</Text></Space>
                   ) },
-                  { title: t('usersManagement.role', 'Role'), dataIndex: 'role', width: 120, render: (r: string) => <Tag color="gold">{r}</Tag> },
+                  { title: t('usersManagement.role', 'Role'), dataIndex: 'role', width: 110, render: (r: string) => <Tag color="gold">{r}</Tag> },
+                  { title: t('common.actions', 'Actions'), width: 90, render: (_: any, u: any) => (
+                    <Popconfirm
+                      title={t('tenantManagement.removeAdminConfirm', 'Demote this administrator to a regular user?')}
+                      okText={t('common.confirm', 'Confirm')} cancelText={t('common.cancel', 'Cancel')}
+                      onConfirm={() => handleRemoveAdmin(u.id)}
+                    >
+                      <Button size="small" type="link" danger>{t('tenantManagement.removeAdmin', 'Remove')}</Button>
+                    </Popconfirm>
+                  ) },
                 ]}
               />
             </div>
@@ -383,6 +440,31 @@ export default function TenantManagementPage() {
           </Space>
         )}
       </Drawer>
+
+      <Modal
+        title={t('tenantManagement.setAdmin', 'Set Tenant Administrator')}
+        open={setAdminOpen}
+        confirmLoading={actionLoading}
+        onOk={handleSetAdmin}
+        onCancel={() => { setSetAdminOpen(false); setSetAdminUserId(undefined) }}
+        okText={t('common.confirm', 'Confirm')}
+        cancelText={t('common.cancel', 'Cancel')}
+        okButtonProps={{ disabled: !setAdminUserId }}
+      >
+        <Text type="secondary">{t('tenantManagement.setAdminHint', 'Promote an existing tenant user to tenant administrator.')}</Text>
+        <Select
+          style={{ width: '100%', marginTop: 12 }}
+          showSearch
+          placeholder={t('tenantManagement.selectUser', 'Select a user')}
+          value={setAdminUserId}
+          onChange={setSetAdminUserId}
+          optionFilterProp="label"
+          options={drawerUsers
+            .filter(u => u.role !== 'tenant_admin')
+            .map(u => ({ label: `${u.full_name || u.email} (${u.email})`, value: u.id }))}
+          notFoundContent={t('tenantManagement.noEligibleUsers', 'No eligible users (all are already admins)')}
+        />
+      </Modal>
     </PageContainer>
   )
 }
