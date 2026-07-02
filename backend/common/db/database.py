@@ -72,6 +72,10 @@ async def verify_rbac_role_schema(conn) -> None:
 
 async def init_db():
     """Initialize database tables"""
+    # Ensure every ORM model is registered on Base.metadata before create_all,
+    # so foreign keys (e.g. users.tenant_id -> tenants.id) resolve regardless of
+    # entry point (app startup or the standalone init_db script).
+    import backend.models  # noqa: F401
     async with engine.begin() as conn:
         logger.info("Using PostgreSQL database")
         # Create all tables from models for fresh development databases.

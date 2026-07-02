@@ -12,7 +12,14 @@ This script:
     1. Creates all database tables (if not exists)
     2. Initializes default admin user
     3. Initializes default permissions and role mappings
-    4. Initializes sidebar menus (3 groups: pentest, vulnLibrary, system)
+    4. Initializes vulnerability-library categories
+    5. Initializes sidebar menus (4 groups: pentest, apptest, vulnLibrary, system)
+
+Note: table creation uses SQLAlchemy metadata (create_all). Row-Level Security
+policies for multi-tenant isolation are applied by Alembic migration
+20260701_0002 — run `alembic upgrade head` on the target database as well,
+and connect the app with a non-superuser role for RLS to take effect
+(see doc/multi-tenant.md §6.2).
 """
 import asyncio
 import os
@@ -24,6 +31,7 @@ from backend.common.db.database import init_db, close_db, engine
 from backend.scripts.init_admin import init_admin
 from backend.scripts.init_permissions import init_permissions
 from backend.scripts.init_menus import init_menus
+from backend.scripts.init_vuln_library_categories import init_vuln_library_categories
 
 
 async def main():
@@ -33,30 +41,38 @@ async def main():
 
     try:
         # Step 1: Create tables
-        print("\n[1/4] Creating database tables...")
+        print("\n[1/5] Creating database tables...")
         await init_db()
         print("[OK] Tables created/verified")
 
         # Step 2: Initialize admin user
-        print("\n[2/4] Initializing admin user...")
+        print("\n[2/5] Initializing admin user...")
         admin = await init_admin()
         if admin:
             print(f"[OK] Admin user ready: {admin.email}")
 
         # Step 3: Initialize permissions
-        print("\n[3/4] Initializing permissions...")
+        print("\n[3/5] Initializing permissions...")
         await init_permissions()
         print("[OK] Permissions initialized")
 
-        # Step 4: Initialize menus
-        print("\n[4/4] Initializing menus...")
         from backend.common.db.database import async_session_factory
+
+        # Step 4: Initialize vulnerability-library categories
+        print("\n[4/5] Initializing vulnerability-library categories...")
+        async with async_session_factory() as session:
+            vuln_count = await init_vuln_library_categories(session)
+        print(f"[OK] Vulnerability-library categories initialized ({vuln_count} created)")
+
+        # Step 5: Initialize menus
+        print("\n[5/5] Initializing menus...")
         async with async_session_factory() as session:
             created = await init_menus(session)
         print(f"[OK] Menus initialized ({created} new menus created)")
 
         print("\n" + "=" * 60)
         print("Database initialization completed successfully!")
+        print("Reminder: run `alembic upgrade head` to apply RLS policies.")
         print("=" * 60)
 
     except Exception as e:
