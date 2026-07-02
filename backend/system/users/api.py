@@ -9,7 +9,7 @@ from sqlalchemy import select
 
 from backend.common.db.database import get_db
 from backend.common.models.user import User
-from backend.common.schemas.auth import UserResponse, UserUpdate, UserCreate, ResetPasswordRequest, user_to_response
+from backend.common.schemas.auth import UserResponse, UserListResponse, UserUpdate, UserCreate, ResetPasswordRequest, user_to_response
 from backend.common.infra.auth import get_current_user, hash_new_password, get_user_by_id, get_user
 from backend.common.infra.permissions import require_user_manage, require_user_read, require_user_create, require_user_update, require_user_delete
 from backend.common.infra.rbac.access_helpers import is_platform_admin, can_assign_role
@@ -127,10 +127,12 @@ async def get_current_user_me(
     )
 
 
-@router.get("", response_model=List[UserResponse])
+@router.get("", response_model=UserListResponse)
 async def get_users(
     skip: int = 0,
     limit: int = 100,
+    page: Optional[int] = None,
+    page_size: Optional[int] = None,
     is_active: Optional[bool] = None,
     role: Optional[str] = None,
     tenant_id: Optional[str] = None,
@@ -138,39 +140,68 @@ async def get_users(
     current_user: User = Depends(require_user_read()),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get list of users.
+    """Get a paginated list of users (RuoYi-style: items + total).
 
     Platform admins see all users (optionally filtered by tenant_id).
     Tenant-scoped admins only see users within their own tenant.
-    """
-    query = select(User).options(selectinload(User.role_ref))
 
+    Accepts either ``page``/``page_size`` (preferred) or legacy ``skip``/``limit``.
+    """
+    from sqlalchemy import func
+
+    base_filters = []
     if is_active is not None:
-        query = query.where(User.is_active == is_active)
+        base_filters.append(User.is_active == is_active)
     if role is not None:
         role_model = await resolve_active_role(db, role)
-        query = query.where(User.role_id == role_model.id)
+        base_filters.append(User.role_id == role_model.id)
 
     # Tenant scoping: the users table is not auto-filtered (platform admins
     # have no tenant), so enforce tenant boundaries explicitly here.
     if is_platform_admin(current_user):
         if tenant_id is not None:
-            query = query.where(User.tenant_id == tenant_id)
+            base_filters.append(User.tenant_id == tenant_id)
     else:
         own_tenant = getattr(current_user, "tenant_id", None)
-        query = query.where(User.tenant_id == own_tenant)
+        base_filters.append(User.tenant_id == own_tenant)
     if department_id is not None:
-        query = query.where(User.department_id == department_id)
+        base_filters.append(User.department_id == department_id)
 
-    query = query.offset(skip).limit(limit)
+    # Resolve paging: page/page_size take precedence over skip/limit.
+    if page is not None or page_size is not None:
+        eff_page = max(1, page or 1)
+        eff_size = min(max(1, page_size or 20), 500)
+        eff_skip = (eff_page - 1) * eff_size
+        eff_limit = eff_size
+    else:
+        eff_skip = max(0, skip)
+        eff_limit = min(max(1, limit), 500)
+        eff_page = eff_skip // eff_limit + 1
+        eff_size = eff_limit
+
+    total = await db.scalar(
+        select(func.count()).select_from(User).where(*base_filters)
+    ) or 0
+
+    query = (
+        select(User)
+        .options(selectinload(User.role_ref))
+        .where(*base_filters)
+        .order_by(User.created_at.desc())
+        .offset(eff_skip)
+        .limit(eff_limit)
+    )
     result = await db.execute(query)
     users = result.scalars().all()
 
-    return [
+    items = [
         UserResponse(
             id=u.id,
             email=u.email,
             full_name=u.full_name,
+            phone=u.phone,
+            avatar=u.avatar,
+            remark=u.remark,
             role=role_name_for(u) or "",
             is_active=u.is_active,
             tenant_id=u.tenant_id,
@@ -181,6 +212,7 @@ async def get_users(
         )
         for u in users
     ]
+    return UserListResponse(items=items, total=total, page=eff_page, page_size=eff_size)
 
 
 @router.get("/{user_id}", response_model=UserResponse)

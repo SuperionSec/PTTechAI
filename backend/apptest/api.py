@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,6 +32,8 @@ from .schemas import (
     AppTestVersionHistoryResponse,
     AppTestVulnsResponse,
 )
+
+from backend.system.audit.service import record_audit_log
 
 router = APIRouter(tags=["App Test"])
 
@@ -95,6 +97,7 @@ async def list_assets(
 # ------------------------------------------------------------------
 @router.post("/tasks", response_model=AppTestTaskResponse)
 async def create_task(
+    request: Request,
     name: str = Form(..., description="Application name"),
     terminal_type: int = Form(1, description="Terminal type: 1=Android, 2=iOS, 10=鸿蒙, 12=H5, 8=IoT, 4=小程序, 14=HarmonyOS"),
     template_id: str | None = Form(None, description="Strategy/template ID"),
@@ -121,13 +124,21 @@ async def create_task(
         callback=callback,
         callback_url=callback_url,
     )
-    return await service.create_task(
+    result = await service.create_task(
         db=db,
         data=data,
         file_content=file_content,
         filename=file.filename or "unknown",
         user_id=getattr(current_user, "id", None),
     )
+    await record_audit_log(
+        db, user=current_user, action="apptest.create_task",
+        resource_type="apptest_task", resource_id=getattr(result, "id", None),
+        details={"name": name, "terminal_type": terminal_type, "filename": file.filename},
+        request=request,
+    )
+    await db.commit()
+    return result
 
 
 @router.get("/tasks", response_model=AppTestTaskListResponse, dependencies=[Depends(require_apptest_read())])
@@ -158,9 +169,17 @@ async def get_task(
 @router.delete("/tasks/{task_id}", dependencies=[Depends(require_apptest_manage())])
 async def delete_task(
     task_id: str,
+    request: Request,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_apptest_manage()),
 ) -> dict[str, Any]:
     await service.delete_task(db=db, task_id=task_id)
+    await record_audit_log(
+        db, user=current_user, action="apptest.delete_task",
+        resource_type="apptest_task", resource_id=task_id,
+        request=request,
+    )
+    await db.commit()
     return {"ok": True}
 
 

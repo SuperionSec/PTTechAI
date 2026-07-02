@@ -96,6 +96,14 @@ class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class UserListResponse(BaseModel):
+    """Paginated user list (RuoYi-style: items + total for server-side paging)."""
+    items: list[UserResponse]
+    total: int
+    page: int = 1
+    page_size: int = 20
+
+
 class Token(BaseModel):
     """Schema for JWT token response"""
     access_token: str

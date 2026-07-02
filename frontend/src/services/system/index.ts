@@ -121,9 +121,19 @@ export interface UserUpdateRequest {
 }
 
 export const usersApi = {
-  list: async (params?: { tenant_id?: string; department_id?: string; role?: string; is_active?: boolean }) => {
+  /** Returns the users array (unwraps the paginated envelope) for callers that
+   *  only need the rows — department/tenant panels. */
+  list: async (params?: { tenant_id?: string; department_id?: string; role?: string; is_active?: boolean; page?: number; page_size?: number }) => {
     const response = await api.get('/system/users', { params })
-    return response.data
+    const data = response.data
+    return Array.isArray(data) ? data : (data.items ?? [])
+  },
+  /** Returns the full paginated envelope { items, total, page, page_size } for server-side tables. */
+  listPaged: async (params?: { tenant_id?: string; department_id?: string; role?: string; is_active?: boolean; page?: number; page_size?: number }) => {
+    const response = await api.get('/system/users', { params })
+    const data = response.data
+    if (Array.isArray(data)) return { items: data, total: data.length, page: 1, page_size: data.length }
+    return { items: data.items ?? [], total: data.total ?? 0, page: data.page ?? 1, page_size: data.page_size ?? 20 }
   },
   create: async (data: UserCreateRequest) => {
     const response = await api.post('/system/users', data)

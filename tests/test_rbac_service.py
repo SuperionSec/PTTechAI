@@ -412,9 +412,9 @@ async def test_get_users_filters_custom_persistent_roles(db_session):
     db_session.add_all([auditor, other])
     await db_session.commit()
 
-    users = await get_users(role="auditor", current_user=None, db=db_session)
+    result = await get_users(role="auditor", current_user=None, db=db_session)
 
-    assert [user.id for user in users] == ["auditor-user-id"]
+    assert [user.id for user in result.items] == ["auditor-user-id"]
 
 
 @pytest.mark.asyncio

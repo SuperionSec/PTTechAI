@@ -504,3 +504,58 @@ class TestAppTest:
         c.delete(f"{API}/apptest/tasks/{aB}", headers=H(admin))
         c.delete(f"{API}/organization/tenants/{tA}", headers=H(admin))
         c.delete(f"{API}/organization/tenants/{tB}", headers=H(admin))
+
+
+# ============================================================
+#  User list pagination (RuoYi-style items + total)
+# ============================================================
+class TestUserPagination:
+    def test_users_list_returns_items_and_total(self, c, admin):
+        r = c.get(f"{API}/system/users", headers=H(admin), params={"page": 1, "page_size": 5})
+        assert r.status_code == 200
+        body = r.json()
+        assert "items" in body and "total" in body
+        assert isinstance(body["items"], list)
+        assert body["page"] == 1 and body["page_size"] == 5
+        assert len(body["items"]) <= 5
+        assert body["total"] >= len(body["items"])
+
+    def test_users_pagination_second_page_differs(self, c, admin, sfx):
+        # Ensure at least a couple of users exist in a fresh tenant.
+        tid = c.post(f"{API}/organization/tenants", headers=H(admin), json={"code": f"pg{sfx}", "name": f"PG{sfx}"}).json()["id"]
+        for i in range(3):
+            c.post(f"{API}/system/users", headers=H(admin),
+                   json={"email": f"pg{i}{sfx}@ex.com", "password": "Str0ng#Pass1", "full_name": f"U{i}", "role": "user", "tenant_id": tid, "data_scope": "self"})
+        p1 = c.get(f"{API}/system/users", headers=H(admin), params={"tenant_id": tid, "page": 1, "page_size": 2}).json()
+        p2 = c.get(f"{API}/system/users", headers=H(admin), params={"tenant_id": tid, "page": 2, "page_size": 2}).json()
+        assert p1["total"] == 3
+        ids1 = {u["id"] for u in p1["items"]}
+        ids2 = {u["id"] for u in p2["items"]}
+        assert ids1.isdisjoint(ids2)  # pages don't overlap
+        c.delete(f"{API}/organization/tenants/{tid}", headers=H(admin))
+
+
+# ============================================================
+#  Business-module audit logging (apptest + scans)
+# ============================================================
+class TestBusinessAudit:
+    def test_apptest_create_delete_audited(self, c, admin, sfx):
+        r = c.post(f"{API}/apptest/tasks", headers=H(admin),
+                   data={"name": f"AuditApp{sfx}", "terminal_type": "1"}, files=apk_file())
+        assert r.status_code == 200
+        tid = r.json()["id"]
+        c.delete(f"{API}/apptest/tasks/{tid}", headers=H(admin))
+        # audit log should contain apptest.create_task and apptest.delete_task
+        logs = c.get(f"{API}/audit", headers=H(admin), params={"per_page": 100}).json().get("logs", [])
+        actions = {l.get("action") for l in logs}
+        assert "apptest.create_task" in actions, f"missing create audit; saw {sorted(actions)[:10]}"
+
+    def test_scan_create_delete_audited(self, c, admin, sfx):
+        r = c.post(f"{API}/scans", headers=H(admin),
+                   json={"name": f"AuditScan{sfx}", "targets": ["https://ex.com"], "scan_type": "quick"})
+        assert r.status_code in (200, 201)
+        sid = r.json()["id"]
+        c.delete(f"{API}/scans/{sid}", headers=H(admin))
+        logs = c.get(f"{API}/audit", headers=H(admin), params={"per_page": 100}).json().get("logs", [])
+        actions = {l.get("action") for l in logs}
+        assert "scan.create" in actions, f"missing scan.create audit; saw {sorted(actions)[:10]}"
