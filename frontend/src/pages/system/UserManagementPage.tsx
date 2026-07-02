@@ -22,6 +22,7 @@ import {
 } from 'antd'
 import {
   DeleteOutlined,
+  EditOutlined,
   KeyOutlined,
   PlusOutlined,
   ReloadOutlined,
@@ -67,6 +68,15 @@ interface CreateUserForm {
   data_scope?: string
 }
 
+interface EditUserForm {
+  full_name: string
+  phone?: string
+  remark?: string
+  role: string
+  department_id?: string | null
+  data_scope?: string
+}
+
 interface ResetPasswordForm {
   new_password: string
 }
@@ -97,6 +107,7 @@ export default function UserManagementPage() {
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
   const [resetUser, setResetUser] = useState<User | null>(null)
+  const [editUser, setEditUser] = useState<User | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showServiceNotice, setShowServiceNotice] = useState(false)
   const [availableRoles, setAvailableRoles] = useState<RoleSummary[]>([])
@@ -114,6 +125,7 @@ export default function UserManagementPage() {
   const [batchRole, setBatchRole] = useState<string>('')
   const [createForm] = Form.useForm<CreateUserForm>()
   const [resetForm] = Form.useForm<ResetPasswordForm>()
+  const [editForm] = Form.useForm<EditUserForm>()
 
   const defaultRoleLabels: Record<string, string> = useMemo(() => ({
     admin: t('usersManagement.admin'),
@@ -222,6 +234,44 @@ export default function UserManagementPage() {
     } catch (error) {
       console.error('Failed to delete user:', error)
       notify(t('usersManagement.deleteFailed'), 'error')
+    }
+  }
+
+  const openEditUser = (user: User) => {
+    setEditUser(user)
+    editForm.setFieldsValue({
+      full_name: user.full_name || '',
+      phone: (user as any).phone || undefined,
+      remark: (user as any).remark || undefined,
+      role: user.role,
+      department_id: user.department_id || undefined,
+      data_scope: user.data_scope || 'self',
+    })
+    // Load the user's tenant department tree for the TreeSelect.
+    fetchDepartments(user.tenant_id || undefined)
+  }
+
+  const handleEditUser = async () => {
+    if (!editUser) return
+    const values = await editForm.validateFields()
+    setActionLoading(true)
+    try {
+      await usersApi.update(editUser.id, {
+        full_name: values.full_name,
+        phone: values.phone,
+        remark: values.remark,
+        role: values.role,
+        department_id: values.department_id ?? null,
+        data_scope: values.data_scope,
+      })
+      setEditUser(null)
+      editForm.resetFields()
+      actionRef.current?.reload()
+      notify(t('usersManagement.updateSuccess', 'User updated'), 'success')
+    } catch (error: any) {
+      notify(error.response?.data?.detail || t('usersManagement.updateFailed', 'Failed to update user'), 'error')
+    } finally {
+      setActionLoading(false)
     }
   }
 
@@ -382,8 +432,11 @@ export default function UserManagementPage() {
     {
       title: t('usersManagement.actions'),
       valueType: 'option',
-      width: 150,
+      width: 180,
       render: (_, user) => [
+        <Tooltip key="edit" title={t('common.edit', 'Edit')}>
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEditUser(user)} />
+        </Tooltip>,
         <Tooltip key="reset" title={t('usersManagement.resetPassword')}>
           <Button size="small" icon={<ReloadOutlined />} onClick={() => setResetUser(user)} />
         </Tooltip>,
@@ -568,6 +621,51 @@ export default function UserManagementPage() {
         <Form form={resetForm} layout="vertical">
           <Form.Item name="new_password" label={t('usersManagement.enterNewPassword')} rules={[{ required: true }, { min: 8 }]}>
             <Input.Password />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title={`${t('common.edit', 'Edit')} - ${editUser?.email ?? ''}`}
+        open={Boolean(editUser)}
+        confirmLoading={actionLoading}
+        onOk={handleEditUser}
+        onCancel={() => { setEditUser(null); editForm.resetFields() }}
+        okText={t('common.save', 'Save')}
+        cancelText={t('common.cancel')}
+      >
+        <Form form={editForm} layout="vertical">
+          <Form.Item name="full_name" label={t('usersManagement.fullName')} rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="phone" label={t('usersManagement.phone', 'Phone')}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="remark" label={t('usersManagement.remark', 'Remark')}>
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item name="role" label={t('usersManagement.role')} rules={[{ required: true }]}>
+            <Select options={availableRoles.map(role => ({ label: roleLabels[role.role] || role.role, value: role.role }))} />
+          </Form.Item>
+          <Form.Item name="department_id" label={t('usersManagement.department', 'Department')}>
+            <TreeSelect
+              allowClear
+              placeholder={t('usersManagement.departmentPlaceholder', 'Select department')}
+              treeDefaultExpandAll
+              treeData={deptToTreeSelect(deptTree)}
+              fieldNames={{ label: 'title', value: 'value', children: 'children' }}
+              showSearch
+              treeNodeFilterProp="title"
+            />
+          </Form.Item>
+          <Form.Item name="data_scope" label={t('usersManagement.dataScope', 'Data Scope')}>
+            <Select
+              options={[
+                { label: t('usersManagement.scopeSelf', 'Own data only'), value: 'self' },
+                { label: t('usersManagement.scopeDepartment', 'Department data'), value: 'department' },
+                { label: t('usersManagement.scopeTenant', 'All tenant data'), value: 'tenant' },
+              ]}
+            />
           </Form.Item>
         </Form>
       </Modal>

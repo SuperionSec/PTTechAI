@@ -113,6 +113,8 @@ export interface UserUpdateRequest {
   email?: string
   password?: string
   full_name?: string
+  phone?: string | null
+  remark?: string | null
   role?: string
   is_active?: boolean
   tenant_id?: string | null

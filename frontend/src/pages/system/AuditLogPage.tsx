@@ -10,11 +10,18 @@ import type { AuditLog } from '../../services/system'
 const { Text } = Typography
 
 const ACTION_OPTIONS = [
-  'auth.login_success', 'auth.login_failed', 'auth.logout',
+  'auth.login_success', 'auth.login_failed', 'auth.logout', 'auth.rate_limited', 'auth.tenant_suspended',
   'menu.create', 'menu.update', 'menu.delete',
   'role.create', 'role.update', 'role.update_permissions', 'role.delete',
-  'user.create', 'user.update', 'user.delete',
+  'resource_mapping.create', 'resource_mapping.delete',
+  'user.create', 'user.update', 'user.delete', 'user.reset_password',
+  'profile.change_password', 'profile.update',
   'api_key.create', 'api_key.delete',
+  'tenant.create', 'tenant.update', 'tenant.suspend', 'tenant.set_admin',
+  'department.create', 'department.update', 'department.delete',
+  'session.force_logout',
+  'scan.create', 'scan.delete',
+  'apptest.create_task', 'apptest.delete_task',
   'vuln_library.create_entry', 'vuln_library.update_entry', 'vuln_library.delete_entry',
   'vuln_library.create_identifier', 'vuln_library.update_identifier', 'vuln_library.delete_identifier',
   'vuln_library.create_artifact', 'vuln_library.update_artifact', 'vuln_library.delete_artifact',
@@ -24,7 +31,8 @@ const ACTION_OPTIONS = [
 ]
 
 const RESOURCE_TYPE_OPTIONS = [
-  'auth', 'menu', 'user', 'role', 'api_key', 'profile',
+  'auth', 'menu', 'user', 'role', 'resource_mapping', 'api_key', 'profile',
+  'tenant', 'department', 'session', 'scan', 'apptest_task',
   'vuln_library_entry', 'vuln_library_identifier', 'vuln_library_artifact', 'vuln_library_category',
 ]
 

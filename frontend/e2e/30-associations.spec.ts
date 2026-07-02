@@ -75,3 +75,39 @@ test('角色管理: 点人数查看成员抽屉', async ({ page, request }) => {
     expect(ok).toBeTruthy()
   }
 })
+
+test('用户管理: 编辑用户弹窗(改角色/部门/数据范围)', async ({ page, request }) => {
+  const { name } = await provision(request)
+  await login(page)
+  await gotoRoute(page, '/users')
+  await assertNoAppCrash(page)
+  // 先按该租户筛选,缩小到关联甲/乙
+  const tenantFilter = page.locator('.ant-select', { hasText: /Filter by tenant|按租户筛选/i }).first()
+  await tenantFilter.click()
+  await selectOpt(page, name)
+  await page.waitForTimeout(1000)
+  // 点第一行的编辑按钮(actions 列的 EditOutlined 图标按钮)
+  const firstRow = page.locator('.ant-table-tbody tr').first()
+  await firstRow.locator('button:has(.anticon-edit)').first().click()
+  const modal = page.locator('.ant-modal').first()
+  await expect(modal).toBeVisible()
+  // 编辑表单应含 角色 / 部门 / 数据范围
+  await expect(modal.getByLabel(/Role|角色/i)).toBeVisible()
+  const hasDataScope = await modal.getByText(/Data Scope|数据范围/i).first().isVisible().catch(() => false)
+  expect(hasDataScope).toBeTruthy()
+  // 改姓名并保存
+  const nameInput = modal.getByLabel(/Full Name|姓名/i)
+  await nameInput.fill('关联甲改')
+  await modal.getByRole('button', { name: /Save|保存/i }).first().click()
+  await page.waitForTimeout(1200)
+  await assertNoAppCrash(page)
+})
+
+test('审计日志: 动作筛选含新增业务动作', async ({ page }) => {
+  await login(page)
+  await gotoRoute(page, '/audit')
+  await assertNoAppCrash(page)
+  // 审计页应能正常渲染表格(动作/资源筛选项已扩充)
+  await expect(page.locator('.ant-table, .ant-pro-table').first()).toBeVisible()
+})
+

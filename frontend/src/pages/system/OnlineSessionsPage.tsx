@@ -4,16 +4,28 @@ import { PageContainer, ProCard, ProTable, StatisticCard } from '@ant-design/pro
 import type { ActionType, ProColumns } from '@ant-design/pro-components'
 import { App as AntApp, Button, Popconfirm, Space, Tag, Typography } from 'antd'
 import { LogoutOutlined, ReloadOutlined, TeamOutlined } from '@ant-design/icons'
-import { sessionApi } from '../../services/system'
+import { sessionApi, organizationApi } from '../../services/system'
 import type { OnlineSession } from '../../services/system'
+import { useAccess } from '../../hooks/useAccess'
 
 const { Text } = Typography
 
 export default function OnlineSessionsPage() {
   const { t } = useTranslation()
   const { notification } = AntApp.useApp()
+  const access = useAccess()
+  const isPlatformAdmin = access.canTenantManage
   const actionRef = useRef<ActionType>()
   const [total, setTotal] = useState(0)
+  const [tenantMap, setTenantMap] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    // Platform admin: load tenant names to label sessions by tenant.
+    if (!isPlatformAdmin) return
+    organizationApi.tenants()
+      .then(d => setTenantMap(Object.fromEntries(d.tenants.map((x: any) => [x.id, x.name]))))
+      .catch(() => {})
+  }, [isPlatformAdmin])
 
   const fetchSessions = useCallback(async () => {
     try {
@@ -50,6 +62,15 @@ export default function OnlineSessionsPage() {
       ),
     },
     { title: t('sessionManagement.ip', 'IP'), dataIndex: 'ip_address', width: 140, render: (v) => v || <Text type="secondary">-</Text> },
+    {
+      title: t('usersManagement.tenant', 'Tenant'),
+      dataIndex: 'tenant_id',
+      width: 150,
+      hideInTable: !isPlatformAdmin,
+      render: (_, s) => s.tenant_id
+        ? <Text>{tenantMap[s.tenant_id] || String(s.tenant_id).slice(0, 8)}</Text>
+        : <Tag color="blue">{t('usersManagement.platformUser', 'Platform')}</Tag>,
+    },
     { title: t('sessionManagement.device', 'Device'), dataIndex: 'device_info', ellipsis: true, render: (v) => v || <Text type="secondary">-</Text> },
     { title: t('sessionManagement.loginMethod', 'Login'), dataIndex: 'login_method', width: 110, render: (v) => <Tag>{v || 'password'}</Tag> },
     { title: t('sessionManagement.loginTime', 'Login Time'), dataIndex: 'created_at', width: 180, render: (v) => v ? new Date(v as string).toLocaleString() : '-' },
