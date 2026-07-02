@@ -325,6 +325,26 @@ class TestSystemSettings:
         r = c.post(f"{API}/system/users", headers=H(ta),
                    json={"email": f"tac{sfx}@ex.com", "password": "e2ePassw0rd!", "full_name": "x", "role": "user", "data_scope": "self"})
         assert r.status_code in (200, 201) and r.json()["tenant_id"] == tid
+        member_id = r.json()["id"]
+
+        # --- privilege-escalation guards ---
+        # 1) tenant admin cannot grant a platform role (admin/service)
+        esc = c.post(f"{API}/system/users", headers=H(ta),
+                     json={"email": f"esc{sfx}@ex.com", "password": "e2ePassw0rd!", "full_name": "esc", "role": "admin", "data_scope": "self"})
+        assert esc.status_code == 403, f"tenant admin must not create platform admin, got {esc.status_code}"
+        # 2) tenant admin cannot escalate an existing member to admin
+        up = c.put(f"{API}/system/users/{member_id}", headers=H(ta), json={"role": "admin"})
+        assert up.status_code == 403, f"tenant admin must not escalate role, got {up.status_code}"
+        # 3) tenant admin cannot create/craft roles (write ops now settings:manage)
+        cr = c.post(f"{API}/system/roles", headers=H(ta),
+                    json={"name": f"super_{sfx}", "display_name": "S", "description": "x", "permission_ids": []})
+        assert cr.status_code == 403, f"tenant admin must not create roles, got {cr.status_code}"
+        # 4) tenant admin cannot delete/reset a platform-level user (the super admin)
+        admin_id = c.get(f"{API}/system/users/me", headers=H(admin)).json()["id"]
+        assert c.delete(f"{API}/system/users/{admin_id}", headers=H(ta)).status_code == 404
+        assert c.post(f"{API}/system/users/{admin_id}/reset-password", headers=H(ta),
+                      json={"new_password": "Hacked#12345"}).status_code == 404
+
         c.delete(f"{API}/organization/tenants/{tid}", headers=H(admin))
         c.delete(f"{API}/organization/tenants/{other}", headers=H(admin))
 

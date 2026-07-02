@@ -12,7 +12,7 @@ from backend.common.models.user import User
 from backend.common.schemas.auth import UserResponse, UserUpdate, UserCreate, ResetPasswordRequest, user_to_response
 from backend.common.infra.auth import get_current_user, hash_new_password, get_user_by_id, get_user
 from backend.common.infra.permissions import require_user_manage, require_user_read, require_user_create, require_user_update, require_user_delete
-from backend.common.infra.rbac.access_helpers import is_platform_admin
+from backend.common.infra.rbac.access_helpers import is_platform_admin, can_assign_role
 from backend.system.rbac.service import resolve_active_role
 from backend.common.infra.rbac.access_helpers import role_name_for
 from backend.system.audit.service import record_audit_log
@@ -70,6 +70,9 @@ async def create_user(
         )
     
     hashed_password = hash_new_password(user_data.password, email=user_data.email)
+    # Prevent privilege escalation: tenant admins cannot grant platform roles.
+    if not can_assign_role(current_user, user_data.role):
+        raise HTTPException(status_code=403, detail="Not allowed to assign this role")
     role_model = await resolve_active_role(db, user_data.role)
     tenant_id, department_id = await _resolve_org_assignment(
         db, current_user, user_data.tenant_id, user_data.department_id
@@ -259,6 +262,9 @@ async def update_user(
 
     updated_role_name = None
     if user_data.role is not None:
+        # Prevent privilege escalation: tenant admins cannot grant platform roles.
+        if not can_assign_role(current_user, user_data.role):
+            raise HTTPException(status_code=403, detail="Not allowed to assign this role")
         role_model = await resolve_active_role(db, user_data.role)
         user.role_id = role_model.id
         updated_role_name = role_model.name
@@ -323,7 +329,13 @@ async def delete_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    
+
+    # Tenant admins may only delete users within their own tenant, and never a
+    # platform-level user (tenant_id is NULL).
+    if not is_platform_admin(current_user):
+        if user.tenant_id is None or user.tenant_id != getattr(current_user, "tenant_id", None):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
     await record_audit_log(
         db,
         user=current_user,
@@ -335,7 +347,7 @@ async def delete_user(
     )
     await db.delete(user)
     await db.commit()
-    
+
     return None
 
 
@@ -354,6 +366,11 @@ async def reset_user_password(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
+
+    # Tenant admins may only reset passwords for users within their own tenant.
+    if not is_platform_admin(current_user):
+        if user.tenant_id is None or user.tenant_id != getattr(current_user, "tenant_id", None):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     # Policy-validate against the target user's email, then invalidate their sessions.
     user.hashed_password = hash_new_password(body.new_password, email=user.email)

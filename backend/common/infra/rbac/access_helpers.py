@@ -1,6 +1,11 @@
 from backend.common.models.permission import RolePermission
 from backend.common.models.user import User
 
+# Platform-level roles may only be granted by a platform super-admin. Tenant
+# admins are restricted to assigning tenant-level roles within their own tenant.
+PLATFORM_ROLES = {"admin", "service"}
+TENANT_ROLES = {"tenant_admin", "user", "viewer"}
+
 
 def role_name_for(user: User) -> str | None:
     if user is None:
@@ -31,6 +36,20 @@ def is_platform_admin(user: User) -> bool:
 
 def role_permission_filter(user: User):
     return RolePermission.role_id == user.role_id
+
+
+def can_assign_role(actor: User, target_role_name: str | None) -> bool:
+    """Whether ``actor`` is allowed to grant ``target_role_name`` to a user.
+
+    Platform super-admins may grant any role. Everyone else (incl. tenant
+    admins) may only grant tenant-level roles — never platform roles
+    (admin/service) — preventing privilege escalation.
+    """
+    if target_role_name is None:
+        return True
+    if is_platform_admin(actor):
+        return True
+    return target_role_name in TENANT_ROLES
 
 
 def restrict_to_own_records(user: User) -> bool:

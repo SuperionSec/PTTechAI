@@ -65,7 +65,7 @@ async def create_role(
     body: RoleCreate,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission_name("user:manage")),
+    current_user: User = Depends(require_permission_name("settings:manage")),
 ):
     result = await rbac_service.create_role(db, body)
     await record_audit_log(db, user=current_user, action="role.create", resource_type="role", resource_id=result.id or result.role, details={"role": result.role}, request=request)
@@ -88,7 +88,7 @@ async def update_role(
     body: RoleUpdate,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission_name("user:manage")),
+    current_user: User = Depends(require_permission_name("settings:manage")),
 ):
     result = await rbac_service.update_role(db, role, body)
     await record_audit_log(db, user=current_user, action="role.update", resource_type="role", resource_id=result.id or role, details={"role": role, "updated_fields": sorted(body.model_dump(exclude_unset=True).keys())}, request=request)
@@ -101,7 +101,7 @@ async def delete_role(
     role: str,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission_name("user:manage")),
+    current_user: User = Depends(require_permission_name("settings:manage")),
 ):
     await rbac_service.delete_role(db, role)
     await record_audit_log(db, user=current_user, action="role.delete", resource_type="role", resource_id=role, details={"role": role}, request=request)
@@ -115,7 +115,7 @@ async def update_role_permissions(
     request: Request,
     body: RolePermissionsUpdate | list[str] = Body(...),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission_name("user:manage")),
+    current_user: User = Depends(require_permission_name("settings:manage")),
 ):
     permission_ids = body.permission_ids if isinstance(body, RolePermissionsUpdate) else body
     result = await rbac_service.update_role_permissions(db, role, permission_ids)
